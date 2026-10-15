@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Globe, Lock } from 'lucide-react';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { scrollTabIntoRow } from '@/lib/utils/scroll-tab-into-row';
@@ -11,20 +10,19 @@ export type TabType = 'music' | 'liked';
 interface ProfileTabsProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  /** The owner always has Liked; a visitor has it only when the owner's likes are public. The
+      owner sets that in profile settings, so the tab carries no visibility mark. */
   showLikedTab?: boolean;
-  likedTabVisibility?: 'public' | 'private';
 }
 
 export function ProfileTabs({
   activeTab,
   onTabChange,
   showLikedTab = true,
-  likedTabVisibility,
 }: ProfileTabsProps) {
   const tabs: { key: TabType; label: string }[] = [{ key: 'music', label: 'Music' }];
   if (showLikedTab) tabs.push({ key: 'liked', label: 'Liked' });
 
-  const LikedVisibilityIcon = likedTabVisibility === 'private' ? Lock : Globe;
   const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const list = listRef.current;
@@ -51,15 +49,9 @@ export function ProfileTabs({
           <TabsTrigger
             key={tab.key}
             value={tab.key}
-            className="h-10 flex-none gap-1.5 rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
+            className="h-10 flex-none rounded-none border-0 px-3 text-sm font-normal text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent"
           >
             <span className="tab-label" data-label={tab.label}>{tab.label}</span>
-            {tab.key === 'liked' && likedTabVisibility && (
-              <LikedVisibilityIcon
-                aria-label={likedTabVisibility === 'private' ? 'Private' : 'Public'}
-                className="size-3 shrink-0 text-muted-foreground/70"
-              />
-            )}
           </TabsTrigger>
         ))}
       </TabsList>

@@ -1,9 +1,12 @@
+import type { PlatformUiKey } from '@/lib/platforms';
 import type { ConvertPartialResult, MusicLinkConversion } from '@/types';
 
 export interface ConversionHandoff {
   url: string;
   anonymous: boolean;
   barRect: { left: number; top: number; width: number; height: number } | null;
+  /** Add music: the owner's own playlist links, which the post shows as listen rows. */
+  curatorLinks?: { handle: string | null; links: Partial<Record<PlatformUiKey, string>> };
   running?: {
     idempotencyKey: string;
     result: Promise<MusicLinkConversion>;

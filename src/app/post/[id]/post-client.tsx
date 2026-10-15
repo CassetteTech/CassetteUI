@@ -1,11 +1,20 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback, type MouseEvent } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
-import { normalizePlatformKey, parsePostResponse, type PostPageData } from '@/services/post-response';
+import { normalizePlatformKey, parsePostResponse, type NormalizedPlatformKey, type PostPageData } from '@/services/post-response';
 import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
-import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
-import { PlaylistStreamingLinks } from '@/components/features/entity/playlist-streaming-links';
+import { StreamingLinks } from '@/components/features/entity/streaming-links';
+import { PlaylistCopyActions } from '@/components/features/entity/playlist-copy-actions';
+import {
+  curatorLinkCaption,
+  curatorListenRows,
+  playlistCopyTargets,
+  sharesCassetteSpotifyCopy,
+} from '@/lib/playlist-copy-placement';
+import type { LinkOriginDimension } from '@/lib/analytics/events';
+import { ACTIVE_PLATFORM_UI_KEYS } from '@/lib/platforms';
+import { CassetteSpotifyCopyLink, CASSETTE_SPOTIFY_COPY_CAPTION } from '@/components/features/entity/cassette-spotify-copy-link';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
@@ -19,7 +28,6 @@ import { PostShareMenu } from '@/components/features/post/post-share-menu';
 import { PostContextMenu } from '@/components/features/post/post-context-menu';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { takePrefetchedPost } from '@/lib/post-prefetch';
-import { handleStreamingLinkClick } from '@/utils/deep-link';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/ui/back-button';
 import {
@@ -260,14 +268,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       : undefined;
 
   const handleDeleteSuccess = useCallback(() => {
-    if (backRoute) {
-      router.push(backRoute);
-    } else if (postData?.username) {
-      router.push(`/profile/${postData.username}`);
-    } else {
-      router.push('/');
-    }
-  }, [router, backRoute, postData?.username]);
+    router.push(backRoute ?? '/studio/music');
+  }, [router, backRoute]);
 
   const handleEditSuccess = useCallback((changes: PostChanges) => {
     setPostData((prev) => (prev ? { ...prev, ...changes } : prev));
@@ -967,35 +969,83 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     normalizePlatformKey(detectedFromResolved) ||
     null;
   const analyticsSourcePlatform = sourcePlatformKey || postData?.sourcePlatform || sourcePlatformRef.current || undefined;
-  const sourceService = sourcePlatformKey ? streamingServices[sourcePlatformKey] : null;
 
   const printedByConversion = arrivedFromConversionHandoff && metadata.artwork ? printedBand(metadata.artwork) : null;
   const labelTint = printedByConversion
     ? printedByConversion.tint
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
 
-  const playlistSource = isPlaylist && sourcePlatformKey && resolvedSourceUrl && sourceService
-    ? {
-        href: resolvedSourceUrl,
-        name: sourceService.name,
-        icon: sourceService.icon,
-        onClick: (event: MouseEvent<HTMLAnchorElement>) => {
-          void captureClientEvent('streaming_link_opened', {
-            route: `/post/${postData?.postId || postId}`,
-            source_surface: 'post',
-            source_platform: sourcePlatformKey === 'appleMusic' ? 'apple' : sourcePlatformKey,
-            source_domain: resolvedSourceUrl,
-            post_id: postData?.postId || postId,
-            element_type: 'playlist',
-            is_authenticated: isAuthenticated,
-            paid_promotion_campaign_id: postData?.paidPromotionCampaignId ?? undefined,
-            curator_id: postData?.curatorId ?? undefined,
-            is_member_view: postData?.isMemberView === true,
-          });
-          handleStreamingLinkClick(event, resolvedSourceUrl);
-        },
-      }
-    : undefined;
+  // What each listen row opens. A playlist opens its original on the service it came from, the
+  // owner's own link where they set one, and Cassette's shared Spotify copy while Spotify copies go to
+  // Cassette's account; every other service gets a button in the copy block instead, so a row never
+  // builds a copy in a fan's account.
+  const curatorLinks = isPlaylist ? postData?.curatorLinks ?? {} : {};
+  const sharedSpotifyCopy =
+    isPlaylist && sharesCassetteSpotifyCopy(sourcePlatformKey) && !convertedUrls.spotify && !curatorLinks.spotify;
+  const cassetteSpotifyCopyUrl = sharedSpotifyCopy ? postData?.cassetteSpotifyCopyUrl : null;
+  const listenLinks = { ...convertedUrls };
+  const listenCaptions: Partial<Record<NormalizedPlatformKey, string>> = {};
+  const linkOrigins: Partial<Record<NormalizedPlatformKey, LinkOriginDimension>> = {};
+  for (const platform of ACTIVE_PLATFORM_UI_KEYS) {
+    if (listenLinks[platform]) linkOrigins[platform] = platform === sourcePlatformKey ? 'source' : 'cassette';
+  }
+  if (isPlaylist && sourcePlatformKey) {
+    listenCaptions[sourcePlatformKey] = 'Original playlist';
+    linkOrigins[sourcePlatformKey] = 'source';
+    if (resolvedSourceUrl) listenLinks[sourcePlatformKey] = resolvedSourceUrl;
+  }
+  if (cassetteSpotifyCopyUrl) {
+    listenLinks.spotify = cassetteSpotifyCopyUrl;
+    listenCaptions.spotify = CASSETTE_SPOTIFY_COPY_CAPTION;
+    linkOrigins.spotify = 'cassette';
+  }
+  for (const [platform, url] of curatorListenRows(sourcePlatformKey, curatorLinks)) {
+    listenLinks[platform] = url;
+    listenCaptions[platform] = curatorLinkCaption(postData?.username);
+    linkOrigins[platform] = 'curator';
+  }
+  const copyTargets = isPlaylist ? playlistCopyTargets(sourcePlatformKey, listenLinks) : [];
+  const listenSection = (
+    <div>
+      <h3 className="sr-only">Listen on</h3>
+      <StreamingLinks
+        links={listenLinks}
+        captions={listenCaptions}
+        linkOrigins={linkOrigins}
+        postId={postData?.postId || postId}
+        elementType={metadata.type}
+        sourcePlatform={analyticsSourcePlatform}
+        isAuthenticated={isAuthenticated}
+        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+        curatorId={postData?.curatorId}
+        isMemberView={postData?.isMemberView}
+        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
+      />
+      {sharedSpotifyCopy && !cassetteSpotifyCopyUrl && (
+        <CassetteSpotifyCopyLink
+          className="mt-2.5"
+          playlistId={postData?.musicElementId || ''}
+          postId={postData?.postId || postId}
+          sourcePlatform={analyticsSourcePlatform}
+          isAuthenticated={isAuthenticated}
+          paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+          curatorId={postData?.curatorId}
+          isMemberView={postData?.isMemberView}
+        />
+      )}
+      {isPlaylist && (
+        <PlaylistCopyActions
+          targets={copyTargets}
+          playlistId={postData?.musicElementId || ''}
+          postId={postData?.postId || postId}
+          playlistTrackCount={playlistTrackCount}
+          sourceUrl={resolvedSourceUrl}
+          sourcePlatform={sourcePlatformKey}
+          paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+        />
+      )}
+    </div>
+  );
   const artists = postData?.details?.artists;
   const artistLine = artists && artists.length > 0
     ? artists.map((artist, idx) => (
@@ -1032,7 +1082,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
       <PostContextMenu
         title={metadata.title}
-        links={convertedUrls}
+        links={listenLinks}
         onListen={(url, platform) => {
           void captureClientEvent('streaming_link_opened', {
             route: `/post/${postData?.postId || postId}`,
@@ -1046,6 +1096,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             curator_id: postData?.curatorId ?? undefined,
             is_member_view: postData?.isMemberView === true,
             source_context: 'context_menu',
+            link_origin: linkOrigins[platform],
           });
         }}
         onShare={() => void handleShare()}
@@ -1230,37 +1281,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                             title={metadata.title}
                             artist={isTrack || isAlbum ? artistLine : undefined}
                             meta={labelMeta}
-                            source={playlistSource}
                             tint={labelTint}
                           />
                           <div className="flex flex-1 flex-col justify-center px-6 pb-6 pt-10">
-                            <div>
-                              <h3 className="sr-only">Listen on</h3>
-                              {isPlaylist ? (
-                                <PlaylistStreamingLinks
-                                  links={convertedUrls}
-                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                                  playlistId={postData?.musicElementId || ''}
-                                  postId={postData?.postId || postId}
-                                  playlistTrackCount={playlistTrackCount}
-                                  sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                                  sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                                  paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                                />
-                              ) : (
-                                <StreamingLinks
-                                  links={convertedUrls}
-                                  postId={postData?.postId || postId}
-                                  elementType={metadata.type}
-                                  sourcePlatform={analyticsSourcePlatform}
-                                  isAuthenticated={isAuthenticated}
-                                  paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                                  curatorId={postData?.curatorId}
-                                  isMemberView={postData?.isMemberView}
-                                  className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                                />
-                              )}
-                            </div>
+                            {listenSection}
                           </div>
                           </div>
                         </div>
@@ -1375,37 +1399,10 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                   title={metadata.title}
                   artist={isTrack || isAlbum ? artistLine : undefined}
                   meta={labelMeta}
-                  source={playlistSource}
                   tint={labelTint}
                 />
                 <div className="px-3 pb-3 pt-9 sm:px-5 sm:pb-5">
-                  <div>
-                    <h3 className="sr-only">Listen on</h3>
-                    {isPlaylist ? (
-                      <PlaylistStreamingLinks
-                        links={convertedUrls}
-                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                        playlistId={postData?.musicElementId || ''}
-                        postId={postData?.postId || postId}
-                        playlistTrackCount={playlistTrackCount}
-                        sourceUrl={postData?.originalUrl || sourceUrlRef.current || convertedUrls.spotify || convertedUrls.appleMusic || convertedUrls.deezer}
-                        sourcePlatform={postData?.sourcePlatform || sourcePlatformRef.current || undefined}
-                        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                      />
-                    ) : (
-                      <StreamingLinks
-                        links={convertedUrls}
-                        postId={postData?.postId || postId}
-                        elementType={metadata.type}
-                        sourcePlatform={analyticsSourcePlatform}
-                        isAuthenticated={isAuthenticated}
-                        paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-                        curatorId={postData?.curatorId}
-                        isMemberView={postData?.isMemberView}
-                        className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
-                      />
-                    )}
-                  </div>
+                  {listenSection}
                 </div>
               </div>
 
@@ -1478,6 +1475,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         currentDescription={postData?.description || ''}
         currentPrivacy={(postData?.privacy as 'public' | 'private' | 'subscriber' | undefined) ?? 'public'}
         currentCommentsEnabled={postData?.commentsEnabled ?? true}
+        playlistLinksEditable={isPlaylist && !postData?.isRepost}
         onSuccess={handleEditSuccess}
       />
 

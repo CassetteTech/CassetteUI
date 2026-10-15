@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fixtureUsers } from './support/cassette-fixtures';
+import { fixturePosts, fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 test('opens each section at its own URL and keeps a plan draft across sections', async ({ page }) => {
@@ -85,6 +85,25 @@ test('redirects the old Add Music URL and keeps its query', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Add music' }).first()).toBeVisible();
 });
 
+test("a post's author line opens Curator Studio for its owner and the public page for everyone else", async ({ page }) => {
+  const ownPost = {
+    ...fixturePosts.publicTrack,
+    postId: 'post-own-track',
+    ownerId: fixtureUsers.member.id,
+    ownerUsername: fixtureUsers.member.username,
+  };
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, posts: [ownPost, fixturePosts.publicTrack] });
+
+  await page.goto(`/post/${ownPost.postId}`);
+  const main = page.getByRole('main').last();
+  await expect(main.getByRole('link', { name: fixtureUsers.member.username }).first()).toHaveAttribute('href', '/studio');
+  await expect(main.locator(`a[href="/profile/${fixtureUsers.member.username}"]`)).toHaveCount(0);
+
+  await page.goto(`/post/${fixturePosts.publicTrack.postId}`);
+  await expect(main.getByRole('link', { name: fixtureUsers.creator.username }).first())
+    .toHaveAttribute('href', `/profile/${fixtureUsers.creator.username}`);
+});
+
 test('the sidebar offers Add music as a button above the page links, in their box', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
@@ -92,6 +111,7 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   const sidebar = page.locator('[data-slot="sidebar"]');
   const addMusic = sidebar.getByRole('link', { name: 'Add music', exact: true });
   const studio = sidebar.getByRole('link', { name: 'Curator Studio' });
+  const account = sidebar.locator('a[href="/studio"]', { hasText: `@${fixtureUsers.member.username}` });
   const feed = sidebar.getByRole('link', { name: 'Feed' });
 
   await expect(addMusic).toHaveAttribute('href', '/studio/music/new');
@@ -99,11 +119,12 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   await expect(sidebar.getByRole('link', { name: 'Add Music', exact: true })).toHaveCount(0);
   await expect(addMusic).not.toHaveAttribute('data-active', 'true');
   await expect(studio).toHaveAttribute('data-active', 'true');
+  await expect(account).not.toHaveAttribute('data-active', 'true');
 
   const [action, row, avatar, feedIcon, signOutIcon] = await Promise.all([
     addMusic.boundingBox(),
     feed.boundingBox(),
-    sidebar.locator('a[href="/profile/miagroove"] [data-slot="avatar"]').boundingBox(),
+    account.locator('[data-slot="avatar"]').boundingBox(),
     feed.locator('svg').first().boundingBox(),
     sidebar.locator('[data-slot="sidebar-footer"]').getByRole('button', { name: 'Sign Out' }).locator('svg').boundingBox(),
   ]);
@@ -115,14 +136,14 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   expect(Math.abs(signOutIcon!.x - feedIcon!.x)).toBeLessThanOrEqual(1);
 
   const footer = sidebar.locator('[data-slot="sidebar-footer"]');
-  const [account, firstRow, report, signOut, inbox] = await Promise.all([
-    sidebar.locator('a[href="/profile/miagroove"]').boundingBox(),
+  const [accountBox, firstRow, report, signOut, inbox] = await Promise.all([
+    account.boundingBox(),
     studio.boundingBox(),
     footer.getByRole('button', { name: 'Report a Problem' }).boundingBox(),
     footer.getByRole('button', { name: 'Sign Out' }).boundingBox(),
     sidebar.locator('[data-slot="sidebar-header"]').getByRole('button', { name: 'Notifications' }).boundingBox(),
   ]);
-  expect(action!.y - (account!.y + account!.height)).toBe(20);
+  expect(action!.y - (accountBox!.y + accountBox!.height)).toBe(20);
   expect(firstRow!.y - (action!.y + action!.height)).toBe(12);
   expect(signOut!.y - report!.y).toBe(row!.y - firstRow!.y);
   expect(inbox!.x + inbox!.width).toBe(row!.x + row!.width);
@@ -150,8 +171,11 @@ test('one sidebar highlight follows the pointer over the page rows and returns t
   await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
 
   await page.goto(`/profile/${fixtureUsers.member.username}`);
-  await expect(highlight).toHaveCSS('opacity', '0');
-  await memberships.hover();
+  await expect(studio).toHaveAttribute('data-active', 'true');
   await expect(highlight).toHaveCSS('opacity', '1');
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
+  await memberships.hover();
   await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
+  await page.mouse.move(800, 400);
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
 });

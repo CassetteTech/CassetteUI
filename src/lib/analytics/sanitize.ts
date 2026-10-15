@@ -55,6 +55,7 @@ const ALLOWED_KEYS = new Set<keyof AnalyticsBaseProps>([
   'element_type_guess',
   'report_type',
   'source_context',
+  'link_origin',
   'is_creator_view',
   'is_repost',
   'signup_source',
@@ -95,6 +96,7 @@ const ENUM_KEYS: Partial<Record<keyof AnalyticsBaseProps, readonly string[]>> = 
   billing_interval: ['month', 'year'],
   user_cohort: ['new', 'existing'],
   device_category: ['mobile', 'desktop'],
+  link_origin: ['curator', 'source', 'cassette'],
 };
 
 function isForbiddenKey(key: string): boolean {

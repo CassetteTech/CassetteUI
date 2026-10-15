@@ -126,6 +126,8 @@ export function isNavItemActive(
       return pathname === '/';
     case 'profile':
       return isOwnProfilePath(pathname, user);
+    case 'curator-studio':
+      return pathname.startsWith(item.href) || isOwnProfilePath(pathname, user);
     default:
       return pathname.startsWith(item.href);
   }

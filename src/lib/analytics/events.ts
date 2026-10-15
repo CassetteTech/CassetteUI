@@ -19,6 +19,9 @@ export type SourceContextDimension =
   | 'playlist_open_button'
   | string;
 
+/** Who chose what a listen row opens: the post owner, the playlist's original, or Cassette. */
+export type LinkOriginDimension = 'curator' | 'source' | 'cassette';
+
 export type AnalyticsEventName =
   | 'auth_signup_submitted'
   | 'auth_signed_up'
@@ -123,6 +126,7 @@ export type AnalyticsBaseProps = {
   element_type_guess?: ElementTypeDimension;
   report_type?: 'conversion_issue' | 'ui_bug' | 'general_feedback' | 'missing_track' | 'wrong_match';
   source_context?: SourceContextDimension;
+  link_origin?: LinkOriginDimension;
   is_creator_view?: boolean;
   is_repost?: boolean;
   signup_source?: string;

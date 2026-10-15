@@ -6,7 +6,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import { useUserBio, useUserLikedPosts } from '@/hooks/use-profile';
 import { ProfileHeader } from '@/components/features/profile/profile-header';
-import { ProfileOwnerBar } from '@/components/features/profile/profile-owner-bar';
+import { ProfilePreviewStrip } from '@/components/features/profile/profile-preview-strip';
 import { ProfileIdentityPass, ProfileSummary } from '@/components/features/profile/profile-identity-pass';
 import { ProfileHeaderSkeleton } from '@/components/features/profile/profile-header-skeleton';
 import { ProfileTabs, type TabType } from '@/components/features/profile/profile-tabs';
@@ -30,7 +30,7 @@ import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { CuratorFollowConfirmation, CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
-import { useCuratorPage, useSubscriberPostEligibility } from '@/hooks/use-curator';
+import { useCuratorPage } from '@/hooks/use-curator';
 import { useCuratorFollow } from '@/hooks/use-curator-follow';
 import { toast } from 'sonner';
 import { useCopyToClipboard } from '@/components/interior/copy-button';
@@ -150,7 +150,6 @@ export default function ProfilePage() {
     applyCachedArtwork((plainMusic.data?.pages ?? []).flatMap((page) => page.items))
       .map((post) => ({ kind: 'post', post })),
   [plainMusic.data]);
-  const canLockPlainPosts = useSubscriberPostEligibility(isCurrentUser && noCuratorPage);
 
   const likedPostsUserId = userBio?.id || (isEditMode && user ? user.id : undefined);
   const {
@@ -231,10 +230,6 @@ export default function ProfilePage() {
     });
   }, [userBio, user]);
 
-  const handleAddMusic = useCallback(() => {
-    router.push('/studio/music/new');
-  }, [router]);
-
   const showHeaderSkeleton = isLoadingBio && !userBio;
 
   if (isEditMode && !user) {
@@ -301,7 +296,6 @@ export default function ProfilePage() {
 
   const curatorMusic = !isLikedTab && !noCuratorPage;
   const showMembershipRail = curatorMusic && Boolean(curatorPage?.membership);
-  const offersMembershipSetup = curatorPage?.viewer.isOwner === true && !curatorPage.membership;
   let content;
   if (isLikedTab) {
     content = (isLoadingBio || isLoadingLikedActivity) && likedPosts.length === 0 ? (
@@ -320,7 +314,6 @@ export default function ProfilePage() {
         ownerAccountType={userBio?.accountType}
         ownerUsername={userBio?.username}
         isCurrentUser={isCurrentUser}
-        currentUserId={user?.id}
       />
     );
   } else if (noCuratorPage) {
@@ -335,7 +328,6 @@ export default function ProfilePage() {
         loadingMore={plainMusic.isFetchingNextPage}
         onLoadMore={() => void plainMusic.fetchNextPage()}
         isOwner={isCurrentUser}
-        canLockPosts={canLockPlainPosts}
         displayName={userBio.displayName || userBio.username}
         ownerUsername={userBio.username}
         ownerAccountType={userBio.accountType}
@@ -359,7 +351,11 @@ export default function ProfilePage() {
 
   return (
     <CuratorFollowContext.Provider value={follow}>
-    <div className="studio-surface min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
+    <div className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto" data-testid="profile-content-pane">
+      {/* The preview strip frames the whole page for its owner, above the masthead and the tabs. */}
+      {isCurrentUser && userBio && (
+        <ProfilePreviewStrip username={userBio.username} musicView={isLikedTab ? null : musicView} />
+      )}
       <div className="bg-background lg:hidden">
         <div className="mx-auto max-w-4xl">
           {!isCurrentUser && userBio && (
@@ -370,13 +366,7 @@ export default function ProfilePage() {
           {showHeaderSkeleton ? (
             <ProfileHeaderSkeleton />
           ) : userBio ? (
-            <ProfileHeader
-              userBio={userBio}
-              isCurrentUser={isCurrentUser}
-              onShare={handleShare}
-              shareCopied={shareLinkCopied}
-              onAddMusic={isCurrentUser ? handleAddMusic : undefined}
-            />
+            <ProfileHeader userBio={userBio} onShare={handleShare} shareCopied={shareLinkCopied} />
           ) : null}
         </div>
       </div>
@@ -385,11 +375,7 @@ export default function ProfilePage() {
         activeTab={activeTab}
         onTabChange={changeTab}
         showLikedTab={likedSectionVisible}
-        likedTabVisibility={isCurrentUser ? likedTabVisibility : undefined}
       />
-      {isCurrentUser && userBio && (
-        <ProfileOwnerBar username={userBio.username} musicView={isLikedTab ? null : musicView} />
-      )}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">
         <div className="min-w-0 px-4 py-6 sm:px-6 lg:p-0">
           {content}
@@ -408,7 +394,6 @@ export default function ProfilePage() {
           {userBio && !showMembershipRail && (
             <ProfileIdentityPass
               user={userBio}
-              offersMembershipSetup={offersMembershipSetup}
               className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
             />
           )}

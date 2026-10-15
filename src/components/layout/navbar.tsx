@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { isHeroRoute } from './hero-routes';
 import { AnimatedPrimaryButton } from '@/components/ui/animated-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { NavbarProfileLink } from '@/components/layout/navbar-profile-link';
+import { NavbarAccountLink } from '@/components/layout/navbar-account-link';
 import { useAuthState } from '@/hooks/use-auth';
 import { usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availability';
 import { ChevronDown, AlertCircle } from 'lucide-react';
@@ -19,7 +19,6 @@ import { NotificationMenu } from './notification-menu';
 import {
   companyNavItems,
   getVisibleNavItems,
-  isOwnProfilePath,
   resolveNavHref,
 } from './navigation-config';
 
@@ -92,15 +91,6 @@ export function Navbar() {
               />
             </Link>
             
-            {isAuthenticated && (
-              <Link
-                href="/studio"
-                className="hidden lg:inline-flex items-center whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-muted"
-              >
-                Curator Studio
-              </Link>
-            )}
-
             <div className="hidden lg:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -169,8 +159,10 @@ export function Navbar() {
               <>
                 <NotificationMenu />
 
+                {/* A signed-in user's way back to Curator Studio from pages without the sidebar.
+                    Pages with the sidebar hide this bar from 1024 px. */}
                 <div className="hidden lg:block">
-                  <NavbarProfileLink />
+                  <NavbarAccountLink />
                 </div>
               </>
             ) : (
@@ -261,9 +253,8 @@ export function Navbar() {
           <div className="container mx-auto px-4 sm:px-6">
             {isAuthenticated && user && (
               <Link
-                href={`/profile/${user.username}`}
+                href="/studio"
                 onClick={() => setIsMobileMenuOpen(false)}
-                aria-current={isOwnProfilePath(pathname, user) ? 'page' : undefined}
                 className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
                 data-menu-reveal
                 style={{ '--reveal-index': 1 }}

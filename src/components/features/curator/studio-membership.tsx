@@ -62,7 +62,7 @@ export function StudioMembership({
   preview: boolean;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {hasPublished === false
         ? <MembershipSetupCard steps={setupSteps} />
         : hasPublished && profile && (

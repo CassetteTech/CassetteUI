@@ -46,7 +46,7 @@ export function WalletPass({
   children?: ReactNode;
 }) {
   return (
-    <div className={cn('card-ink overflow-hidden', holderHref && 'group relative', className)} {...rest}>
+    <div className={cn('card-quiet overflow-hidden', holderHref && 'group relative', className)} {...rest}>
       <div
         data-shared-tint="head"
         className={cn('relative p-4', active ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}

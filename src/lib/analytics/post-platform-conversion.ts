@@ -1,4 +1,4 @@
-import type { AnalyticsBaseProps, ElementTypeDimension, PlatformDimension } from './events';
+import type { AnalyticsBaseProps, ElementTypeDimension, LinkOriginDimension, PlatformDimension } from './events';
 import { normalizePlatform, sanitizeDomain } from './sanitize';
 
 export const POST_PLATFORM_CONVERSION_CONTEXTS = [
@@ -19,6 +19,7 @@ type BuildPostPlatformConversionPropsInput = {
   sourceDomain?: string;
   isAuthenticated?: boolean;
   paidPromotionCampaignId?: string | null;
+  linkOrigin?: LinkOriginDimension;
 };
 
 export function isPostPlatformConversionContext(value: string): value is PostPlatformConversionContext {
@@ -46,6 +47,7 @@ export function buildPostPlatformConversionClickedProps(
     source_domain: sanitizeDomain(input.sourceDomain),
     is_authenticated: input.isAuthenticated,
     source_context: input.sourceContext,
+    link_origin: input.linkOrigin,
     paid_promotion_campaign_id: input.paidPromotionCampaignId ?? undefined,
   };
 }

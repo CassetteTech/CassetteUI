@@ -1,33 +1,22 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { PostLink } from '@/components/features/post/post-link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { ActivityPost, AccountType } from '@/types';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { VerificationBadge } from '@/components/ui/verification-badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { EditPostModal } from '@/components/features/post/edit-post-modal';
-import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { PostQuickActions } from '@/components/features/post/post-quick-actions';
-import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { formatRelativeTime } from '@/lib/utils/format-date';
-import { Disc3, ListMusic, Lock, LockKeyhole, MoreHorizontal, Music, Pencil, Repeat2, Share, Trash2, User } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { LockKeyhole, Repeat2, Share } from 'lucide-react';
 import type { TabType } from './profile-tabs';
 import { ArtworkImage } from '@/components/ui/artwork-image';
+import { cn } from '@/lib/utils';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { PendingLabel } from '@/components/ui/interior/loading-button';
-import type { OwnerVisibility } from '@/components/features/post/post-visibility';
 
 interface ProfileActivityProps {
   posts: ActivityPost[];
@@ -37,8 +26,8 @@ interface ProfileActivityProps {
   hasMore?: boolean;
   ownerAccountType?: AccountType;
   ownerUsername?: string;
+  /** The owner's own view: changes only the empty copy, never the rows. */
   isCurrentUser?: boolean;
-  currentUserId?: string;
 }
 
 const TAB_LABELS = {
@@ -55,10 +44,7 @@ export function ProfileActivity({
   ownerAccountType,
   ownerUsername,
   isCurrentUser = false,
-  currentUserId
 }: ProfileActivityProps) {
-  const canLockPosts = useSubscriberPostEligibility(isCurrentUser);
-
   if (isLoading && posts.length === 0) {
     return <ActivitySkeleton />;
   }
@@ -92,20 +78,13 @@ export function ProfileActivity({
   return (
     <div>
       <div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 motion-safe:animate-reveal">
+        <div className="divide-y divide-border motion-safe:animate-reveal">
           {posts.map((post) => (
             <MusicPostCard
               key={post.postId}
               post={post}
               ownerAccountType={ownerAccountType}
               ownerUsername={ownerUsername}
-              isOwnPost={
-                isCurrentUser &&
-                !!currentUserId &&
-                !!post.userId &&
-                post.userId.toLowerCase() === currentUserId.toLowerCase()
-              }
-              canLockPosts={canLockPosts}
             />
           ))}
         </div>
@@ -122,14 +101,10 @@ export function ProfileActivity({
   );
 }
 
-function typeIconOf(elementType: string): LucideIcon {
-  switch (elementType.toLowerCase()) {
-    case 'playlist': return ListMusic;
-    case 'artist': return User;
-    case 'album': return Disc3;
-    default: return Music;
-  }
-}
+const rowArtwork = 'size-16 shrink-0 rounded-md outline outline-1 -outline-offset-1 outline-black/10 sm:size-20 dark:outline-white/10';
+
+/** The small label after a title: who can open the post. The red tint is the brand label. */
+const titleLabel = 'ml-2 inline-flex rounded-sm px-1.5 py-0.5 align-[0.125em] text-[11px] font-medium leading-none';
 
 export type MusicCardPost = Pick<
   ActivityPost,
@@ -151,30 +126,17 @@ export type MusicCardPost = Pick<
   | 'accountType'
 >;
 
-const allVisibilities: readonly OwnerVisibility[] = ['public', 'subscriber', 'private'];
-
 export function MusicPostCard({
   post,
   ownerAccountType,
   ownerUsername,
-  isOwnPost = false,
-  canLockPosts = false,
-  visibilities = allVisibilities,
 }: {
   post: MusicCardPost;
   ownerAccountType?: AccountType;
   ownerUsername?: string;
-  isOwnPost?: boolean;
-  canLockPosts?: boolean;
-  visibilities?: readonly OwnerVisibility[];
 }) {
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const TypeIcon = typeIconOf(post.elementType);
 
   const getNavigationPath = (post: MusicCardPost) => {
     const targetPostId = post.redirectPostId || post.postId;
@@ -220,12 +182,15 @@ export function MusicPostCard({
     : post.accountType;
   const displayedAccountType =
     sourceAccountType ?? (ownerAccountTypeApplies ? ownerAccountType : undefined);
+  // The page owner's own posts need no byline; reposts and liked posts name their author.
+  const showAuthor = !ownerUsername || sourceUsername.toLowerCase() !== ownerUsername.toLowerCase();
 
-  const hasDescription = post.description && post.description.trim().length > 0;
-  const detailText = hasDescription ? post.description : post.subtitle;
+  const note = post.description?.trim();
+  const type = post.elementType.charAt(0).toUpperCase() + post.elementType.slice(1).toLowerCase();
+  const details = [type, post.subtitle?.trim()].filter(Boolean).join(' · ');
 
   const actions = (
-    <div className="flex items-center -mt-1 -mr-1.5 flex-shrink-0">
+    <div className="-my-1 -mr-2 flex flex-shrink-0 items-center">
       <Button
         variant="ghost"
         size="icon"
@@ -233,161 +198,82 @@ export function MusicPostCard({
           e.preventDefault();
           void handleShare();
         }}
-        className="w-8 h-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+        className="size-8 text-muted-foreground hover:bg-muted hover:text-foreground"
         aria-label="Share"
       >
-        <Share className="h-4 w-4" />
+        <Share className="size-4" />
       </Button>
-
-      {isOwnPost && (
-        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => e.preventDefault()}
-              className="w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-              aria-label="More options"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.preventDefault();
-                setDropdownOpen(false);
-                setEditModalOpen(true);
-              }}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.preventDefault();
-                setDropdownOpen(false);
-                setDeleteModalOpen(true);
-              }}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
     </div>
   );
 
   return (
-    <>
-      <PostQuickActions
-        postId={post.postId}
-        title={post.title}
-        href={getNavigationPath(post)}
-        onShare={() => void handleShare()}
-        isOwner={isOwnPost}
-        privacy={post.privacy}
-        visibilities={visibilities}
-        canLockPosts={canLockPosts}
-        onEdit={() => setEditModalOpen(true)}
-        onDelete={() => setDeleteModalOpen(true)}
-      >
-      <Card quiet className="group relative gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson transition-colors duration-200 hover:bg-muted/40">
-        <PostLink href={getNavigationPath(post)} className="block px-3 sm:px-4 py-3">
-          <div className="flex gap-3 sm:gap-4 items-start">
-            <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">
-              <ArtworkImage
-                src={post.imageUrl}
-                alt={post.title}
-                width={128}
-                height={128}
-                className="w-full h-full rounded-md object-cover ring-1 ring-border/40"
-                fallbackClassName="rounded-md bg-muted/60 ring-1 ring-border/40"
-                fallbackIconClassName="size-8 text-muted-foreground/50"
-                placeholder="blur"
-                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
-              />
-              <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-background/85 backdrop-blur-md font-mono text-[9px] uppercase tracking-[0.15em] text-foreground/80 ring-1 ring-border/50">
-                <TypeIcon className="h-2.5 w-2.5" aria-hidden="true" />
-                {post.elementType}
-              </span>
-            </div>
+    <PostQuickActions
+      postId={post.postId}
+      title={post.title}
+      href={getNavigationPath(post)}
+      onShare={() => void handleShare()}
+      isOwner={false}
+    >
+      <div className="group relative">
+        <PostLink
+          href={getNavigationPath(post)}
+          className="flex items-start gap-4 rounded-md py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ArtworkImage
+            src={post.imageUrl}
+            alt={post.title}
+            width={128}
+            height={128}
+            className={cn(rowArtwork, 'object-cover')}
+            fallbackClassName={cn(rowArtwork, 'bg-muted/60')}
+            fallbackIconClassName="size-6 text-muted-foreground/50"
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJoc2woMjQwLCA0LjglLCA4My45JSkiLz48L3N2Zz4="
+          />
 
-            <div className="flex-1 min-w-0 flex flex-col">
-              <div className="flex items-start justify-between gap-2 min-w-0">
-                <div className="min-w-0 flex-1">
-                  {post.isRepost && (
-                    <div className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground/80 mb-1 min-w-0">
-                      <Repeat2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                      <span className="truncate">
-                        reposted by{' '}
-                        <span className="text-foreground/70">@{post.username}</span>
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground min-w-0">
-                    <span className="font-bold text-foreground/80 truncate">@{sourceUsername}</span>
-                    <VerificationBadge accountType={displayedAccountType} size="sm" />
-                    {post.createdAt && (
-                      <>
-                        <span className="text-muted-foreground/50 flex-shrink-0">/</span>
-                        <span className="flex-shrink-0">
-                          {formatRelativeTime(post.createdAt)}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {actions}
-              </div>
-
-              <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight text-foreground line-clamp-2 mt-1.5">
-                {post.title}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="line-clamp-2 min-w-0 text-[0.9375rem] font-medium leading-snug [text-wrap:pretty]">
+                <span className="underline-offset-2 group-hover:underline">{post.title}</span>
+                {post.privacy === 'subscriber' && (
+                  <span className={cn(titleLabel, 'bg-primary/10 text-primary')}>Members only</span>
+                )}
               </h3>
-
-              {detailText && (
-                <p className="text-muted-foreground text-sm italic line-clamp-2 leading-snug mt-1">
-                  {detailText}
-                </p>
-              )}
-
-              {isOwnPost && post.privacy?.toLowerCase() === 'private' && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground ring-1 ring-border/40 self-start mt-1.5">
-                  <Lock className="h-2.5 w-2.5" aria-hidden="true" />
-                  Private
-                </span>
-              )}
-              {post.privacy === 'subscriber' && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 font-mono text-[9px] uppercase tracking-[0.15em] text-primary ring-1 ring-primary/40 self-start mt-1.5">
-                  <LockKeyhole className="h-2.5 w-2.5" aria-hidden="true" />
-                  Members only
-                </span>
-              )}
+              {actions}
             </div>
+            <p className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-sm text-muted-foreground">
+              {showAuthor && (
+                <>
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="truncate">@{sourceUsername}</span>
+                    <VerificationBadge accountType={displayedAccountType} size="sm" />
+                  </span>
+                  <span aria-hidden>·</span>
+                </>
+              )}
+              <span className="truncate">{details}</span>
+              {post.createdAt && (
+                <>
+                  <span aria-hidden>·</span>
+                  <time dateTime={post.createdAt} className="shrink-0 tabular-nums">
+                    {formatRelativeTime(post.createdAt)}
+                  </time>
+                </>
+              )}
+            </p>
+            {post.isRepost && (
+              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Repeat2 aria-hidden className="size-3.5 shrink-0" />
+                <span className="truncate">Reposted by @{post.username}</span>
+              </p>
+            )}
+            {note && (
+              <p className="mt-1 line-clamp-2 text-sm text-foreground/85 [text-wrap:pretty]">{note}</p>
+            )}
           </div>
         </PostLink>
-      </Card>
-      </PostQuickActions>
-
-      <EditPostModal
-        open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        postId={post.postId}
-        currentDescription={post.description || ''}
-        currentPrivacy={post.privacy}
-        currentCommentsEnabled={post.commentsEnabled}
-      />
-
-      <DeletePostModal
-        open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
-        postId={post.postId}
-        postTitle={post.title}
-      />
-    </>
+      </div>
+    </PostQuickActions>
   );
 }
 
@@ -402,27 +288,22 @@ export function LockedMusicCard({
   membershipId: string;
   showMembership: boolean;
 }) {
-  const card = (
-    <Card quiet className="gap-0 sm:gap-0 p-0 sm:p-0 overflow-hidden font-atkinson">
-      <div className="flex gap-3 sm:gap-4 items-start px-3 sm:px-4 py-3">
-        <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center rounded-md bg-gradient-to-br from-primary/15 via-primary/5 to-transparent ring-1 ring-border/40">
-          <LockKeyhole className="size-8 text-primary/60" aria-hidden />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-            <span className="font-bold text-primary">Members only</span>
-            <span className="text-muted-foreground/50">/</span>
-            <time dateTime={createdAt}>{formatRelativeTime(createdAt)}</time>
-          </div>
-          <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight text-foreground mt-1.5">
-            Members-only post
-          </h3>
-          <p className="text-muted-foreground text-sm italic leading-snug mt-1">
-            Join {displayName} to open this post.
-          </p>
-        </div>
+  const row = (
+    <div className="flex items-start gap-4 py-4">
+      <div className={cn(rowArtwork, 'flex items-center justify-center bg-primary/10')}>
+        <LockKeyhole className="size-6 text-primary/70" aria-hidden />
       </div>
-    </Card>
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[0.9375rem] font-medium leading-snug">
+          Members-only post
+          <span className={cn(titleLabel, 'bg-primary/10 text-primary')}>Members only</span>
+        </h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          <time dateTime={createdAt}>{formatRelativeTime(createdAt)}</time>
+        </p>
+        <p className="mt-1 text-sm text-foreground/85">Join {displayName} to open this post.</p>
+      </div>
+    </div>
   );
 
   return (
@@ -431,30 +312,27 @@ export function LockedMusicCard({
         <a
           href={`#${membershipId}`}
           aria-label={`View ${displayName} membership`}
-          className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {card}
+          {row}
         </a>
-      ) : card}
+      ) : row}
     </article>
   );
 }
 
 export function ActivitySkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+    <div className="divide-y divide-border">
       {Array.from({ length: count }).map((_, index) => (
-        <Card key={index} quiet className="gap-0 sm:gap-0 p-0 sm:p-0">
-          <div className="flex gap-3 sm:gap-4 items-start px-3 sm:px-4 py-3 animate-pulse">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-muted/50 rounded-md flex-shrink-0" />
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="w-1/2 h-3 bg-muted/40 rounded" />
-              <div className="w-3/4 h-5 bg-muted/50 rounded" />
-              <div className="w-1/3 h-3 bg-muted/40 rounded" />
-              <div className="w-16 h-5 bg-muted/40 rounded-full" />
-            </div>
+        <div key={index} className="flex items-start gap-4 py-4">
+          <Skeleton className={rowArtwork} />
+          <div className="flex-1 space-y-2.5 pt-1">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3.5 w-1/3" />
+            <Skeleton className="h-3.5 w-3/4" />
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );

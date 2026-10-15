@@ -4,14 +4,12 @@ import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { AuthUser } from '@/types';
 
-export function SidebarAccountRow({ user, active = false }: { user: AuthUser; active?: boolean }) {
+export function SidebarAccountRow({ user }: { user: AuthUser }) {
   const name = user.displayName || user.username;
   return (
     <Link
-      href={`/profile/${user.username}`}
-      data-active={active}
-      aria-current={active ? 'page' : undefined}
-      className="flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
+      href="/studio"
+      className="flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Avatar className="size-8 border border-border/70">
         <AvatarImage src={user.profilePicture} alt="" />

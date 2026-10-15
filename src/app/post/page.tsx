@@ -78,11 +78,12 @@ function PostPageContent() {
           }
         : undefined,
       sourceLink: sourceLinkPlatform && currentUrl ? { platform: sourceLinkPlatform, url: currentUrl } : undefined,
+      curatorLinks: handedOff?.curatorLinks,
       links,
       ready: apiComplete,
       postId: createdPostId ?? undefined,
     };
-  }, [partialResult, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform]);
+  }, [partialResult, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform, handedOff?.curatorLinks]);
 
   const hasConvertedRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);

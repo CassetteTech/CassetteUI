@@ -28,7 +28,6 @@ import {
   appNavOrder,
   getOrderedNavItems,
   isNavItemActive,
-  isOwnProfilePath,
   promoteNavOrder,
   resolveNavHref,
   type NavigationItemDefinition,
@@ -213,7 +212,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         ) : user ? (
           <SidebarGroup className="pb-1">
             <SidebarGroupContent className="space-y-5">
-              <SidebarAccountRow user={user} active={isOwnProfilePath(pathname, user)} />
+              <SidebarAccountRow user={user} />
               <Button asChild size="sm" className="w-full bg-foreground text-background hover:bg-foreground/90">
                 <Link href={addMusicHrefForPage(pathname)}>
                   <Plus aria-hidden />

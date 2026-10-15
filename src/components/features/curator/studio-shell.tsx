@@ -127,7 +127,7 @@ export function StudioSection({
   chip,
   tabs,
   testId,
-  plain = false,
+  list = false,
   children,
 }: {
   id: string;
@@ -137,7 +137,8 @@ export function StudioSection({
   chip?: ReactNode;
   tabs?: ReactNode;
   testId?: string;
-  plain?: boolean;
+  /** The children are the page's own rows, so they start right under the rule. */
+  list?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -146,12 +147,9 @@ export function StudioSection({
       data-testid={testId}
       aria-labelledby={headingId}
       tabIndex={-1}
-      className={cn(
-        'scroll-mt-[calc(var(--navbar-height)+2rem)] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        plain ? 'rounded-md' : 'card-quiet',
-      )}
+      className="scroll-mt-[calc(var(--navbar-height)+2rem)] rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <div className={cn('border-b border-border/70', plain ? (tabs ? null : 'pb-4') : 'px-5 py-4 sm:px-6')}>
+      <div className={cn('border-b border-border', !tabs && 'pb-4')}>
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0">
             <h2 id={headingId} className="text-lg font-semibold leading-tight tracking-tight">
@@ -165,9 +163,9 @@ export function StudioSection({
           </div>
           {chip}
         </div>
-        {plain && tabs && <div className="mt-3 -mb-px">{tabs}</div>}
+        {tabs && <div className="mt-3 -mb-px">{tabs}</div>}
       </div>
-      <div className={plain ? 'pt-2' : 'px-5 py-5 sm:px-6 sm:py-6'}>{children}</div>
+      <div className={list ? 'pt-2' : 'pt-5'}>{children}</div>
     </section>
   );
 }
@@ -212,7 +210,7 @@ export function StudioNotice({
   );
 }
 
-export const studioFigureClassName = 'min-w-0 border-l border-border/70 pl-4';
+export const studioFigureClassName = 'min-w-0 border-l border-border pl-4';
 
 export function StudioStat({
   label,

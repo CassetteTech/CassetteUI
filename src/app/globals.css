@@ -105,11 +105,11 @@
   }
 
   .card-ink {
-    @apply rounded-lg border border-border/70 bg-card;
+    @apply rounded-lg border border-border bg-background;
   }
 
   .card-quiet {
-    @apply rounded-xl bg-card/65 backdrop-blur-sm;
+    @apply rounded-xl border border-border bg-card;
   }
 
   .surface-bottom {
@@ -178,14 +178,14 @@
     --primary-foreground: 0 0% 100%;
     --secondary: 30 40% 22%;
     --secondary-foreground: 44 43% 92%;
-    --muted: 38 30% 85%;
-    --muted-foreground: 30 20% 38%;
+    --muted: 38 18% 87%;
+    --muted-foreground: 30 8% 38%;
     --accent: 350 60% 90%;
     --accent-foreground: 210 10% 14%;
     --destructive: 348 74% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 35 25% 75%;
-    --input: 38 30% 85%;
+    --border: 36 19% 84%;
+    --input: 36 19% 84%;
     --field: 0 0% 100%;
     --ring: 350 76% 52%;
     --radius: 0.5rem;
@@ -335,16 +335,6 @@
     --muted-foreground: 30 20% 38%;
     --foreground: 210 10% 14%;
     --input: var(--cassette-white);
-  }
-
-  .studio-surface {
-    --border: 38 22% 82%;
-    --input: 38 22% 82%;
-  }
-
-  .dark .studio-surface {
-    --border: 213 7% 25%;
-    --input: 213 7% 25%;
   }
 
   .afterglow-field {

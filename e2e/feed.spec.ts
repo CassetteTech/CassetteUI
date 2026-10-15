@@ -609,11 +609,12 @@ test.describe('navigation', () => {
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
     await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
 
-    const accountRow = sidebar.locator(`a[href="/profile/${fixtureUsers.member.username}"]`);
+    const accountRow = sidebar.locator('a[href="/studio"]', { hasText: `@${fixtureUsers.member.username}` });
     await expect(accountRow).toHaveCount(1);
-    await expect(accountRow).toHaveAttribute('data-active', 'false');
     await accountRow.click();
-    await expect(accountRow).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveURL('/studio/music');
+    await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('data-active', 'true');
+    await expect(accountRow).not.toHaveAttribute('aria-current', 'page');
     await expect(sidebar.locator('[data-active="true"]')).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Sign Out' }).click();
@@ -627,25 +628,27 @@ test.describe('navigation', () => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
     await page.goto('/explore');
-    const navbar = page.getByRole('navigation').filter({ has: page.getByTestId('navbar-profile-link') });
-    await expect(navbar.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
+    const navbar = page.getByRole('navigation').filter({ has: page.getByTestId('navbar-account-link') });
+    await expect(navbar.getByTestId('navbar-account-link')).toHaveAttribute('href', '/studio');
+    // One Studio entry: the account pill, not a second text link.
+    await expect(navbar.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
 
     await page.goto('/feed');
     await page.getByRole('button', { name: 'Sign Out' }).click();
     await page.goto('/explore');
-    await expect(page.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
+    await expect(page.getByTestId('navbar-account-link')).toHaveCount(0);
   });
 
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
-    test('the signed-in menu is the sidebar: profile, Add music, then Curator Studio first', async ({ page }) => {
+    test('the signed-in menu is the sidebar: the account summary opens Studio, then Add music and Curator Studio first', async ({ page }) => {
       await mockCassetteApp(page, { currentUser: fixtureUsers.member, curatorFeed: memberFeed });
 
       await page.goto('/explore');
       await page.getByRole('button', { name: 'Open menu' }).click();
       const menu = page.locator('#mobile-menu-panel');
-      await expect(menu.getByRole('link', { name: /Mia Groove/ })).toHaveAttribute('href', `/profile/${fixtureUsers.member.username}`);
+      await expect(menu.getByRole('link', { name: /Mia Groove/ })).toHaveAttribute('href', '/studio');
       await expect(menu.getByRole('link', { name: 'Add music', exact: true }))
         .toHaveAttribute('href', `/studio/music/new?from=${encodeURIComponent('/explore')}`);
       const pages = menu.getByRole('region', { name: 'Pages' }).getByRole('link');

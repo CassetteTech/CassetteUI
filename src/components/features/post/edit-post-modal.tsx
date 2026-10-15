@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Sheet,
   SheetContent,
@@ -13,16 +14,33 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { PlaylistLinkFields } from '@/components/features/post/playlist-link-fields';
 import { useUpdatePost } from '@/hooks/use-music';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { PostPrivacy } from '@/types';
 import { appLogger } from '@/lib/observability/logger';
 import { useSubscriberPostEligibility } from '@/hooks/use-curator';
+import { apiService, ApiError } from '@/services/api';
+import { getPlatformDefinition, normalizePlatformUiKey } from '@/lib/platforms';
+import {
+  curatorLinkPlatforms,
+  fromBridgePlatformLinks,
+  type ByService,
+  playlistLinkErrors,
+  toBridgePlatformLinks,
+} from '@/lib/playlist-copy-placement';
+import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
 const MAX_DESCRIPTION_LENGTH = 500;
 
-export type PostChanges = { description?: string; privacy?: PostPrivacy; commentsEnabled?: boolean };
+export type PostChanges = {
+  description?: string;
+  privacy?: PostPrivacy;
+  commentsEnabled?: boolean;
+  /** A playlist's own links as saved, by service. */
+  curatorLinks?: ByService<string>;
+};
 
 interface EditPostModalProps {
   open: boolean;
@@ -31,6 +49,8 @@ interface EditPostModalProps {
   currentDescription: string;
   currentPrivacy?: PostPrivacy;
   currentCommentsEnabled?: boolean;
+  /** The post is the owner's own playlist post, which takes the owner's link for each service. */
+  playlistLinksEditable?: boolean;
   onSuccess?: (changes: PostChanges) => void;
   returnFocusTo?: () => HTMLElement | null | undefined;
 }
@@ -42,18 +62,39 @@ export function EditPostModal({
   currentDescription,
   currentPrivacy = 'public',
   currentCommentsEnabled = true,
+  playlistLinksEditable = false,
   onSuccess,
   returnFocusTo,
 }: EditPostModalProps) {
   const [description, setDescription] = useState(currentDescription);
   const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
   const [commentsEnabled, setCommentsEnabled] = useState(currentCommentsEnabled);
+  // Only the fields the owner edited; every other field shows the saved link.
+  const [linkEdits, setLinkEdits] = useState<ByService<string>>({});
+  const [linkErrors, setLinkErrors] = useState<ByService<string>>({});
   // A caller can open the sheet without knowing a setting (a list item may carry a default), so a
   // control counts as changed once touched, and is then saved as shown.
   const touched = useRef({ privacy: false, commentsEnabled: false });
   const updatePost = useUpdatePost();
   const canUseSubscriberPosts = useSubscriberPostEligibility(open);
   const showSubscriberOption = canUseSubscriberPosts || currentPrivacy === 'subscriber';
+  // Every caller opens the sheet with a list item at most, so the links come from the post itself.
+  const playlistPost = useQuery({
+    queryKey: ['post', postId, 'owner-links'],
+    queryFn: () => apiService.fetchPostById(postId),
+    enabled: open && playlistLinksEditable,
+  });
+  const sourcePlatform = normalizePlatformUiKey(playlistPost.data?.sourcePlatform);
+  const savedLinks = fromBridgePlatformLinks(playlistPost.data?.curatorLinks);
+  const links = { ...savedLinks, ...linkEdits };
+  // Every way out of the sheet comes through here, so it always reopens on the saved links.
+  const changeOpen = (next: boolean) => {
+    if (!next) {
+      setLinkEdits({});
+      setLinkErrors({});
+    }
+    onOpenChange(next);
+  };
 
   useEffect(() => {
     if (open) {
@@ -71,16 +112,45 @@ export function EditPostModal({
     if (description !== currentDescription) changes.description = description;
     if (touched.current.privacy) changes.privacy = privacy;
     if (touched.current.commentsEnabled) changes.commentsEnabled = commentsEnabled;
-    if (Object.keys(changes).length === 0) {
-      onOpenChange(false);
+
+    const changedLinks: ByService<string | null> = {};
+    for (const platform of playlistPost.data ? curatorLinkPlatforms(sourcePlatform) : []) {
+      const next = links[platform]?.trim() ?? '';
+      if (next !== (savedLinks[platform] ?? '')) changedLinks[platform] = next || null;
+    }
+    const problems = playlistLinkErrors(links);
+    setLinkErrors(problems);
+    if (Object.keys(problems).length > 0) return;
+
+    const linksChanged = Object.keys(changedLinks).length > 0;
+    if (Object.keys(changes).length === 0 && !linksChanged) {
+      changeOpen(false);
       return;
     }
     try {
-      await updatePost.mutateAsync({ postId, ...changes });
+      await updatePost.mutateAsync({
+        postId,
+        ...changes,
+        platformLinks: linksChanged ? toBridgePlatformLinks(changedLinks) : undefined,
+      });
       toast.success('Post updated successfully');
-      onOpenChange(false);
+      changeOpen(false);
+      if (linksChanged) {
+        const curatorLinks: ByService<string> = {};
+        for (const platform of curatorLinkPlatforms(sourcePlatform)) {
+          const url = links[platform]?.trim();
+          if (url) curatorLinks[platform] = url;
+        }
+        changes.curatorLinks = curatorLinks;
+      }
       onSuccess?.(changes);
     } catch (error) {
+      // A refused link shows on its own field; Bridge names the platform it was set for.
+      const refusedPlatform = error instanceof ApiError ? getPlatformDefinition(error.platform)?.uiKey : undefined;
+      if (refusedPlatform) {
+        setLinkErrors({ [refusedPlatform]: getUserFacingApiErrorMessage(error) });
+        return;
+      }
       appLogger.error('post_update_failed', { error, route: '/post/[id]', post_id: postId });
       toast.error('Failed to update post. Please try again.');
     }
@@ -105,8 +175,8 @@ export function EditPostModal({
   const isOverLimit = charactersRemaining < 0;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md" returnFocusTo={returnFocusTo}>
+    <Sheet open={open} onOpenChange={changeOpen}>
+      <SheetContent side="right" className="w-full max-w-md overflow-y-auto" returnFocusTo={returnFocusTo}>
         <SheetHeader>
           <SheetTitle className="text-foreground">Edit Post</SheetTitle>
           <SheetDescription className="text-muted-foreground">
@@ -165,10 +235,32 @@ export function EditPostModal({
           </div>
         </div>
 
+        {playlistLinksEditable && (
+          <section aria-labelledby="post-playlist-links-heading" className="space-y-3 px-4">
+            <h3 id="post-playlist-links-heading" className="text-sm font-medium text-foreground">Where fans listen</h3>
+            {playlistPost.isError ? (
+              <p role="alert" className="text-sm text-destructive">Your links could not load. Close this and try again.</p>
+            ) : playlistPost.data ? (
+              <PlaylistLinkFields
+                sourcePlatform={sourcePlatform}
+                values={links}
+                errors={linkErrors}
+                onChange={(platform, value) => {
+                  setLinkEdits((current) => ({ ...current, [platform]: value }));
+                  setLinkErrors((current) => ({ ...current, [platform]: undefined }));
+                }}
+                disabled={updatePost.isPending}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Loading your links…</p>
+            )}
+          </section>
+        )}
+
         <SheetFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
             variant="ghost"
-            onClick={() => onOpenChange(false)}
+            onClick={() => changeOpen(false)}
             disabled={updatePost.isPending}
           >
             Cancel

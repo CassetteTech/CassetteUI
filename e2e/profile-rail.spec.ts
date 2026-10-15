@@ -53,15 +53,17 @@ test.describe('profile rail', () => {
     await expect(html).toHaveAttribute('data-view-transitions', '1');
   });
 
-  test('puts the inbox in the sidebar header and gives the own-profile row the full width', async ({ page }) => {
+  test('puts the inbox in the sidebar header and gives the account row the full width', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, curatorPage: fixtureCuratorPage });
 
-    await page.goto(`/profile/${fixtureUsers.viewer.username}`);
+    await page.goto('/studio');
 
     const sidebar = page.locator('[data-slot="sidebar"]');
     await expect(sidebar.locator('[data-slot="sidebar-header"]').getByRole('button', { name: 'Notifications' })).toBeVisible();
-    const accountRow = sidebar.locator('a[aria-current="page"]', { hasText: `@${fixtureUsers.viewer.username}` });
+    const accountRow = sidebar.locator('a[href="/studio"]', { hasText: `@${fixtureUsers.viewer.username}` });
     await expect(accountRow).toBeVisible();
+    // The account row opens Studio but the Curator Studio page row is the active one.
+    await expect(accountRow).not.toHaveAttribute('aria-current', 'page');
     const addMusic = sidebar.getByRole('link', { name: 'Add music' });
     const [rowBox, buttonBox] = await Promise.all([accountRow.boundingBox(), addMusic.boundingBox()]);
     expect(rowBox?.width).toBe(buttonBox?.width);
@@ -119,7 +121,7 @@ test.describe('profile rail', () => {
     await expect(page.getByTestId('profile-identity-pass')).toBeHidden();
   });
 
-  test('offers membership setup on the owner pass while the page sells none', async ({ page }) => {
+  test('shows the owner the plain profile pass, as visitors see it, and leads to Studio from the strip', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.playlistCurator,
       curatorPage: { ...fixtureFreeCuratorPage, viewer: { isOwner: true, isMember: false, hasMemberBadge: false } },
@@ -127,10 +129,14 @@ test.describe('profile rail', () => {
 
     await page.goto(`/profile/${fixtureUsers.playlistCurator.username}`);
 
-    const setup = page.getByTestId('profile-identity-pass').getByRole('link', { name: 'Start earning from your music' });
-    await expect(setup).toHaveAttribute('href', '/studio/membership#studio-plan');
-    await setup.click();
-    await expect(page).toHaveURL('/studio/membership#studio-plan');
+    // Membership setup is a Studio tool; the public page is a read-only preview.
+    const pass = page.getByTestId('profile-identity-pass');
+    await expect(pass).toBeVisible();
+    await expect(pass.getByRole('link', { name: 'Start earning from your music' })).toHaveCount(0);
+    const studio = page.getByTestId('profile-preview-strip').getByRole('link', { name: 'Open Studio' });
+    await expect(studio).toHaveAttribute('href', '/studio/music');
+    await studio.click();
+    await expect(page).toHaveURL('/studio/music');
   });
 
   test('gives a visitor Follow, not membership setup, on a page that sells none', async ({ page }) => {
@@ -163,7 +169,7 @@ test.describe('profile rail', () => {
     await expect(page.getByRole('link', { name: 'Start earning from your music' })).toHaveCount(0);
   });
 
-  test('shows the owner bar and the owner note on the own page without a second identity', async ({ page }) => {
+  test('shows the preview strip and the visitor pass with an inert Join on the own page, without a second identity', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.playlistCurator,
       curatorPage: { ...fixtureCuratorPage, viewer: { isOwner: true, isMember: false, hasMemberBadge: false } },
@@ -171,8 +177,11 @@ test.describe('profile rail', () => {
 
     await page.goto(`/profile/${fixtureUsers.playlistCurator.username}`);
 
-    await expect(page.getByTestId('profile-owner-bar')).toBeVisible();
-    await expect(page.getByTestId('curator-membership-card')).toBeVisible();
+    await expect(page.getByTestId('profile-preview-strip')).toBeVisible();
+    const pass = page.getByTestId('curator-membership-card');
+    await expect(pass).toBeVisible();
+    await expect(pass.getByTestId('membership-join-preview')).toHaveAttribute('aria-disabled', 'true');
+    await expect(pass.getByText('Manage in Curator Studio')).toHaveCount(0);
     await expect(page.getByTestId('profile-identity-pass')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Go back' })).toHaveCount(0);
   });

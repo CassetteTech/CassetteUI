@@ -34,7 +34,7 @@ test('hides Boost discovery while sales are closed and keeps the direct page', a
   await ownedCampaigns;
   await expect(page.getByText('Make music?')).toHaveCount(0);
   await expect(promoteLinks(page)).toHaveCount(0);
-  await expect(page.getByTestId('navbar-profile-link')).toHaveAttribute('href', `/profile/${fixtureUsers.member.username}`);
+  await expect(page.getByTestId('navbar-account-link')).toHaveAttribute('href', '/studio');
 
   await visit(page, '/explore');
   await expect(page.locator('footer').last()).toContainText('Release Notes');

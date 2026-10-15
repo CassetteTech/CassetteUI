@@ -14,6 +14,7 @@ import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
 import { YAxis } from '@/components/dither-kit/y-axis';
 import {
+  StudioSection,
   StudioStat,
   StudioStepsContext,
   studioToneText,
@@ -209,7 +210,7 @@ function MemberTrend({ stats }: { stats: CuratorMemberStats }) {
           <Tooltip labelKey="day" valueFormatter={(value) => countFormatter.format(value)} />
         </AreaChart>
       </figure>
-      <p className="mt-4 border-t border-border/70 pt-4 text-xs text-muted-foreground">
+      <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
         A membership counts as ended on the day its access ends, not the day the fan cancels.
       </p>
     </>
@@ -327,8 +328,8 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
   const dimmed = cn('transition-opacity motion-reduce:transition-none', stats.isPlaceholderData && 'opacity-60');
 
   return (
-    <div id="studio-members" data-testid="curator-earnings-card" tabIndex={-1} className="scroll-mt-24 space-y-6 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-      <section aria-labelledby="curator-earnings-title" aria-busy={stats.isPlaceholderData} className="card-quiet px-5 py-5 sm:px-6">
+    <div id="studio-members" data-testid="curator-earnings-card" tabIndex={-1} className="scroll-mt-24 space-y-10 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+      <section aria-labelledby="curator-earnings-title" aria-busy={stats.isPlaceholderData}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 id="curator-earnings-title" className="text-xs text-muted-foreground">Active members</h2>
@@ -346,8 +347,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
         <div className={dimmed}>{members}</div>
       </section>
 
-      <section aria-labelledby="curator-earnings-history-title" className="card-quiet px-5 py-5 sm:px-6">
-        <h2 id="curator-earnings-history-title" className="text-sm font-semibold">Activity</h2>
+      <StudioSection id="studio-activity" title="Activity" headingId="curator-earnings-history-title" list>
         {query.isPending ? (
           <output className="mt-3 block text-sm text-muted-foreground">Loading activity…</output>
         ) : query.isError || !earnings ? (
@@ -385,7 +385,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
           </div>
         )}
         {earnings && showPagination && (
-          <nav className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3" aria-label="Earnings history pages">
+          <nav className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3" aria-label="Earnings history pages">
             <Button
               type="button"
               variant="ghost"
@@ -413,7 +413,7 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
             </Button>
           </nav>
         )}
-      </section>
+      </StudioSection>
     </div>
   );
 }

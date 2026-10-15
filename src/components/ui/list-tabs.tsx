@@ -33,7 +33,7 @@ export function ListTabs<T extends string>({
     if (list && tab) scrollTabIntoRow(list, tab);
   }, [value]);
   return (
-    <div className={cn('border-b border-border/70', className)}>
+    <div className={cn('border-b border-border', className)}>
       <div ref={row} role="radiogroup" aria-label={label} className={cn(listTabsRowClassName, '-mb-px')}>
         <TabUnderline value={value} />
         {options.map((option) => {

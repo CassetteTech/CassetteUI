@@ -4,7 +4,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
-import type { ElementTypeDimension } from '@/lib/analytics/events';
+import type { ElementTypeDimension, LinkOriginDimension } from '@/lib/analytics/events';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
 import {
   DISPLAY_PLATFORM_DEFINITIONS,
@@ -21,6 +21,10 @@ interface StreamingLinksProps {
     tidal?: string;
     youtubeMusic?: string;
   };
+  /** A line under a service's name that says what its link opens, keyed like `links`. */
+  captions?: Partial<Record<string, string>>;
+  /** Who chose each link, for analytics, keyed like `links`. */
+  linkOrigins?: Partial<Record<string, LinkOriginDimension>>;
   className?: string;
   postId?: string;
   elementType?: ElementTypeDimension;
@@ -54,6 +58,8 @@ export const streamingServices: Record<string, StreamingService> = Object.fromEn
 
 export const StreamingLinks: React.FC<StreamingLinksProps> = ({
   links,
+  captions,
+  linkOrigins,
   className,
   postId,
   elementType,
@@ -87,7 +93,8 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                 const normalizedSourcePlatform = normalizePlatform(sourcePlatform) ?? 'unknown';
                 const route = typeof window !== 'undefined' ? window.location.pathname : '/post';
                 const conversionClickProps = buildPostPlatformConversionClickedProps({
-                  sourceContext: 'destination_open_button',
+                  // Playlist opens keep their own context in the demand matrix, as before the copy block existed.
+                  sourceContext: elementType === 'playlist' ? 'playlist_open_button' : 'destination_open_button',
                   route,
                   postId,
                   elementType,
@@ -96,6 +103,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   sourceDomain: url,
                   isAuthenticated,
                   paidPromotionCampaignId,
+                  linkOrigin: linkOrigins?.[platform],
                 });
                 if (conversionClickProps) {
                   void captureClientEvent('post_platform_conversion_clicked', conversionClickProps);
@@ -112,6 +120,7 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   paid_promotion_campaign_id: paidPromotionCampaignId ?? undefined,
                   curator_id: curatorId ?? undefined,
                   is_member_view: isMemberView === true,
+                  link_origin: linkOrigins?.[platform],
                 });
                 handleStreamingLinkClick(event, url);
               }}
@@ -142,9 +151,18 @@ export const StreamingLinks: React.FC<StreamingLinksProps> = ({
                   />
                 </span>
 
-                <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
-                  {service.name}
-                </span>
+                {captions?.[platform] ? (
+                  <span className="flex min-w-0 flex-col text-left">
+                    <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                      {service.name}
+                    </span>
+                    <span className="truncate font-roboto-flex text-xs text-muted-foreground">{captions[platform]}</span>
+                  </span>
+                ) : (
+                  <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] sm:text-xs">
+                    {service.name}
+                  </span>
+                )}
 
                 <ArrowUpRight
                   aria-hidden

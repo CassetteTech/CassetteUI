@@ -93,6 +93,12 @@ export interface FixturePost {
   commentsEnabled?: boolean;
   conversionSuccessCount?: number;
   originalUrl: string;
+  /** Cassette's shared Spotify copy of a playlist, when one exists. */
+  cassetteSpotifyCopyUrl?: string;
+  /** The service a playlist came from, as Bridge names it (`deezer`, `applemusic`, `spotify`). */
+  sourcePlatform?: string;
+  /** The owner's own link for each service on a playlist post, keyed like Bridge (`applemusic`). */
+  curatorLinks?: Record<string, string>;
   convertedUrls?: {
     spotify?: string;
     appleMusic?: string;

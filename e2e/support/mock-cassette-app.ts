@@ -435,6 +435,19 @@ const toActivityItem = (post: FixturePost, state: MockState) => {
   };
 };
 
+/** Bridge sets each named platform's link; null removes it. */
+const applyPlatformLinks = (
+  current: Record<string, string>,
+  changes: Record<string, string | null> | undefined,
+) => {
+  const next = { ...current };
+  for (const [platform, url] of Object.entries(changes ?? {})) {
+    if (url) next[platform] = url;
+    else delete next[platform];
+  }
+  return next;
+};
+
 const toPostByIdResponse = (post: FixturePost) => ({
   success: true,
   postId: post.postId,
@@ -455,6 +468,9 @@ const toPostByIdResponse = (post: FixturePost) => ({
   commentsEnabled: post.commentsEnabled ?? true,
   description: post.description || '',
   originalLink: post.originalUrl,
+  cassetteSpotifyCopyUrl: post.cassetteSpotifyCopyUrl ?? null,
+  sourcePlatform: post.sourcePlatform ?? null,
+  curatorLinks: post.curatorLinks ?? {},
   details: {
     title: post.title,
     artist: post.artist || '',
@@ -1865,6 +1881,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         sourceLink: string;
         description?: string;
         privacy?: FixturePost['privacy'];
+        platformLinks?: Record<string, string | null>;
       };
       if (state.paidPromotionConversionDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, state.paidPromotionConversionDelayMs));
@@ -1877,6 +1894,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const createdPost = createOwnedPostFromTemplate(state, template, {
         description: payload.description || template.description || '',
         privacy: payload.privacy ?? 'public',
+        curatorLinks: applyPlatformLinks({}, payload.platformLinks),
       });
 
       return json(route, {
@@ -2527,16 +2545,17 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       });
     }
 
-    if (pathname === '/api/v1/music-services/spotify/init' && method === 'POST') {
+    const redirectService = /^\/api\/v1\/music-services\/(spotify|deezer)\/(init|exchange-code)$/.exec(pathname);
+    if (redirectService && redirectService[2] === 'init' && method === 'POST') {
       return json(route, {
-        authUrl: '/spotify_callback?code=mock-code&state=mock-state',
+        authUrl: `/${redirectService[1]}_callback?code=mock-code&state=mock-state`,
       });
     }
 
-    if (pathname === '/api/v1/music-services/spotify/exchange-code' && method === 'POST') {
+    if (redirectService && redirectService[2] === 'exchange-code' && method === 'POST') {
       const currentUser = getCurrentUserOrThrow(state);
       const connections = new Set(state.musicConnectionsByUserId.get(currentUser.id) || []);
-      connections.add('Spotify');
+      connections.add(redirectService[1] === 'spotify' ? 'Spotify' : 'Deezer');
       state.musicConnectionsByUserId.set(currentUser.id, Array.from(connections));
       updateUser(state, currentUser.id, {
         musicConnections: Array.from(connections),
@@ -2576,7 +2595,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         playlist_url:
           platformName === 'AppleMusic'
             ? 'https://music.apple.com/us/playlist/test-playlist/505050'
-            : 'https://open.spotify.com/playlist/test-playlist-505050',
+            : platformName === 'Deezer'
+              ? 'https://www.deezer.com/playlist/505050'
+              : 'https://open.spotify.com/playlist/test-playlist-505050',
         tracks_added: totalTracks,
         tracks_failed: 0,
         total_tracks: totalTracks,
@@ -2758,12 +2779,14 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           description?: string;
           privacy?: FixturePost['privacy'];
           commentsEnabled?: boolean;
+          platformLinks?: Record<string, string | null>;
         };
         const updatedPost = {
           ...post,
           description: payload.description ?? post.description,
           privacy: payload.privacy ?? post.privacy,
           commentsEnabled: payload.commentsEnabled ?? post.commentsEnabled,
+          curatorLinks: applyPlatformLinks(post.curatorLinks ?? {}, payload.platformLinks),
         };
         upsertPost(state, updatedPost);
         // Keep the curator feed in step, as Bridge reads both from the same post row.

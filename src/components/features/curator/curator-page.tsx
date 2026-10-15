@@ -36,7 +36,6 @@ import { captureClientEvent } from '@/lib/analytics/client';
 import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
 import { Button } from '@/components/ui/button';
 import { CuratorMembershipCard, MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
-import { useSubscriberPostEligibility } from '@/hooks/use-curator';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
 import { CarriedActionConfirmation } from '@/components/features/curator/carried-action-confirmation';
@@ -91,7 +90,6 @@ export function PublicCuratorPage({
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
   const page = query.data?.pages[0];
-  const canLockPosts = useSubscriberPostEligibility(page?.viewer.isOwner ?? false);
   const [interval, setBillingInterval] = useState(initialInterval);
   const [pollStatus, setPollStatus] = useState(membershipFlow === 'return' || membershipFlow === 'portal-return');
   const [notice, setNotice] = useState<string | null>(
@@ -418,7 +416,7 @@ export function PublicCuratorPage({
       <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
       <div className="grid gap-6">
-        {page.membership && !page.viewer.isMember && !page.viewer.isOwner && (
+        {page.membership && !page.viewer.isMember && (
           <a
             href={`#${membershipId}`}
             data-testid="membership-banner"
@@ -448,8 +446,6 @@ export function PublicCuratorPage({
           loadingMore={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
           isOwner={page.viewer.isOwner}
-          canLockPosts={canLockPosts}
-          visibilities={['public', 'subscriber']}
           displayName={displayName}
           ownerUsername={page.curator.username}
           ownerAccountType={page.curator.accountType}

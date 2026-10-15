@@ -1,3 +1,5 @@
+
+import { z } from 'zod';
 import { clientConfig } from '@/lib/config-client';
 import {
   MusicLinkConversion,
@@ -110,13 +112,15 @@ export class ApiError extends Error {
   postId?: string;
   apiStatus?: string;
   correlationId?: string;
+  /** The platform a refused owner link was set for. */
+  platform?: string;
 
   constructor(
     message: string,
     requiresReauth = false,
     errorCode?: string,
     status?: number,
-    details?: { retryAfterMs?: number; jobId?: string; postId?: string; apiStatus?: string; correlationId?: string }
+    details?: { retryAfterMs?: number; jobId?: string; postId?: string; apiStatus?: string; correlationId?: string; platform?: string }
   ) {
     super(message);
     this.name = 'ApiError';
@@ -128,6 +132,7 @@ export class ApiError extends Error {
     this.postId = details?.postId;
     this.apiStatus = details?.apiStatus;
     this.correlationId = details?.correlationId;
+    this.platform = details?.platform;
   }
 }
 
@@ -228,6 +233,7 @@ class ApiService {
         const postId = typeof error.postId === 'string' ? error.postId : undefined;
         const apiStatus = typeof error.status === 'string' ? error.status : undefined;
         const bodyCorrelationId = normalizeCorrelationId(error.correlationId);
+        const platform = z.string().safeParse(error.platform).data;
         throw new ApiError(
           errorMessage,
           requiresReauth,
@@ -239,6 +245,7 @@ class ApiService {
             postId,
             apiStatus,
             correlationId: bodyCorrelationId ?? responseCorrelationId,
+            platform,
           }
         );
       }
@@ -300,7 +307,14 @@ class ApiService {
 
   async convertMusicLink(
     url: string,
-    options?: { anonymous?: boolean; description?: string; idempotencyKey?: string; privacy?: PostPrivacy }
+    options?: {
+      anonymous?: boolean;
+      description?: string;
+      idempotencyKey?: string;
+      privacy?: PostPrivacy;
+      /** The owner's own link for each service, keyed by Bridge platform. Playlists only. */
+      platformLinks?: Record<string, string | null>;
+    }
   ): Promise<MusicLinkConversion> {
     const correlationId = createCorrelationId();
     const detected = detectContentType(url);
@@ -330,6 +344,7 @@ class ApiService {
         sourceLink: url,
         description: options?.description || undefined,
         privacy: options?.privacy,
+        platformLinks: options?.platformLinks,
       }),
       skipAuth: options?.anonymous,
       correlationId,
@@ -1368,12 +1383,19 @@ class ApiService {
 
   async updatePost(
     postId: string,
-    updates: { description?: string; privacy?: string; commentsEnabled?: boolean }
+    updates: {
+      description?: string;
+      privacy?: string;
+      commentsEnabled?: boolean;
+      /** Keyed by Bridge platform; null removes that platform's link. */
+      platformLinks?: Record<string, string | null>;
+    }
   ): Promise<{ postId: string; description?: string; privacy?: string; commentsEnabled?: boolean }> {
     const payload: Record<string, unknown> = {};
     if (updates.description !== undefined) payload.description = updates.description;
     if (updates.privacy !== undefined) payload.privacy = updates.privacy;
     if (updates.commentsEnabled !== undefined) payload.commentsEnabled = updates.commentsEnabled;
+    if (updates.platformLinks !== undefined) payload.platformLinks = updates.platformLinks;
 
     return this.request(`/api/v1/social/posts/${postId}`, {
       method: 'PATCH',

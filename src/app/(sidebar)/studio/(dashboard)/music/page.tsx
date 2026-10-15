@@ -166,7 +166,7 @@ function LibraryRows({ listRef, posts, total, library, rowProps }: {
         ref={listRef}
         inert={switching}
         aria-busy={switching || undefined}
-        className={cn('divide-y divide-border/60 transition-opacity duration-150', switching && 'opacity-50')}
+        className={cn('divide-y divide-border transition-opacity duration-150', switching && 'opacity-50')}
       >
         {posts.map((post) => <StudioMusicRow key={post.postId} post={post} {...rowProps} />)}
       </ul>
@@ -223,7 +223,7 @@ export default function StudioMusicPage() {
     body = (
       <>
         <output className="sr-only">Loading your music…</output>
-        <ul aria-hidden className="divide-y divide-border/60">
+        <ul aria-hidden className="divide-y divide-border">
           {[0, 1, 2].map((index) => <StudioMusicRowSkeleton key={index} />)}
         </ul>
       </>
@@ -265,7 +265,7 @@ export default function StudioMusicPage() {
       // Stays mounted, so a new count after a filter change is announced. The morph keeps a
       // plain copy of the line for screen readers and hides its moving letters.
       description={<span aria-live="polite" className="tabular-nums"><TextMorph>{countLine}</TextMorph></span>}
-      plain
+      list
       chip={(
         <AudienceFilter
           audience={audience}

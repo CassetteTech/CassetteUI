@@ -192,6 +192,9 @@ function StudioShareLinks({ onPageLinkCopied, className }: { onPageLinkCopied: (
           <ArrowUpRight aria-hidden />
         </Link>
       </Button>
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`${publicPath}/edit`}>Edit profile</Link>
+      </Button>
     </div>
   );
 }
@@ -365,7 +368,7 @@ function StudioDashboard({ children }: { children: ReactNode }) {
 
   return (
     <StudioStepsContext.Provider value={open}>
-      <CoralGlow afterglow className="studio-surface min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <CoralGlow afterglow className="min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
         <StudioHeader onPageLinkCopied={launch.markPageLinkCopied} share={!wide} />
         {/* Waits for the profile read too: until it answers, no plan reads as no publish. */}
         <MembershipInvitation

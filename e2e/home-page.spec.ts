@@ -31,12 +31,12 @@ test.describe('home page', () => {
     await expect(page.getByText(/Curator Pro/)).toHaveText(['Coming later: Curator Pro, optional extra tools for curators.']);
   });
 
-  test('links the signed-in pill to the public profile, with the account menu below 1024 px', async ({ page }) => {
+  test('links the signed-in pill to Curator Studio, with the account menu below 1024 px', async ({ page }) => {
     await mockCassetteApp(page, { currentUser: fixtureUsers.member });
     await page.goto('/');
 
-    const pill = page.getByTestId('navbar-profile-link');
-    await expect(pill).toHaveAttribute('href', `/profile/${fixtureUsers.member.username}`);
+    const pill = page.getByTestId('navbar-account-link');
+    await expect(pill).toHaveAttribute('href', '/studio');
     await expect(pill).toHaveAccessibleName(/^Mia Groove\s*@miagroove$/);
     await expect(page.getByRole('button', { name: 'Open menu' })).toBeHidden();
 
@@ -44,7 +44,7 @@ test.describe('home page', () => {
     await expect(pill).toBeHidden();
     await page.getByRole('button', { name: 'Open menu' }).click();
     const menu = page.locator('#mobile-menu-panel');
-    await expect(menu.getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('href', '/studio');
+    await expect(menu.getByRole('link', { name: /Mia Groove/ })).toHaveAttribute('href', '/studio');
     await expect(menu.getByRole('button', { name: 'Sign Out' })).toBeVisible();
     const kofi = await page.getByRole('button', { name: 'Support Cassette on Ko-fi' }).boundingBox();
     expect(kofi).not.toBeNull();

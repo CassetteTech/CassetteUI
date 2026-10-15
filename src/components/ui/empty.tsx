@@ -9,7 +9,7 @@ const Empty = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/70 px-6 py-12 text-center",
+      "flex flex-col items-center justify-center gap-3 px-6 py-12 text-center",
       className
     )}
     {...props}

@@ -2,18 +2,15 @@
 
 import { useId } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Check, Plus, Settings, Share2, Shield } from 'lucide-react';
+import { Check, Share2 } from 'lucide-react';
 import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { CoralGlow } from '@/components/ui/coral-glow';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { AvatarPreviewDialog } from '@/components/features/profile/avatar-preview-dialog';
 import { StudioChip } from '@/components/features/curator/studio-shell';
 import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
-import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { useShowMore } from '@/components/ui/interior/show-more';
@@ -25,22 +22,13 @@ const iconControl =
 
 interface ProfileHeaderProps {
   userBio: UserBio;
-  isCurrentUser: boolean;
   onShare: () => void;
   shareCopied?: boolean;
-  onAddMusic?: () => void;
 }
 
-export function ProfileHeader({
-  userBio,
-  isCurrentUser,
-  onShare,
-  shareCopied = false,
-  onAddMusic,
-}: ProfileHeaderProps) {
+export function ProfileHeader({ userBio, onShare, shareCopied = false }: ProfileHeaderProps) {
   const reduceMotion = useReducedMotion();
   const totalLikesReceived = Number(userBio.totalLikesReceived ?? 0);
-  const showActions = isCurrentUser && (onAddMusic || isCassetteInternalAccount(userBio.accountType));
 
   return (
     <motion.header
@@ -57,7 +45,7 @@ export function ProfileHeader({
           avatarUrl={userBio.avatarUrl}
           username={userBio.username}
           displayName={userBio.displayName}
-          isCurrentUser={isCurrentUser}
+          isCurrentUser={false}
         >
           <button
             type="button"
@@ -96,11 +84,6 @@ export function ProfileHeader({
               <output aria-live="polite" className="sr-only">
                 {shareCopied ? 'Profile link copied' : ''}
               </output>
-              {isCurrentUser && (
-                <Link href={`/profile/${userBio.username}/edit`} aria-label="Edit profile" className={iconControl}>
-                  <Settings className="h-5 w-5" />
-                </Link>
-              )}
             </div>
           </div>
           {totalLikesReceived > 0 && (
@@ -126,25 +109,6 @@ export function ProfileHeader({
       <ProfileLinksRow links={userBio.profileLinks} />
 
       <CuratorFollowAction compact />
-
-      {showActions && (
-        <div className="flex flex-row gap-2 pt-1 sm:gap-3">
-          {onAddMusic && (
-            <Button type="button" variant="outline" size="sm" onClick={onAddMusic}>
-              <Plus aria-hidden="true" />
-              Add music
-            </Button>
-          )}
-          {isCassetteInternalAccount(userBio.accountType) && (
-            <Button asChild variant="outline" size="sm">
-              <Link href="/internal">
-                <Shield aria-hidden="true" />
-                Internal
-              </Link>
-            </Button>
-          )}
-        </div>
-      )}
     </CoralGlow>
     </motion.header>
   );

@@ -6,6 +6,7 @@ import {
   type PostByIdResponse,
   type PostResponseTrack,
 } from '@/types';
+import { fromBridgePlatformLinks } from '@/lib/playlist-copy-placement';
 import { detectContentType } from '@/utils/content-type-detection';
 
 export type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
@@ -17,6 +18,9 @@ export type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> &
   paidPromotionCampaignId?: string | null;
   curatorId?: string | null;
   isMemberView?: boolean;
+  cassetteSpotifyCopyUrl?: string | null;
+  /** The owner's own link for each service on a playlist post. */
+  curatorLinks?: Partial<Record<NormalizedPlatformKey, string>>;
   repostedByCurrentUser?: boolean;
   username?: string;
   userId?: string | null;
@@ -156,6 +160,8 @@ export function parsePostResponse(response: PostByIdResponse, requestedPostId: s
     paidPromotionCampaignId: response.paidPromotionCampaignId ?? null,
     curatorId: response.curatorId ?? null,
     isMemberView: response.isMemberView === true,
+    cassetteSpotifyCopyUrl: response.cassetteSpotifyCopyUrl ?? null,
+    curatorLinks: fromBridgePlatformLinks(response.curatorLinks),
     repostedByCurrentUser:
       response.repostedByCurrentUser === true ||
       response.RepostedByCurrentUser === true ||

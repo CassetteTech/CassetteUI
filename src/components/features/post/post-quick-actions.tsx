@@ -28,12 +28,12 @@ interface PostQuickActionsProps {
   href: string;
   onShare: () => void;
   isOwner: boolean;
-  privacy: string | undefined;
-  visibilities: readonly QuickVisibility[];
-  canLockPosts: boolean;
+  privacy?: string;
+  visibilities?: readonly QuickVisibility[];
+  canLockPosts?: boolean;
   onVisibilityChange?: (next: QuickVisibility) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   children: React.ReactNode;
 }
 
@@ -44,8 +44,8 @@ export function PostQuickActions({
   onShare,
   isOwner,
   privacy,
-  visibilities,
-  canLockPosts,
+  visibilities = [],
+  canLockPosts = false,
   onVisibilityChange,
   onEdit,
   onDelete,

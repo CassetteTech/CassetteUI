@@ -141,7 +141,7 @@ test('the curator sees no Follow on their own page and reads no relationship', a
   });
 
   await page.goto(CURATOR_PATH);
-  await expect(page.getByTestId('profile-owner-bar')).toBeVisible();
+  await expect(page.getByTestId('profile-preview-strip')).toBeVisible();
   await page.getByRole('tab', { name: /Liked/ }).click();
   await page.waitForTimeout(300);
 

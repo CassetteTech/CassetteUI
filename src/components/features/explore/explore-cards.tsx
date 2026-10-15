@@ -1,5 +1,7 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { ProfileLink } from '@/components/features/profile/profile-link';
 import { LockKeyhole, Music2, Repeat2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,7 +13,13 @@ import type { ActivityPost, CuratorFeedItem, ExploreUser } from '@/types';
 
 export const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-8';
 
-const PAPER_CARD = 'border-2 border-foreground bg-primary-foreground force-light-surface text-foreground';
+/** The tile's artwork is the card: an ink frame on three sides, and the page's paper dissolving
+    into its bottom edge through the brand's dither seam. The red offset shadow is its hover. */
+const TILE_ARTWORK = 'relative aspect-square overflow-hidden border-[1.5px] border-b-0 border-foreground bg-muted transition-shadow duration-200';
+
+/** The text under the artwork reserves two title lines, a detail line, and the footer, so a
+    grid row has one height whatever the copy. */
+const TILE_BODY = 'relative flex min-h-24 flex-1 flex-col pt-3';
 
 export function SectionHeading({
   id,
@@ -32,7 +40,7 @@ export function SectionHeading({
   );
 }
 
-const ARTWORK_CHIP = 'absolute top-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]';
+const ARTWORK_CHIP = 'absolute top-2 inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium leading-none';
 
 export function PostCard({
   post,
@@ -57,15 +65,13 @@ export function PostCard({
       <Link
         href={href}
         onClick={onClick}
-        className={cn(
-          PAPER_CARD,
-          'flex w-full flex-col transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          label
-            ? 'shadow-flat-primary-6 group-hover:shadow-flat-primary-8'
-            : 'shadow-flat-4 group-hover:shadow-flat-primary-6',
-        )}
+        className="flex w-full flex-col rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        <div data-testid={artworkTestId} className="relative aspect-square overflow-hidden bg-muted">
+        {/* A sponsored tile wears the red shadow at rest, with its disclosure in the footer. */}
+        <div
+          data-testid={artworkTestId}
+          className={cn(TILE_ARTWORK, label ? 'shadow-flat-primary-4 group-hover:shadow-flat-primary-6' : 'group-hover:shadow-flat-primary-6')}
+        >
           {post.imageUrl ? (
             <Image
               src={post.imageUrl}
@@ -80,33 +86,28 @@ export function PostCard({
             </div>
           )}
           {post.isRepost && (
-            <span className={cn(ARTWORK_CHIP, 'left-1.5 bg-foreground text-background')}>
-              <Repeat2 aria-hidden className="size-2.5" />
+            <span className={cn(ARTWORK_CHIP, 'left-2 bg-foreground text-background')}>
+              <Repeat2 aria-hidden className="size-3" />
               Repost
             </span>
           )}
           {post.privacy === 'subscriber' && (
-            <span className={cn(ARTWORK_CHIP, 'right-1.5 bg-primary text-primary-foreground')}>
-              <LockKeyhole aria-hidden className="size-2.5" />
+            <span className={cn(ARTWORK_CHIP, 'right-2 bg-primary text-primary-foreground')}>
+              <LockKeyhole aria-hidden className="size-3" />
               Members only
             </span>
           )}
         </div>
 
-        <div className="relative flex min-h-28 flex-1 flex-col px-3 pb-3 pt-3">
-          <DitherEdge color="hsl(var(--primary-foreground))" side="top" scale={0.5} />
+        <div className={TILE_BODY}>
+          <DitherEdge color="hsl(var(--background))" side="top" scale={0.5} />
           <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight line-clamp-2 transition-colors group-hover:text-primary">
             {post.title}
           </h3>
-          {detail && <p className="mt-1 line-clamp-1 text-xs italic text-muted-foreground">{detail}</p>}
-          <div className="mt-auto flex items-center gap-2 pt-2">
-            {label && (
-              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-primary">{label}</span>
-            )}
-            <span className="h-px flex-1 bg-foreground/20" />
-            <span className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              @{username}
-            </span>
+          {detail && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{detail}</p>}
+          <div className="mt-auto flex items-center gap-2 pt-2 text-xs text-muted-foreground">
+            <span className="truncate">@{username}</span>
+            {label && <span className="ml-auto shrink-0 font-semibold text-primary">{label}</span>}
           </div>
         </div>
       </Link>
@@ -134,23 +135,23 @@ export function LockedPostCard({
     <article
       aria-label={`Members-only post from ${name}`}
       data-testid="feed-locked-post"
-      className={cn(PAPER_CARD, 'flex flex-col shadow-flat-4')}
+      className="flex flex-col"
     >
-      <div className="relative flex aspect-square items-center justify-center bg-gradient-to-br from-primary/20 via-primary/5 to-transparent">
+      <div className={cn(TILE_ARTWORK, 'flex items-center justify-center bg-gradient-to-br from-primary/20 via-primary/5 to-transparent')}>
         <LockKeyhole aria-hidden className="size-8 text-primary/70" />
-        <span className={cn(ARTWORK_CHIP, 'right-1.5 bg-primary text-primary-foreground')}>
-          <LockKeyhole aria-hidden className="size-2.5" />
+        <span className={cn(ARTWORK_CHIP, 'right-2 bg-primary text-primary-foreground')}>
+          <LockKeyhole aria-hidden className="size-3" />
           Members only
         </span>
       </div>
 
-      <div className="relative flex min-h-28 flex-1 flex-col px-3 pb-3 pt-3">
-        <DitherEdge color="hsl(var(--primary-foreground))" side="top" scale={0.5} />
+      <div className={TILE_BODY}>
+        <DitherEdge color="hsl(var(--background))" side="top" scale={0.5} />
         <h3 className="font-teko text-2xl uppercase leading-[0.95] tracking-tight">Members-only post</h3>
-        <p className="mt-1 line-clamp-2 text-xs italic text-muted-foreground">
+        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
           {availability === 'unavailable' ? `${name} is not taking new members right now.` : `For ${name}'s members.`}
         </p>
-        <div className="mt-auto flex min-w-0 items-center gap-2 pt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="mt-auto flex min-w-0 items-center gap-2 pt-2 text-xs text-muted-foreground">
           <Link
             href={profileHref}
             className="flex min-w-0 items-center gap-1.5 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -165,7 +166,7 @@ export function LockedPostCard({
         </div>
         <Link
           href={action.href}
-          className="mt-2 flex min-h-9 items-center justify-center border-2 border-foreground px-3 text-sm font-semibold transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="mt-3 flex min-h-9 items-center justify-center border-[1.5px] border-foreground px-3 text-sm font-semibold transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {action.label}
           <span className="sr-only"> {name}</span>
@@ -179,8 +180,8 @@ export function CreatorCard({ user }: { user: ExploreUser }) {
   const initials = user.username?.charAt(0)?.toUpperCase() || 'U';
   const displayName = user.displayName?.trim() || user.username;
   return (
-    <Link
-      href={`/profile/${user.username}`}
+    <ProfileLink
+      username={user.username}
       className="group flex w-[220px] shrink-0 items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Avatar className="size-11 shrink-0 border-2 border-foreground">
@@ -194,7 +195,7 @@ export function CreatorCard({ user }: { user: ExploreUser }) {
         </div>
         <p className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">@{user.username}</p>
       </div>
-    </Link>
+    </ProfileLink>
   );
 }
 
@@ -202,12 +203,12 @@ export function PostGridSkeleton() {
   return (
     <div className={POST_GRID} data-testid="post-grid-skeleton">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className={cn(PAPER_CARD, 'shadow-flat-4')}>
+        <div key={i} className="flex flex-col">
           <Skeleton className="aspect-square w-full rounded-none" />
-          <div className="min-h-28 px-3 pb-3 pt-3">
+          <div className="min-h-24 pt-3">
             <Skeleton className="h-5 w-4/5" />
             <Skeleton className="mt-2 h-3 w-3/5" />
-            <Skeleton className="ml-auto mt-3 h-3 w-1/3" />
+            <Skeleton className="mt-3 h-3 w-1/3" />
           </div>
         </div>
       ))}

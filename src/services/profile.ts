@@ -47,6 +47,7 @@ interface ActivityApiResponse {
   HasPrevious?: boolean;
   sponsoredPlacement?: unknown;
   SponsoredPlacement?: unknown;
+  nextCursor?: string | null;
 }
 
 const feedCount = z.number().int().nonnegative();
@@ -467,6 +468,7 @@ export class ProfileService {
       totalPages: resolvedTotalPages,
       hasNext: json.hasNext ?? json.HasNext ?? resolvedPage < resolvedTotalPages,
       hasPrevious: json.hasPrevious ?? json.HasPrevious ?? resolvedPage > 1,
+      nextCursor: json.nextCursor ?? null,
     };
   }
 
@@ -537,13 +539,14 @@ export class ProfileService {
     userIdentifier: string,
     options: {
       page?: number;
+      cursor?: string;
       pageSize?: number;
       elementType?: string;
       privacy?: 'public' | 'subscriber' | 'private';
     } = {},
   ): Promise<PaginatedActivityResponse> {
     try {
-      const { page = 1, pageSize = 20, elementType, privacy } = options;
+      const { page = 1, cursor, pageSize = 20, elementType, privacy } = options;
 
       const path =
         userIdentifier === 'edit'
@@ -552,10 +555,8 @@ export class ProfileService {
 
       const url = this.buildApiUrl(path);
 
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-      });
+      const queryParams = new URLSearchParams(cursor ? { cursor } : { page: page.toString() });
+      queryParams.append('pageSize', pageSize.toString());
 
       if (elementType) {
         queryParams.append('elementType', elementType);

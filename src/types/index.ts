@@ -72,6 +72,7 @@ export interface PaginatedActivityResponse {
   totalPages: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  nextCursor: string | null;
   sponsoredPlacement?: SponsoredExplorePlacement;
 }
 

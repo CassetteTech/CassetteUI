@@ -28,7 +28,9 @@ import type { ActivityPost, PaginatedActivityResponse } from '@/types';
 
 export const libraryPageSize = 20;
 
-type LibraryPages = InfiniteData<PaginatedActivityResponse, number>;
+type LibraryPages = InfiniteData<PaginatedActivityResponse, string | null>;
+
+const firstLibraryPage: string | null = null;
 
 const libraryKeys = {
   all: (userId: string | null) => profileQueryKeys.studioActivity(userId, 'studio-library'),
@@ -41,13 +43,13 @@ export function useLibrary(userId: string | null, type: MusicType | null, audien
   const library = useInfiniteQuery({
     queryKey: libraryKeys.list(userId, type, audience),
     queryFn: ({ pageParam }) => profileService.fetchUserActivity(userId!, {
-      page: pageParam,
+      cursor: pageParam ?? undefined,
       pageSize: libraryPageSize,
       elementType: type ? typeDetails[type].elementType : undefined,
       privacy: audience ? audienceDetails[audience].privacy : undefined,
     }),
-    initialPageParam: 1,
-    getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
+    initialPageParam: firstLibraryPage,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: userId !== null,
     placeholderData: keepPreviousData,
   });

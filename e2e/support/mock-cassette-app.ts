@@ -2620,19 +2620,26 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const requestedPrivacy = url.searchParams.get('privacy');
       const pageSize = Number(url.searchParams.get('pageSize') || 20);
       const page = Math.max(1, Number(url.searchParams.get('page') || 1));
+      const cursor = url.searchParams.get('cursor');
       const items = Array.from(state.postsById.values()).filter((post) => {
         if (post.ownerId !== user.id) return false;
         if (requestedPrivacy && (post.privacy || 'public') !== requestedPrivacy) return false;
         if (!requestedElementType) return true;
         return normalizeUsername(post.elementType) === normalizeUsername(requestedElementType);
       });
+      const start = cursor === null ? (page - 1) * pageSize : items.findIndex((post) => post.postId === cursor) + 1;
+      if (start === 0 && cursor !== null) {
+        return json(route, { message: 'Invalid cursor.' }, 400);
+      }
+      const pageItems = items.slice(start, start + pageSize);
 
       // Bridge sends no page count; the client derives the next page from the total.
       return json(route, {
-        items: items.slice((page - 1) * pageSize, page * pageSize).map((post) => toActivityItem(post, state)),
+        items: pageItems.map((post) => toActivityItem(post, state)),
         page,
         pageSize,
         totalItems: items.length,
+        nextCursor: start + pageSize < items.length ? pageItems.at(-1)!.postId : null,
       });
     }
 

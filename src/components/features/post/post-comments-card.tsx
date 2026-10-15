@@ -13,7 +13,7 @@ import { formatRelativeTime } from '@/lib/utils/format-date';
 import { Heart, Pencil, Trash2, X, Check, MessageCircle, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
+import { ProfileLink } from '@/components/features/profile/profile-link';
 import { appLogger } from '@/lib/observability/logger';
 
 const COMMENT_MAX_LENGTH = 2000;
@@ -359,20 +359,20 @@ export function PostCommentsCard({
             : 'bg-background/30 hover:bg-background/50'
         )}>
           <div className="flex gap-2.5 sm:gap-3">
-            <Link href={`/profile/${comment.username}`} className="flex-shrink-0">
+            <ProfileLink username={comment.username} className="flex-shrink-0">
               <Avatar className={cn('ring-1 ring-border/50', depth === 0 ? 'h-7 w-7 sm:h-9 sm:w-9' : 'h-6 w-6 sm:h-7 sm:w-7')}>
                 <AvatarImage src={comment.userAvatarUrl ?? undefined} alt={`@${comment.username}`} className="object-cover" />
                 <AvatarFallback className="bg-muted text-muted-foreground font-semibold text-xs">
                   {commentInitial}
                 </AvatarFallback>
               </Avatar>
-            </Link>
+            </ProfileLink>
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-0.5">
-                <Link href={`/profile/${comment.username}`} className="text-sm font-semibold text-foreground hover:underline">
+                <ProfileLink username={comment.username} className="text-sm font-semibold text-foreground hover:underline">
                   {comment.username}
-                </Link>
+                </ProfileLink>
                 <span className="text-xs text-muted-foreground">
                   {formatRelativeTime(comment.createdAt)}
                 </span>

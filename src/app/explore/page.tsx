@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { parseProfileLink, type ParsedProfileLink } from '@/lib/profile-links';
+import { profilePath } from '@/components/features/profile/profile-link';
 import { ProfileLinkIcon } from '@/components/features/profile/profile-links';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import type { SponsoredExplorePlacement } from '@/types';
 import { rememberViewedSponsoredExplorePost } from '@/services/sponsored-explore-rotation';
+import { useAuthState } from '@/hooks/use-auth';
 import { useExploreCurators } from '@/hooks/use-profile';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { removeQueryParameters } from '@/utils/remove-query-parameters';
@@ -583,7 +585,7 @@ function CuratorCard({
     .map(parseProfileLink)
     .filter((l): l is ParsedProfileLink => l !== null)
     .slice(0, 2);
-  const profileHref = `/profile/${curator.username}`;
+  const profileHref = profilePath(curator.username, useAuthState().user?.username);
   const openProfile = () => router.push(profileHref);
 
   return (

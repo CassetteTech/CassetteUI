@@ -75,10 +75,11 @@ test('lets a post owner edit and delete a post', async ({ page }) => {
   await page.getByRole('menuitem', { name: 'Delete' }).click();
   await page.getByRole('button', { name: 'Delete Post' }).click();
 
-  await expect(page).toHaveURL(/\/profile\/recordsmith(?:\?tab=playlists)?$/);
-  const profileMain = page.getByRole('main').last();
-  await expect(profileMain).toContainText('No music yet');
-  await expect(profileMain).not.toContainText('Paper Hearts');
+  // Opened from a shared link, the post has no return page, so a delete lands on Studio Music.
+  await expect(page).toHaveURL('/studio/music');
+  const studioMain = page.getByRole('main').last();
+  await expect(studioMain.getByRole('link', { name: 'Add your first music' })).toBeVisible();
+  await expect(studioMain).not.toContainText('Paper Hearts');
 });
 
 test('a post opened from Studio Music returns there after its owner deletes it', async ({ page }) => {

@@ -733,7 +733,6 @@ test('slides a membership pass into the curator profile rail on navigation', asy
 
   const pass = page.getByTestId('curator-membership-card');
   await expect(pass).toBeVisible();
-  // The shared-position handoff plays a transform animation on the freshly mounted pass.
   await expect
     .poll(() => pass.evaluate((node) => node.getAnimations().some((animation) => animation.playState === 'running')))
     .toBe(true);

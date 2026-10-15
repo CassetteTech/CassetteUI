@@ -136,8 +136,6 @@ function startCartesianLoop({
 
     const marker = s.hoverIndex
     const winkDue = !reduce && now - last >= 100
-    // Repaint when a series registers its variant, without resetting the
-    // entrance reveal.
     const paintSig = s.configKeys.map((k) => s.variants[k] ?? "").join(",")
     const sigChanged = paintSig !== lastPaintSig
     if (sigChanged) {

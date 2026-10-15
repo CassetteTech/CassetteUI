@@ -126,8 +126,6 @@ export function useChartController({
     [data, configKeys]
   )
 
-  // The d3 scale factories are memoized so `y` keeps a stable identity: the
-  // canvas `targets` memo deps on ctx.y, and xCenter/indexAtX close over these.
   const xPoint = useMemo(
     () => buildXScale(data.length, plotWidth),
     [data.length, plotWidth]

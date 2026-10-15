@@ -201,9 +201,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const [studioPanelOpen, setStudioPanelOpen] = useState(false);
   const panelSwitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Roughly matches the sheet's `data-[state=closed]:duration-300` slide-out
-  // with a small buffer so the outgoing panel finishes animating before the
-  // incoming one starts. Keeps cross-panel swaps visually clean on desktop.
+  // Outlasts the sheet's `data-[state=closed]:duration-280` slide-out, so the
+  // outgoing panel finishes before the incoming one starts.
   const PANEL_SWITCH_DELAY_MS = 320;
 
   const handleOpenComments = useCallback(() => {

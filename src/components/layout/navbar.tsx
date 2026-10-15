@@ -19,7 +19,6 @@ import { NotificationMenu } from './notification-menu';
 import {
   companyNavItems,
   getVisibleNavItems,
-  isStudioPath,
   resolveNavHref,
 } from './navigation-config';
 
@@ -266,12 +265,12 @@ export function Navbar() {
         <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain pt-4 pb-8">
           {/* The bar's container, so the menu lines up with the logo on tablets as on phones. */}
           <div className="container mx-auto px-4 sm:px-6">
-            {/* The account summary opens Curator Studio, as the sidebar's account row does. */}
+            {/* The account summary opens Curator Studio, as the sidebar's account row does; the
+                Curator Studio page row below marks it as the open page. */}
             {isAuthenticated && user && (
               <Link
                 href="/studio"
                 onClick={() => setIsMobileMenuOpen(false)}
-                aria-current={isStudioPath(pathname) ? 'page' : undefined}
                 className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
                 data-menu-reveal
                 // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.

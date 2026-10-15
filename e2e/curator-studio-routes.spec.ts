@@ -95,17 +95,18 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   await page.goto('/studio/music/new');
   const sidebar = page.locator('[data-slot="sidebar"]');
   const addMusic = sidebar.getByRole('link', { name: 'Add music', exact: true });
-  const account = sidebar.locator('a[href="/studio"]');
+  const studio = sidebar.getByRole('link', { name: 'Curator Studio' });
+  const account = sidebar.locator('a[href="/studio"]', { hasText: `@${fixtureUsers.member.username}` });
   const feed = sidebar.getByRole('link', { name: 'Feed' });
-  const memberships = sidebar.getByRole('link', { name: 'Memberships' });
 
   await expect(addMusic).toHaveAttribute('href', '/studio/music/new');
-  // The account row is Studio's one entry; there is no Curator Studio page row.
-  await expect(sidebar.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
+  await expect(studio).toHaveAttribute('href', '/studio');
   await expect(sidebar.getByRole('link', { name: 'Add Music', exact: true })).toHaveCount(0);
-  // An action, not a place: on its own page, the account row keeps the active state.
+  // An action, not a place: on its own page, Studio keeps the active row. The account row also
+  // opens Studio but never takes the active marker.
   await expect(addMusic).not.toHaveAttribute('data-active', 'true');
-  await expect(account).toHaveAttribute('data-active', 'true');
+  await expect(studio).toHaveAttribute('data-active', 'true');
+  await expect(account).not.toHaveAttribute('data-active', 'true');
 
   // The button has a page row's box and sits above the rows; the avatar and the footer icons
   // share the rows' icon edge.
@@ -126,16 +127,16 @@ test('the sidebar offers Add music as a button above the page links, in their bo
   // Add music leads the page rows: 20 px under the account row, 12 px above the first row. The
   // footer rows share the page rows' pitch.
   const footer = sidebar.locator('[data-slot="sidebar-footer"]');
-  const [accountBox, secondRow, report, signOut, inbox] = await Promise.all([
+  const [accountBox, firstRow, report, signOut, inbox] = await Promise.all([
     account.boundingBox(),
-    memberships.boundingBox(),
+    studio.boundingBox(),
     footer.getByRole('button', { name: 'Report a Problem' }).boundingBox(),
     footer.getByRole('button', { name: 'Sign Out' }).boundingBox(),
     sidebar.locator('[data-slot="sidebar-header"]').getByRole('button', { name: 'Notifications' }).boundingBox(),
   ]);
   expect(action!.y - (accountBox!.y + accountBox!.height)).toBe(20);
-  expect(row!.y - (action!.y + action!.height)).toBe(12);
-  expect(signOut!.y - report!.y).toBe(secondRow!.y - row!.y);
+  expect(firstRow!.y - (action!.y + action!.height)).toBe(12);
+  expect(signOut!.y - report!.y).toBe(row!.y - firstRow!.y);
   // The header inbox ends on the rows' right edge.
   expect(inbox!.x + inbox!.width).toBe(row!.x + row!.width);
 });
@@ -143,35 +144,34 @@ test('the sidebar offers Add music as a button above the page links, in their bo
 test('one sidebar highlight follows the pointer over the page rows and returns to the active row', async ({ page }) => {
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
-  await page.goto('/memberships');
+  await page.goto('/studio');
   const menu = page.locator('[data-sidebar="menu"]');
   const highlight = page.locator('[data-sidebar="menu-highlight"]');
-  const feed = menu.getByRole('link', { name: 'Feed' });
+  const studio = menu.getByRole('link', { name: 'Curator Studio' });
   const memberships = menu.getByRole('link', { name: 'Memberships' });
   const highlightTop = async () => (await highlight.boundingBox())?.y;
 
   // mockCassetteApp emulates reduced motion, so the highlight moves without a transition.
   await expect(highlight).toHaveCSS('opacity', '1');
-  await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
 
-  await feed.hover();
-  await expect.poll(highlightTop).toBe((await feed.boundingBox())!.y);
+  await memberships.hover();
+  await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
   // The rows paint no fill of their own; the highlight is the only one.
   await expect(memberships).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(feed).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(studio).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
   await page.mouse.move(800, 400);
-  await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
 
-  // Studio's entry is the account row, so on Studio and on the own public page no page row is
-  // active and the highlight shows only under the pointer.
-  for (const path of ['/studio', `/profile/${fixtureUsers.member.username}`]) {
-    await page.goto(path);
-    await expect(highlight).toHaveCSS('opacity', '0');
-    await memberships.hover();
-    await expect(highlight).toHaveCSS('opacity', '1');
-    await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
-    await page.mouse.move(800, 400);
-    await expect(highlight).toHaveCSS('opacity', '0');
-  }
+  // The own public page is a view of Studio, so the Studio row stays active there and the
+  // highlight returns to it.
+  await page.goto(`/profile/${fixtureUsers.member.username}`);
+  await expect(studio).toHaveAttribute('data-active', 'true');
+  await expect(highlight).toHaveCSS('opacity', '1');
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
+  await memberships.hover();
+  await expect.poll(highlightTop).toBe((await memberships.boundingBox())!.y);
+  await page.mouse.move(800, 400);
+  await expect.poll(highlightTop).toBe((await studio.boundingBox())!.y);
 });

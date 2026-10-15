@@ -1,23 +1,21 @@
 'use client';
 
 /** Compact signed-in identity for the sidebar: avatar, name, and handle. It opens Curator Studio,
-    the curator's home; the public page is a preview reached from Studio. The inbox is in the
+    the curator's home, as the Curator Studio page row does; that row, not this one, marks Studio
+    as the open page. The public page is a preview reached from Studio. The inbox is in the
     sidebar header. */
 
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { AuthUser } from '@/types';
 
-/** active marks Curator Studio; the sidebar's sliding indicator follows data-active.
-    The avatar shares the left edge of the sidebar's page rows. */
-export function SidebarAccountRow({ user, active = false }: { user: AuthUser; active?: boolean }) {
+/** The avatar shares the left edge of the sidebar's page rows. */
+export function SidebarAccountRow({ user }: { user: AuthUser }) {
   const name = user.displayName || user.username;
   return (
     <Link
       href="/studio"
-      data-active={active}
-      aria-current={active ? 'page' : undefined}
-      className="flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
+      className="flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Avatar className="size-8 border border-border/70">
         <AvatarImage src={user.profilePicture} alt="" />

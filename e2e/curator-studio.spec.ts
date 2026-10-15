@@ -198,8 +198,9 @@ test('saves a first draft without a profile and advances the membership setup', 
   await page.goto(STUDIO_PATH);
 
   await expect(page.getByRole('heading', { level: 1, name: 'Curator Studio' })).toBeVisible();
-  // The sidebar's account row is Studio's entry and marks it as the open page.
-  await expect(page.locator('[data-slot="sidebar"] a[href="/studio"]')).toHaveAttribute('aria-current', 'page');
+  // The sidebar's Curator Studio row marks it as the open page; the account row opens it too.
+  await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Curator Studio' })).toHaveAttribute('data-active', 'true');
+  await expect(page.locator('[data-slot="sidebar"] a[href="/studio"]')).toHaveCount(2);
   // A page with music gets one invitation; the plan editor is on the Membership view.
   await page.getByRole('button', { name: 'Set up a membership' }).click();
   await expect(page).toHaveURL('/studio/membership');

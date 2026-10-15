@@ -7,6 +7,7 @@ import {
   normalizeAuthRedirect,
   parseMembershipIntentRedirect,
 } from '../auth-redirect';
+import { createMemoryStorage } from '../../lib/__tests__/memory-storage';
 
 test('accepts internal auth return routes', () => {
   assert.equal(normalizeAuthRedirect('/add-music'), '/add-music');
@@ -61,27 +62,9 @@ test('parses membership-intent redirects and rejects malformed or unsafe ones', 
   assert.equal(parseMembershipIntentRedirect(null), null);
 });
 
-function createStorage(): Storage {
-  const store = new Map<string, string>();
-  return {
-    get length() {
-      return store.size;
-    },
-    clear: () => store.clear(),
-    getItem: (key: string) => store.get(key) ?? null,
-    key: (index: number) => [...store.keys()][index] ?? null,
-    removeItem: (key: string) => {
-      store.delete(key);
-    },
-    setItem: (key: string, value: string) => {
-      store.set(key, value);
-    },
-  };
-}
-
 function withBrowserStorage(run: (storage: Storage) => void) {
   const globals = globalThis as { window?: unknown; localStorage?: Storage };
-  const storage = createStorage();
+  const storage = createMemoryStorage();
   globals.window = {};
   globals.localStorage = storage;
   try {

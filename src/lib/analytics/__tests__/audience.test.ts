@@ -1,18 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getUserCohort, rememberUserCohort } from '../audience';
+import { createMemoryStorage } from '../../__tests__/memory-storage';
 
 function withSessionStorage(run: () => void) {
-  const store = new Map<string, string>();
   const globals = globalThis as { window?: unknown };
   const previousWindow = globals.window;
-  globals.window = {
-    sessionStorage: {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => void store.set(key, value),
-      removeItem: (key: string) => void store.delete(key),
-    },
-  };
+  globals.window = { sessionStorage: createMemoryStorage() };
   try {
     run();
   } finally {

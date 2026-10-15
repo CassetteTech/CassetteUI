@@ -5,22 +5,11 @@ import {
   getLastViewedSponsoredExplorePostId,
   rememberViewedSponsoredExplorePost,
 } from '../sponsored-explore-rotation';
-
-function createStorage(): Storage {
-  const store = new Map<string, string>();
-  return {
-    get length() { return store.size; },
-    clear: () => store.clear(),
-    getItem: (key: string) => store.get(key) ?? null,
-    key: (index: number) => [...store.keys()][index] ?? null,
-    removeItem: (key: string) => { store.delete(key); },
-    setItem: (key: string, value: string) => { store.set(key, value); },
-  };
-}
+import { createMemoryStorage } from '../../lib/__tests__/memory-storage';
 
 function withBrowserStorage(run: (storage: Storage) => void) {
   const globals = globalThis as { window?: { localStorage: Storage } };
-  const storage = createStorage();
+  const storage = createMemoryStorage();
   globals.window = { localStorage: storage };
   try {
     run(storage);

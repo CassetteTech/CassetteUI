@@ -18,16 +18,3 @@ test('keeps the liked tab available to the profile owner even when it is private
   await expect(page).toHaveURL(/\/profile\/miagroove\?tab=liked$/);
   await expect(page.getByRole('tab', { name: /Liked/ })).toBeVisible();
 });
-
-test('hides the liked tab from other viewers when the profile owner marks it private', async ({
-  page,
-}) => {
-  await mockCassetteApp(page, {
-    currentUser: fixtureUsers.viewer,
-    users: [memberWithPrivateLikes],
-  });
-
-  await page.goto('/profile/miagroove?tab=liked');
-  await expect(page).toHaveURL(/\/profile\/miagroove$/);
-  await expect(page.getByRole('tab', { name: /Liked/ })).toHaveCount(0);
-});

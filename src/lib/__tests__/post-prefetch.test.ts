@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { savePrefetchedPost, takePrefetchedPost } from '../post-prefetch';
 import type { PostByIdResponse } from '@/types';
+import { createMemoryStorage } from './memory-storage';
 
 const post: PostByIdResponse = {
   success: true,
@@ -15,24 +16,16 @@ const post: PostByIdResponse = {
 };
 
 void test('prefetched posts cannot carry server-owned analytics attribution', () => {
-  const values = new Map<string, string>();
   const previousStorage = globalThis.sessionStorage;
-  const storage: Storage = {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => void values.set(key, value),
-    removeItem: (key) => void values.delete(key),
-    clear: () => values.clear(),
-    key: () => null,
-    get length() { return values.size; },
-  };
+  const storage = createMemoryStorage();
   Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: storage });
 
   try {
     savePrefetchedPost(post.postId, post);
-    const saved = values.get(`cassette:prefetched-post:${post.postId}`) ?? '';
+    const saved = storage.getItem(`cassette:prefetched-post:${post.postId}`) ?? '';
     assert.doesNotMatch(saved, /curatorId|isMemberView|paidPromotionCampaignId/);
 
-    values.set(`cassette:prefetched-post:${post.postId}`, JSON.stringify(post));
+    storage.setItem(`cassette:prefetched-post:${post.postId}`, JSON.stringify(post));
     const restored = takePrefetchedPost(post.postId);
     assert.equal(restored?.curatorId, undefined);
     assert.equal(restored?.isMemberView, undefined);

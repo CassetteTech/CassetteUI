@@ -2,14 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { LAMBDA_WARMUP_INTERVAL_MS, requestLambdaWarmup } from '../lambda-warmup';
+import { createMemoryStorage } from '../../lib/__tests__/memory-storage';
 
 function createTab() {
-  const values = new Map<string, string>();
   let sends = 0;
-  const storage = {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => void values.set(key, value),
-  };
+  const storage = createMemoryStorage();
   return {
     warm: (now: number, enabled = true, send: () => Promise<void> = async () => undefined) =>
       requestLambdaWarmup({

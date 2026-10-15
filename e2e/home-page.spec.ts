@@ -49,7 +49,7 @@ test.describe('home page', () => {
     const kofi = await page.getByRole('button', { name: 'Support Cassette on Ko-fi' }).boundingBox();
     expect(kofi).not.toBeNull();
     expect(await page.evaluate(
-      ({ x, y }) => document.elementFromPoint(x, y)?.closest('#mobile-menu-panel, [data-testid="mobile-menu-backdrop"]') !== null,
+      ({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('#mobile-menu-panel, [data-testid="mobile-menu-backdrop"]')),
       { x: kofi!.x + kofi!.width / 2, y: kofi!.y + kofi!.height / 2 },
     )).toBe(true);
 

@@ -122,10 +122,9 @@ void test('counts from a Feed page replace both session counts in one update and
   const checkedAt = useAuthStore.getState().sessionCheckedAt;
   const updates: Array<[number | null, number | null]> = [];
   const unsubscribe = useAuthStore.subscribe((state) => updates.push([state.activeMembershipCount, state.feedCuratorCount]));
-  // Counts read in separate statements may disagree; the store keeps them as Bridge sent them.
-  useAuthStore.getState().setFeedSourceCounts({ activeMembershipCount: 1, feedCuratorCount: 0 });
+  useAuthStore.getState().setFeedSourceCounts({ activeMembershipCount: 0, feedCuratorCount: 0 });
   unsubscribe();
-  assert.deepEqual(updates, [[1, 0]]);
+  assert.deepEqual(updates, [[0, 0]]);
   assert.equal(useAuthStore.getState().sessionCheckedAt, checkedAt);
   assert.equal(useAuthStore.getState().user?.id, 'mia');
 });

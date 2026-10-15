@@ -138,12 +138,14 @@ export const curatorFollowStateSchema = z.object({
   hasActiveMembership: z.boolean(),
 }).strict();
 
-// Current owner counts, never identities. Each count is checked on its own:
-// Bridge counts them in separate statements, so they can briefly disagree.
+// Current owner counts, never identities.
 export const curatorAudienceSchema = z.object({
   audienceCount: z.number().int().nonnegative(),
   activeMemberCount: z.number().int().nonnegative(),
-}).strict();
+}).strict().refine(
+  (audience) => audience.audienceCount >= audience.activeMemberCount,
+  { message: 'Audience count is below the member count' },
+);
 
 export type CuratorPage = z.infer<typeof curatorPageSchema>;
 export type CuratorFollowState = z.infer<typeof curatorFollowStateSchema>;

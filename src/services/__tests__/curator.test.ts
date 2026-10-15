@@ -323,17 +323,13 @@ void test('a failed Follow write is an error with its status, never a relationsh
   );
 });
 
-void test('parses the owner audience with each count checked on its own', () => {
+void test('parses the owner audience and rejects more members than audience', () => {
   assert.deepEqual(curatorAudienceSchema.parse({ audienceCount: 7, activeMemberCount: 5 }), {
     audienceCount: 7,
     activeMemberCount: 5,
   });
-  // Separate statements can briefly report more members than audience; that is not an error.
-  assert.deepEqual(curatorAudienceSchema.parse({ audienceCount: 0, activeMemberCount: 1 }), {
-    audienceCount: 0,
-    activeMemberCount: 1,
-  });
   for (const body of [
+    { audienceCount: 0, activeMemberCount: 1 },
     { audienceCount: 7 },
     { audienceCount: -1, activeMemberCount: 0 },
     { audienceCount: 1.5, activeMemberCount: 0 },

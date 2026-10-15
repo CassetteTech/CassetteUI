@@ -54,8 +54,6 @@ function CuratorFeed() {
   const setFeedSourceCounts = useAuthStore((state) => state.setFeedSourceCounts);
   const [openedAt] = useState(() => Date.now());
   const viewerId = user?.id ?? null;
-  // Only the count of followed and joined curators opens the Feed; the paid
-  // count can briefly exceed it while a source changes, and never does on its own.
   const hasSources = !sessionError && feedCuratorCount !== null && feedCuratorCount > 0;
   const sessionCurrent =
     !isRefreshingSession && sessionCheckedAt !== null && sessionCheckedAt + SESSION_MAX_AGE_MS > openedAt;

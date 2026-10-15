@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { ProfileLink } from '@/components/features/profile/profile-link';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VerificationBadge } from '@/components/ui/verification-badge';
@@ -36,7 +36,7 @@ export function PostAuthorHeader({
 
   return (
     <div className={cn('flex', wrapperGap, hasCaption ? 'items-start' : 'items-center', className)}>
-      <Link href={`/profile/${username}`} className="flex-shrink-0">
+      <ProfileLink username={username} className="flex-shrink-0">
         {profileLoading ? (
           <Skeleton className={cn(avatarSize, 'rounded-full')} />
         ) : (
@@ -47,17 +47,17 @@ export function PostAuthorHeader({
             </AvatarFallback>
           </Avatar>
         )}
-      </Link>
+      </ProfileLink>
 
       <div className={cn('min-w-0 flex-1 flex flex-col', stackGap)}>
         <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
-          <Link
-            href={`/profile/${username}`}
+          <ProfileLink
+            username={username}
             className="font-atkinson font-bold text-foreground text-sm tracking-wide flex items-center gap-1 hover:underline decoration-foreground/40 underline-offset-2"
           >
             {username}
             <VerificationBadge accountType={profileData?.accountType} size="sm" />
-          </Link>
+          </ProfileLink>
           <span className="font-atkinson text-xs text-muted-foreground tracking-wide">shared this</span>
           {createdAt && (
             <>

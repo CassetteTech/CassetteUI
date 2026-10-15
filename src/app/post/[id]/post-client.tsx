@@ -377,16 +377,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       ? fromParam
       : undefined;
 
-  // After a delete, return to the page the post was opened from, such as Studio Music, else the profile.
+  // After a delete, return to the page the post was opened from, else to Studio Music, the
+  // owner's list of posts.
   const handleDeleteSuccess = useCallback(() => {
-    if (backRoute) {
-      router.push(backRoute);
-    } else if (postData?.username) {
-      router.push(`/profile/${postData.username}`);
-    } else {
-      router.push('/');
-    }
-  }, [router, backRoute, postData?.username]);
+    router.push(backRoute ?? '/studio/music');
+  }, [router, backRoute]);
 
   // Handle edit success - update local state with new description
   const handleEditSuccess = useCallback((changes: PostChanges) => {

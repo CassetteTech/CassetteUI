@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import Link from 'next/link';
+import { ProfileLink } from '@/components/features/profile/profile-link';
 import { ApiError, apiService } from '@/services/api';
 import { PostComment } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
@@ -549,20 +549,20 @@ export function PostCommentsSheet({
             : 'hover:bg-muted/30'
         )}>
           <div className="flex gap-2.5">
-            <Link href={`/profile/${comment.username}`} className="flex-shrink-0">
+            <ProfileLink username={comment.username} className="flex-shrink-0">
               <Avatar className={cn('ring-1 ring-border/50', depth === 0 ? 'size-7 sm:size-8' : 'size-6 sm:size-7')}>
                 <AvatarImage src={comment.userAvatarUrl ?? undefined} alt={`@${comment.username}`} className="object-cover" />
                 <AvatarFallback className="bg-muted text-muted-foreground font-semibold text-xs">
                   {commentInitial}
                 </AvatarFallback>
               </Avatar>
-            </Link>
+            </ProfileLink>
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-0.5">
-                <Link href={`/profile/${comment.username}`} className="text-sm font-semibold text-foreground hover:underline">
+                <ProfileLink username={comment.username} className="text-sm font-semibold text-foreground hover:underline">
                   {comment.username}
-                </Link>
+                </ProfileLink>
                 <span className="text-xs text-muted-foreground">
                   {formatRelativeTime(comment.createdAt)}
                 </span>

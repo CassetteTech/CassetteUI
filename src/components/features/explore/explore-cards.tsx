@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { ProfileLink } from '@/components/features/profile/profile-link';
 import { LockKeyhole, Music2, Repeat2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -193,8 +194,8 @@ export function CreatorCard({ user }: { user: ExploreUser }) {
   const initials = user.username?.charAt(0)?.toUpperCase() || 'U';
   const displayName = user.displayName?.trim() || user.username;
   return (
-    <Link
-      href={`/profile/${user.username}`}
+    <ProfileLink
+      username={user.username}
       className="group flex w-[220px] shrink-0 items-center gap-3 rounded-2xl border-2 border-foreground bg-primary-foreground force-light-surface px-4 py-3 text-foreground shadow-flat-4 transition-shadow hover:shadow-flat-primary-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Avatar className="size-11 shrink-0 border-2 border-foreground">
@@ -208,7 +209,7 @@ export function CreatorCard({ user }: { user: ExploreUser }) {
         </div>
         <p className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">@{user.username}</p>
       </div>
-    </Link>
+    </ProfileLink>
   );
 }
 

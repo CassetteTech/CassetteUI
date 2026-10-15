@@ -3,7 +3,7 @@
     still work. */
 
 import { expect, test } from '@playwright/test';
-import { fixtureUsers } from './support/cassette-fixtures';
+import { fixturePosts, fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 test('opens each section at its own URL and keeps a plan draft across sections', async ({ page }) => {
@@ -87,6 +87,25 @@ test('redirects the old Add Music URL and keeps its query', async ({ page }) => 
 
   await expect(page).toHaveURL(`/studio/music/new?url=${encodeURIComponent(link)}`);
   await expect(page.getByRole('heading', { name: 'Add music' }).first()).toBeVisible();
+});
+
+test("a post's author line opens Curator Studio for its owner and the public page for everyone else", async ({ page }) => {
+  const ownPost = {
+    ...fixturePosts.publicTrack,
+    postId: 'post-own-track',
+    ownerId: fixtureUsers.member.id,
+    ownerUsername: fixtureUsers.member.username,
+  };
+  await mockCassetteApp(page, { currentUser: fixtureUsers.member, posts: [ownPost, fixturePosts.publicTrack] });
+
+  await page.goto(`/post/${ownPost.postId}`);
+  const main = page.getByRole('main').last();
+  await expect(main.getByRole('link', { name: fixtureUsers.member.username }).first()).toHaveAttribute('href', '/studio');
+  await expect(main.locator(`a[href="/profile/${fixtureUsers.member.username}"]`)).toHaveCount(0);
+
+  await page.goto(`/post/${fixturePosts.publicTrack.postId}`);
+  await expect(main.getByRole('link', { name: fixtureUsers.creator.username }).first())
+    .toHaveAttribute('href', `/profile/${fixtureUsers.creator.username}`);
 });
 
 test('the sidebar offers Add music as a button above the page links, in their box', async ({ page }) => {

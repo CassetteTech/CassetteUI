@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { ProfileLink } from '@/components/features/profile/profile-link';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BodyText } from '@/components/ui/typography';
@@ -56,7 +56,7 @@ export function PostDescriptionCard({
       )}
     >
       <div className={cn("flex gap-2.5 sm:gap-3", description?.trim() ? "items-start" : "items-center")}>
-        <Link href={`/profile/${username}`} className="flex-shrink-0">
+        <ProfileLink username={username} className="flex-shrink-0">
           {isLoading ? (
             <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full" />
           ) : (
@@ -67,17 +67,17 @@ export function PostDescriptionCard({
               </AvatarFallback>
             </Avatar>
           )}
-        </Link>
+        </ProfileLink>
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2">
-            <Link
-              href={`/profile/${username}`}
+            <ProfileLink
+              username={username}
               className="font-semibold text-foreground text-sm flex items-center gap-1"
             >
               {username}
               <VerificationBadge accountType={profileData?.accountType} size="sm" />
-            </Link>
+            </ProfileLink>
             <span className="text-xs text-muted-foreground">
               shared this
             </span>

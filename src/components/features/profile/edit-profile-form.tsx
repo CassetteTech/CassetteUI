@@ -78,7 +78,7 @@ function formValuesFrom(bio?: UserBio): EditProfileForm {
     username: bio?.username || '',
     bio: bio?.bio || '',
     avatarUrl: bio?.avatarUrl || '',
-    likedPostsPrivacy: bio?.likedPostsPrivacy || bio?.likedPostsVisibility || (bio?.showLikedPosts === false ? 'private' : 'public'),
+    likedPostsPrivacy: bio?.likedPostsPrivacy || bio?.likedPostsVisibility || 'public',
   };
 }
 

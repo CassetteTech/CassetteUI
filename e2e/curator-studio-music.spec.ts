@@ -454,7 +454,7 @@ test('loads more posts after the first page without repeating any', async ({ pag
 
   const nextPage = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return url.pathname.endsWith('/activity') && url.searchParams.get('page') === '2';
+    return url.pathname.endsWith('/activity') && url.searchParams.get('cursor') === 'page-post-19';
   });
   await page.getByRole('button', { name: 'Show more' }).click();
   await nextPage;
@@ -464,7 +464,7 @@ test('loads more posts after the first page without repeating any', async ({ pag
   await expect(page.getByRole('button', { name: 'Show more' })).toHaveCount(0);
 });
 
-test('reads the loaded pages again after a removal before showing more, even when a refresh failed', async ({ page }) => {
+test('shows the next posts after a removal without skipping one, even when a refresh failed', async ({ page }) => {
   const posts = Array.from({ length: 21 }, (_, index) => own(`gap-post-${index}`, `Gap Track ${index + 1}`));
   await mockCassetteApp(page, { currentUser: member, posts });
 

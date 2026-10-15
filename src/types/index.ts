@@ -13,7 +13,6 @@ export interface UserBio {
   isOwnProfile: boolean;
   likedPostsPrivacy?: 'public' | 'private';
   likedPostsVisibility?: 'public' | 'private';
-  showLikedPosts?: boolean;
   accountType?: AccountType;
   totalLikesReceived?: number;
   connectedServices: ConnectedService[];
@@ -73,13 +72,13 @@ export interface PaginatedActivityResponse {
   totalPages: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  nextCursor: string | null;
   sponsoredPlacement?: SponsoredExplorePlacement;
 }
 
 /**
- * The viewer's Feed sources, from a session read or a Feed page. Bridge counts
- * them in separate statements, so they can briefly disagree; both are loading
- * hints, never authorization.
+ * The viewer's Feed sources, from a session read or a Feed page. Both are
+ * loading hints, never authorization.
  */
 export interface FeedSourceCounts {
   activeMembershipCount: number;

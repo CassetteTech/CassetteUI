@@ -731,7 +731,7 @@ test.describe('followed curators', () => {
     await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
   });
 
-  test('a paid count above the source count during a change shows the join state, not an error or a request', async ({ page }) => {
+  test('a paid count above the source count is a session error, not the join state or a request', async ({ page }) => {
     const curatorFeedRequests = trackRequests(page, FEED_PATH);
     await mockCassetteApp(page, {
       currentUser: { ...fixtureUsers.viewer, activeMembershipCount: 1, feedCuratorCount: 0 },
@@ -740,8 +740,8 @@ test.describe('followed curators', () => {
 
     await page.goto('/feed');
 
-    await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
-    await expect(page.getByText('Could not check your account')).toHaveCount(0);
+    await expect(page.getByText('Could not check your account')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
     await expect(page.getByRole('radio', { name: 'Members only' })).toHaveCount(0);
     await expect(skeleton(page)).toHaveCount(0);
     await page.waitForTimeout(300);

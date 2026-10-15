@@ -578,16 +578,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
-            const candidate = await apiService.fetchPostById(postId);
-            if (candidate?.success) {
-              response = candidate;
-              break;
-            }
-
-            // Some backends return 200 + success=false while a new post is still materializing.
-            const payloadRetryAfterMs = (candidate as unknown as { retryAfterMs?: number }).retryAfterMs;
-            await sleep(Math.max(100, payloadRetryAfterMs ?? defaultRetryMs));
-            continue;
+            response = await apiService.fetchPostById(postId);
           } catch (fetchError) {
             if (!shouldRetryFetchPost(fetchError)) {
               throw fetchError;

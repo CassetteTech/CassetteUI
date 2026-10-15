@@ -3,10 +3,8 @@ import type { FeedSourceCounts } from '@/types';
 
 const sessionUserSchema = z.object({ userId: z.string().trim().min(1) }).passthrough();
 
-// An invalid count is kept as null instead of failing the whole body: the
+// Invalid counts are kept as null instead of failing the whole body: the
 // viewer is signed in, but the session is an error until a read succeeds.
-// Each count is checked on its own: Bridge counts them in separate
-// statements, so they can briefly disagree.
 const countSchema = z.number().int().nonnegative().nullable().catch(null);
 
 export const signedInBodySchema = z.object({
@@ -17,7 +15,7 @@ export const signedInBodySchema = z.object({
   feedCuratorCount: countSchema,
 }).transform(({ user, activeMembershipCount, feedCuratorCount }): SignedInBody => ({
   user,
-  counts: activeMembershipCount !== null && feedCuratorCount !== null
+  counts: activeMembershipCount !== null && feedCuratorCount !== null && feedCuratorCount >= activeMembershipCount
     ? { activeMembershipCount, feedCuratorCount }
     : null,
 }));

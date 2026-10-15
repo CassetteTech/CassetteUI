@@ -9,7 +9,6 @@ import { TextMorph } from 'torph/react';
 import { audienceDetails, nounsOf, typeDetails } from '@/components/features/curator/studio-music-filters';
 import {
   LibraryEmpty,
-  libraryPageSize,
   useLibrary,
   useLibraryRowTools,
 } from '@/components/features/curator/studio-music-library';
@@ -40,7 +39,6 @@ import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
 import { profileQueryKeys } from '@/hooks/use-profile';
-import { pagesShortened } from '@/lib/studio-music-pages';
 import { cn } from '@/lib/utils';
 import { keepSecondPressOnTrigger } from '@/lib/utils/menu-trigger';
 import { profileService } from '@/services/profile';
@@ -72,19 +70,6 @@ function useArtistsTab(userId: string | null, type: MusicType | null) {
     enabled: userId !== null,
   });
   return type === 'artists' || (artists.data?.totalItems ?? 0) > 0;
-}
-
-/** Reads the next page. Pages are read by offset, so when a post removed here left a loaded page
-    short, or the total changed since the first page, the loaded pages are read again so nothing
-    is skipped or repeated. */
-async function showMore(library: ReturnType<typeof useLibrary>['library']) {
-  if (pagesShortened(library.data?.pages ?? [], libraryPageSize)) {
-    const reread = await library.refetch();
-    if (reread.isError || !reread.data?.pages.at(-1)?.hasNext) return;
-  }
-  const next = await library.fetchNextPage();
-  const pages = next.data?.pages ?? [];
-  if (pages.length > 1 && pages[pages.length - 1].totalItems !== pages[0].totalItems) await library.refetch();
 }
 
 function AudienceFilter({
@@ -187,7 +172,7 @@ function LibraryRows({ listRef, posts, total, library, rowProps }: {
       </ul>
       {library.hasNextPage && !switching && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button variant="outline" disabled={library.isFetching} onClick={() => void showMore(library)}>
+          <Button variant="outline" disabled={library.isFetching} onClick={() => void library.fetchNextPage()}>
             {library.isFetchingNextPage ? 'Loading…' : 'Show more'}
           </Button>
           <p aria-live="polite" className="text-xs tabular-nums text-muted-foreground">

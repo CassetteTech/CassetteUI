@@ -25,6 +25,9 @@ const subscription = {
   serviceFeeMinor: 50,
   totalAmountMinor: 550,
   currency: 'USD',
+  endReason: null,
+  accessEndsAtUtc: null,
+  refundStatus: null,
 } as const;
 
 const now = Date.parse('2026-08-24T12:00:00Z');
@@ -72,7 +75,7 @@ void test('my memberships parser keeps only the fan contract', () => {
 void test('billing copy comes from the subscription price and paid-through date', () => {
   assert.equal(describeMembershipBilling(subscription, now), '$5.50/month · renews Sep 1, 2026 · tax extra');
   assert.equal(
-    describeMembershipBilling({ ...subscription, cancelAtPeriodEnd: true }, now),
+    describeMembershipBilling({ ...subscription, cancelAtPeriodEnd: true, accessEndsAtUtc: subscription.paidThroughUtc }, now),
     '$5.50/month · ends Sep 1, 2026',
   );
   assert.equal(
@@ -87,7 +90,7 @@ void test('billing copy comes from the subscription price and paid-through date'
   assert.match(describeMembershipBilling({ ...subscription, status: 'paused' }), /paused/);
   assert.equal(describeMembershipStanding(subscription), null);
   assert.match(describeMembershipStanding({ ...subscription, status: 'past_due' }) ?? '', /payment method/);
-  assert.match(describeMembershipStanding({ ...subscription, cancelAtPeriodEnd: true }, now) ?? '', /Sep 1, 2026/);
+  assert.match(describeMembershipStanding({ ...subscription, cancelAtPeriodEnd: true, accessEndsAtUtc: subscription.paidThroughUtc }, now) ?? '', /Sep 1, 2026/);
 });
 
 void test('Checkout parser requires a safe exact total and HTTPS handoff', () => {
@@ -132,8 +135,12 @@ void test('Portal parser requires HTTPS and standing access follows the backend 
   assert.equal(grantsMembershipAccess('canceled'), false);
 });
 
-void test('ending fields parse when present or absent and reject unknown refund states', () => {
-  assert.equal(membershipStatusViewSchema.parse(statusView).membership?.endReason, undefined);
+void test('ending fields are required, may be null, and reject unknown refund states', () => {
+  assert.equal(membershipStatusViewSchema.parse(statusView).membership?.endReason, null);
+  for (const field of ['endReason', 'accessEndsAtUtc', 'refundStatus'] as const) {
+    const { [field]: _omitted, ...withoutField } = subscription;
+    assert.throws(() => membershipStatusViewSchema.parse({ ...statusView, membership: withoutField }), field);
+  }
   const ending = membershipStatusViewSchema.parse({
     ...statusView,
     membership: {

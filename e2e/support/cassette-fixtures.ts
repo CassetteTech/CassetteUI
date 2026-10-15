@@ -597,6 +597,9 @@ export const fixtureIncompleteMembershipStatus: FixtureMembershipStatusView = {
     serviceFeeMinor: 50,
     totalAmountMinor: 550,
     currency: 'USD',
+    endReason: null,
+    accessEndsAtUtc: null,
+    refundStatus: null,
   },
 };
 
@@ -616,6 +619,7 @@ export const fixtureCancelingMembershipStatus: FixtureMembershipStatusView = {
   membership: {
     ...fixtureActiveMembershipStatus.membership!,
     cancelAtPeriodEnd: true,
+    accessEndsAtUtc: fixtureActiveMembershipStatus.membership!.paidThroughUtc,
   },
 };
 

@@ -114,12 +114,13 @@ void test('a full row is exactly a kind and a post', async (t) => {
   }
 });
 
-void test('each count is required and checked on its own; counts that disagree are kept', async (t) => {
+void test('both counts are required, and the source count is never below the membership count', async (t) => {
   const invalid: Counts[] = [
     { activeMembershipCount: 1 },
     { feedCuratorCount: 1 },
     { activeMembershipCount: 1, feedCuratorCount: -1 },
     { activeMembershipCount: 0.5, feedCuratorCount: 1 },
+    { activeMembershipCount: 1, feedCuratorCount: 0 },
   ];
   for (const counts of invalid) {
     t.mock.restoreAll();
@@ -128,9 +129,9 @@ void test('each count is required and checked on its own; counts that disagree a
   }
 
   t.mock.restoreAll();
-  answerWith(t, page([], { activeMembershipCount: 1, feedCuratorCount: 0 }));
+  answerWith(t, page([], { activeMembershipCount: 1, feedCuratorCount: 1 }));
   const result = await profileService.fetchCuratorFeed();
-  assert.deepEqual([result.activeMembershipCount, result.feedCuratorCount], [1, 0]);
+  assert.deepEqual([result.activeMembershipCount, result.feedCuratorCount], [1, 1]);
 });
 
 void test('the request names the cursor, page size, and filter only', async (t) => {

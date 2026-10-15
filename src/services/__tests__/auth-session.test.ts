@@ -41,14 +41,9 @@ void test('a Follow-only viewer has Feed sources without a paid membership', () 
   });
 });
 
-void test('counts that disagree during a source change are still a session, never an error', () => {
-  // Bridge reads the counts in separate statements: a membership that ends between
-  // them leaves the paid count above the source count for one response.
-  assert.deepEqual(readSessionResponse(200, signedInBodySchema.safeParse(signedIn({ activeMembershipCount: 1, feedCuratorCount: 0 })).data), {
-    kind: 'authenticated',
-    user,
-    counts: { activeMembershipCount: 1, feedCuratorCount: 0 },
-  });
+void test('a membership count above the source count is an error, never a session', () => {
+  assert.deepEqual(signedInBodySchema.parse(signedIn({ activeMembershipCount: 2, feedCuratorCount: 1 })), { user, counts: null });
+  assert.deepEqual(readSessionResponse(200, signedInBodySchema.safeParse(signedIn({ activeMembershipCount: 1, feedCuratorCount: 0 })).data), { kind: 'error' });
 });
 
 void test('only a 401 means signed out', () => {

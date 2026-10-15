@@ -47,15 +47,15 @@ interface ActivityApiResponse {
   HasPrevious?: boolean;
   sponsoredPlacement?: unknown;
   SponsoredPlacement?: unknown;
+  nextCursor?: string | null;
 }
 
 const feedCount = z.number().int().nonnegative();
 
 // The feed metadata drives paging and the empty states, so a response without
-// it is an error, never an empty feed. Each count is checked on its own: Bridge
-// counts them in separate statements, so they can briefly disagree. A full
-// post keeps the activity mapping; a locked row is exact, because an added
-// field on it would carry the post's content to a viewer without access.
+// it is an error, never an empty feed. A full post keeps the activity mapping;
+// a locked row is exact, because an added field on it would carry the post's
+// content to a viewer without access.
 const curatorFeedPageSchema = z.object({
   items: z.array(z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('post'), post: activityItemPayloadSchema }).strict(),
@@ -74,7 +74,10 @@ const curatorFeedPageSchema = z.object({
   nextCursor: z.string().min(1).nullable(),
   activeMembershipCount: feedCount,
   feedCuratorCount: feedCount,
-});
+}).refine(
+  (page) => page.feedCuratorCount >= page.activeMembershipCount,
+  { message: 'Feed source count is below the membership count' },
+);
 
 interface ExploreUserPayload {
   userId?: string;
@@ -198,8 +201,6 @@ export class ProfileService {
       merged.LikedPostsTabVisibility ??
       merged.liked_posts_visibility ??
       merged.liked_posts_privacy ??
-      merged.showLikedPosts ??
-      merged.ShowLikedPosts ??
       merged.isLikedPostsPublic ??
       merged.IsLikedPostsPublic
     ) as unknown;
@@ -246,9 +247,6 @@ export class ProfileService {
       isOwnProfile: Boolean(merged.isOwnProfile ?? merged.IsOwnProfile ?? false),
       likedPostsPrivacy: normalizedLikedPostsPrivacy,
       likedPostsVisibility: normalizedLikedPostsPrivacy,
-      showLikedPosts: normalizedLikedPostsPrivacy
-        ? normalizedLikedPostsPrivacy === 'public'
-        : Boolean(merged.showLikedPosts ?? merged.ShowLikedPosts ?? true),
       totalLikesReceived: Number(
         merged.totalLikesReceived ??
         merged.TotalLikesReceived ??
@@ -470,6 +468,7 @@ export class ProfileService {
       totalPages: resolvedTotalPages,
       hasNext: json.hasNext ?? json.HasNext ?? resolvedPage < resolvedTotalPages,
       hasPrevious: json.hasPrevious ?? json.HasPrevious ?? resolvedPage > 1,
+      nextCursor: json.nextCursor ?? null,
     };
   }
 
@@ -540,13 +539,14 @@ export class ProfileService {
     userIdentifier: string,
     options: {
       page?: number;
+      cursor?: string;
       pageSize?: number;
       elementType?: string;
       privacy?: 'public' | 'subscriber' | 'private';
     } = {},
   ): Promise<PaginatedActivityResponse> {
     try {
-      const { page = 1, pageSize = 20, elementType, privacy } = options;
+      const { page = 1, cursor, pageSize = 20, elementType, privacy } = options;
 
       const path =
         userIdentifier === 'edit'
@@ -555,10 +555,8 @@ export class ProfileService {
 
       const url = this.buildApiUrl(path);
 
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-      });
+      const queryParams = new URLSearchParams(cursor ? { cursor } : { page: page.toString() });
+      queryParams.append('pageSize', pageSize.toString());
 
       if (elementType) {
         queryParams.append('elementType', elementType);
@@ -916,11 +914,7 @@ export class ProfileService {
         formData.append('Avatar', data.avatarFile, data.avatarFile.name);
       }
       if (data.avatarUrl && !data.avatarFile) formData.append('AvatarUrl', data.avatarUrl);
-      if (data.likedPostsPrivacy) {
-        formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
-        // Compatibility fallback for older servers
-        formData.append('showLikedPosts', String(data.likedPostsPrivacy === 'public'));
-      }
+      if (data.likedPostsPrivacy) formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
       if (data.profileLinks !== undefined) {
         // Whole-list replace; the server treats a single blank entry as "clear all"
         // since multipart forms cannot express an empty list.

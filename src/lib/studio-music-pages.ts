@@ -29,9 +29,3 @@ export function uniquePosts(pages: readonly PaginatedActivityResponse[]) {
     return true;
   });
 }
-
-/** Whether a post removed here left a loaded page short. The next page is read by offset, so it
-    would then skip the post that moved up into the gap; the loaded pages must be read again first. */
-export function pagesShortened(pages: readonly PaginatedActivityResponse[], pageSize: number) {
-  return pages.some((page, index) => page.items.length < pageSize && (index < pages.length - 1 || page.hasNext));
-}

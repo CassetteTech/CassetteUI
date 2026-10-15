@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ActivityPost, PaginatedActivityResponse, PostPrivacy } from '../../types';
-import { pagesShortened, patchMusicPages, uniquePosts } from '../studio-music-pages';
+import { patchMusicPages, uniquePosts } from '../studio-music-pages';
 
 const post = (postId: string, privacy: PostPrivacy = 'public'): ActivityPost => ({
   postId,
@@ -20,6 +20,7 @@ const page = (number: number, items: ActivityPost[], totalItems: number, hasNext
   totalPages: 2,
   hasNext,
   hasPrevious: number > 1,
+  nextCursor: hasNext ? `cursor-${number}` : null,
 });
 
 const ids = (pages: readonly PaginatedActivityResponse[]) => pages.map((each) => each.items.map((item) => item.postId));
@@ -58,13 +59,4 @@ void test('posts repeated across pages are listed once, in page order', () => {
     uniquePosts([page(1, [post('a'), post('b')], 3, true), page(2, [post('b'), post('c')], 3, false)]).map((each) => each.postId),
     ['a', 'b', 'c'],
   );
-});
-
-void test('a page shortened by a removal puts the next offset read out of step; a short final page does not', () => {
-  const full = [post('a'), post('b')];
-
-  assert.equal(pagesShortened([page(1, full, 3, true)], 2), false);
-  assert.equal(pagesShortened([page(1, [post('a')], 2, true)], 2), true);
-  assert.equal(pagesShortened([page(1, [post('a')], 3, true), page(2, [post('c')], 3, false)], 2), true);
-  assert.equal(pagesShortened([page(1, full, 3, true), page(2, [post('c')], 3, false)], 2), false);
 });

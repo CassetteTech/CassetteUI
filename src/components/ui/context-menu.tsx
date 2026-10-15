@@ -66,7 +66,6 @@ const ContextMenuSeparator = React.forwardRef<
 ))
 ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName
 
-/** Right-aligned hint text, e.g. a platform name or keyboard key. */
 function ContextMenuShortcut({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span

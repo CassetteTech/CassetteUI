@@ -82,7 +82,6 @@ function KeyValueList({ data }: { data: Record<string, unknown> }) {
 export function ExploreScoreBreakdown({ item }: ExploreScoreBreakdownProps) {
   const [showRawJson, setShowRawJson] = useState(false);
 
-  // Scale every bar against the largest magnitude across all three maps so they're directly comparable.
   const scale = useMemo(
     () => maxAbsValue(item.scoreComponents, item.boosts, item.penalties) || 1,
     [item.scoreComponents, item.boosts, item.penalties]
@@ -110,7 +109,6 @@ export function ExploreScoreBreakdown({ item }: ExploreScoreBreakdownProps) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      {/* Left column: scores as bars */}
       <div className="space-y-3">
         <Section title={`Score components (${components.length})`}>
           {components.length ? (
@@ -147,7 +145,6 @@ export function ExploreScoreBreakdown({ item }: ExploreScoreBreakdownProps) {
         </Section>
       </div>
 
-      {/* Right column: debug metadata */}
       <div className="space-y-3">
         <Section title="Constraint notes">
           <KeyValueList data={item.constraintNotes ?? {}} />

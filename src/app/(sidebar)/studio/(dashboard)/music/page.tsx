@@ -1,9 +1,5 @@
 'use client';
 
-/** Studio Music: the curator's library. Type tabs and a who-can-open-it filter narrow the list;
-    both live in the URL, so a post's Back returns to the same view. Each row shows the curation
-    with its owner tools, and a saved change updates every cached list at once. */
-
 import { useContext, useRef, useState, type ReactNode, type RefObject } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -13,7 +9,6 @@ import { TextMorph } from 'torph/react';
 import { audienceDetails, nounsOf, typeDetails } from '@/components/features/curator/studio-music-filters';
 import {
   LibraryEmpty,
-  libraryPageSize,
   useLibrary,
   useLibraryRowTools,
 } from '@/components/features/curator/studio-music-library';
@@ -43,19 +38,17 @@ import { listTabClassName, listTabsRowClassName } from '@/components/ui/list-tab
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { useAuthState } from '@/hooks/use-auth';
 import { useMemberPostAccess } from '@/hooks/use-curator';
-import { pagesShortened } from '@/lib/studio-music-pages';
+import { profileQueryKeys } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { keepSecondPressOnTrigger } from '@/lib/utils/menu-trigger';
 import { profileService } from '@/services/profile';
 import type { ActivityPost } from '@/types';
 
-// Playlists lead, because most curator tools work on playlists.
 const typeTabs: ReadonlyArray<{ value: MusicType | null; label: string }> = [
   { value: null, label: 'All' },
   ...musicTypes.map((value) => ({ value, label: typeDetails[value].label })),
 ];
 
-/** What the count in the description counts, such as "members-only playlists". */
 function countedNoun(total: number, type: MusicType | null, audience: MusicAudience | null) {
   const nouns = nounsOf(type);
   const adjective = audience ? `${audienceDetails[audience].adjective} ` : '';
@@ -64,38 +57,21 @@ function countedNoun(total: number, type: MusicType | null, audience: MusicAudie
 
 const uncountedLine = 'Everything on your page, newest first.';
 
-/** The description counts the list on screen once it has settled, so a filter change keeps the
-    last line while the next list loads instead of flickering. */
 function useCountLine(settledLine: string | null) {
   const [line, setLine] = useState(uncountedLine);
   if (settledLine !== null && settledLine !== line) setLine(settledLine);
   return line;
 }
 
-/** Artists are the rarest posts, so their tab shows once the library holds one, or while it is open. */
 function useArtistsTab(userId: string | null, type: MusicType | null) {
   const artists = useQuery({
-    queryKey: ['user-activity', userId, 'studio-artists'],
+    queryKey: profileQueryKeys.studioActivity(userId, 'studio-artists'),
     queryFn: () => profileService.fetchUserActivity(userId!, { pageSize: 1, elementType: typeDetails.artists.elementType }),
     enabled: userId !== null,
   });
   return type === 'artists' || (artists.data?.totalItems ?? 0) > 0;
 }
 
-/** Reads the next page. Pages are read by offset, so when a post removed here left a loaded page
-    short, or the total changed since the first page, the loaded pages are read again so nothing
-    is skipped or repeated. */
-async function showMore(library: ReturnType<typeof useLibrary>['library']) {
-  if (pagesShortened(library.data?.pages ?? [], libraryPageSize)) {
-    const reread = await library.refetch();
-    if (reread.isError || !reread.data?.pages.at(-1)?.hasNext) return;
-  }
-  const next = await library.fetchNextPage();
-  const pages = next.data?.pages ?? [];
-  if (pages.length > 1 && pages[pages.length - 1].totalItems !== pages[0].totalItems) await library.refetch();
-}
-
-/** Who can open it, as a secondary filter beside the section title. */
 function AudienceFilter({
   audience,
   onChange,
@@ -142,8 +118,6 @@ function AudienceFilter({
   );
 }
 
-/** The type of music, as list tabs on the section rule (the same look as the public page's Music
-    tabs). They are links that keep the audience filter. */
 function TypeTabs({ type, audience, showArtists }: {
   type: MusicType | null;
   audience: MusicAudience | null;
@@ -178,8 +152,6 @@ function TypeTabs({ type, audience, showArtists }: {
   );
 }
 
-/** The posts with their tools, then the next page. While a filter change loads, the last list
-    stays inert and dimmed. */
 function LibraryRows({ listRef, posts, total, library, rowProps }: {
   listRef: RefObject<HTMLUListElement | null>;
   posts: ActivityPost[];
@@ -200,8 +172,7 @@ function LibraryRows({ listRef, posts, total, library, rowProps }: {
       </ul>
       {library.hasNextPage && !switching && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {/* Waits out a refresh, so the next page is read against current pages. */}
-          <Button variant="outline" disabled={library.isFetching} onClick={() => void showMore(library)}>
+          <Button variant="outline" disabled={library.isFetching} onClick={() => void library.fetchNextPage()}>
             {library.isFetchingNextPage ? 'Loading…' : 'Show more'}
           </Button>
           <p aria-live="polite" className="text-xs tabular-nums text-muted-foreground">
@@ -212,7 +183,6 @@ function LibraryRows({ listRef, posts, total, library, rowProps }: {
       {library.isFetchNextPageError && (
         <p role="alert" className="mt-3 text-sm text-destructive">Could not load more music. Try again.</p>
       )}
-      {/* A failed refresh keeps the list on screen; say so, since the list may be behind Bridge. */}
       {library.isRefetchError && !library.isFetching && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <p role="alert" className="text-sm text-destructive">Could not refresh your music.</p>
@@ -235,7 +205,6 @@ export default function StudioMusicPage() {
   const access = useMemberPostAccess();
   const { library, posts, total } = useLibrary(userId, type, audience);
   const showArtists = useArtistsTab(userId, type);
-  // An empty list explains itself below, so the description falls back to the general line.
   const countLine = useCountLine(!library.data || library.isPlaceholderData ? null
     : total > 1 ? `${total} ${countedNoun(total, type, audience)}, newest first.`
     : total === 1 ? `1 ${countedNoun(1, type, audience)}.`

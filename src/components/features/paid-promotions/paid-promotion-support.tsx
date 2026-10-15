@@ -1,6 +1,5 @@
 import { LifeBuoy } from 'lucide-react';
 
-// Placeholder channel until the team decides who owns paid-promotion support.
 export const PAID_PROMOTION_SUPPORT_EMAIL = 'team@cassette.tech';
 
 export function PaidPromotionSupportContact({ className = '' }: { className?: string }) {

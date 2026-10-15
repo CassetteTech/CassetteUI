@@ -27,17 +27,14 @@ export const Container: React.FC<ContainerProps> = ({
   );
 };
 
-// Main container component matching Flutter's mainContainerDecoration
 export const MainContainer: React.FC<Omit<ContainerProps, 'variant'>> = (props) => (
   <Container {...props} variant="main" />
 );
 
-// Card container for album covers and similar elements
 export const CardContainer: React.FC<Omit<ContainerProps, 'variant'>> = (props) => (
   <Container {...props} variant="card" />
 );
 
-// Minimal container for subtle elevation
 export const MinimalContainer: React.FC<Omit<ContainerProps, 'variant'>> = (props) => (
   <Container {...props} variant="minimal" />
 );

@@ -9,10 +9,6 @@ interface KofiSupportBandProps {
   copy: string;
 }
 
-/**
- * Quiet ruled support strip — no card, no tape. The button keeps its offset
- * shadow as the single focal element of the row.
- */
 export function KofiSupportBand({ title, copy }: KofiSupportBandProps) {
   return (
     <section className="py-16 md:py-20">
@@ -30,7 +26,7 @@ export function KofiSupportBand({ title, copy }: KofiSupportBandProps) {
           <h3 className="font-teko text-3xl sm:text-4xl uppercase tracking-tight leading-none text-foreground">
             {title}
           </h3>
-          <p className="font-roboto text-muted-foreground text-sm italic mt-2 max-w-xl leading-relaxed">
+          <p className="font-roboto-flex text-muted-foreground text-sm italic mt-2 max-w-xl leading-relaxed">
             {copy}
           </p>
         </div>

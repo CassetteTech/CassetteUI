@@ -314,7 +314,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       success: false,
     });
 
-    // Case 1: User not logged in - show auth modal
     if (!isAuthenticated) {
       void captureClientEvent('playlist_creation_blocked', {
         ...analyticsProps,
@@ -326,7 +325,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       return;
     }
 
-    // Case 2: User logged in - check if they have platform connection
     setCreationStatus({
       platform,
       loading: true,
@@ -335,7 +333,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
     setShowFailedTracks(false);
 
     try {
-      // Skip connection check for Spotify if using Cassette's account
       const skipConnectionCheck = platform === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
 
       let hasConnection = skipConnectionCheck;
@@ -354,7 +351,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
           connection_state: 'connection_required',
         });
 
-        // No connection - trigger the platform's existing auth flow.
         if (platform === 'appleMusic') {
           await connectAppleMusicAndCreatePlaylist('Connect Apple Music');
         } else {
@@ -363,7 +359,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
         return;
       }
 
-      // Case 3: Has connection - create playlist directly
       await createPlaylistOnPlatform(platform);
     } catch (error) {
       if (error instanceof ApiError && error.requiresReauth) {
@@ -440,7 +435,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
     });
   }, [isAuthenticated]);
 
-  // Save pending action before navigating to auth pages
   const handleAuthNavigate = () => {
     if (pendingPlatform) {
       const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -457,8 +451,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
     const serviceName = service?.name || creationStatus.platform;
 
     if (creationStatus.loading) {
-      // The beam on the active row carries the loading state; this line just
-      // narrates the stage (connecting vs creating) without a second spinner.
       return (
         <p
           aria-live="polite"
@@ -525,8 +517,6 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
         );
       }
 
-      // The converted row itself is the open action now; this just confirms
-      // the outcome and surfaces any tracks that didn't make it over.
       return (
         <div className="mt-3 px-1">
           <p

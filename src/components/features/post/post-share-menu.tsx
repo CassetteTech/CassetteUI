@@ -23,8 +23,6 @@ interface PostShareButtonProps extends HTMLMotionProps<'button'> {
   onShare?: () => void;
 }
 
-// Shared by all three post layout branches so the toolbar Share affordance stays identical.
-// Forwards ref + extra props so it can double as a Radix DropdownMenuTrigger for team accounts.
 export const PostShareButton = forwardRef<HTMLButtonElement, PostShareButtonProps>(
   ({ copyState, onShare, className, onClick, ...rest }, ref) => (
     <motion.button
@@ -97,13 +95,6 @@ interface PostShareMenuProps {
   className?: string;
 }
 
-/**
- * Share affordance for the post page. Non-team accounts get the plain one-click
- * Share button (unchanged behavior, no template fetch). CassetteTeam accounts get a
- * menu with the plain share plus copy-with-attribution items for each active
- * post-destination link template, so marketing shares carry utm params back to the
- * attribution dashboard.
- */
 export function PostShareMenu({
   isTeamAccount,
   copyState,

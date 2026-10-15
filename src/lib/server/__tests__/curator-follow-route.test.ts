@@ -1,5 +1,3 @@
-/** Runs the real Follow proxy route handlers: the origin check before any write leaves the app, path safety, and forwarding. */
-
 import '../../../services/__tests__/browser-service-environment';
 import test, { afterEach, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

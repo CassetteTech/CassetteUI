@@ -1,22 +1,14 @@
 import type { ReactNode } from "react";
 
 interface CurtainSheetProps {
-  /** Label on the cassette tab marking the seam, e.g. "The Story". */
   tab: string;
   children: ReactNode;
 }
 
-/**
- * Opaque content sheet that scrolls up and over a pinned pixel hero.
- * z-10 + solid background fully cover the hero as the sheet slides; the
- * negative top margin pulls the rounded edge into the first viewport as a
- * scroll affordance. Shared by /about and /team.
- */
 export function CurtainSheet({ tab, children }: CurtainSheetProps) {
   return (
     <div className="relative z-10 -mt-10">
       <div className="relative surface-bottom rounded-t-[2rem] md:rounded-t-[2.5rem] border-t-2 border-foreground">
-        {/* Cassette label tab marking the seam */}
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
           <span className="inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-background px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.3em] text-foreground whitespace-nowrap">
             <span
@@ -27,7 +19,6 @@ export function CurtainSheet({ tab, children }: CurtainSheetProps) {
           </span>
         </div>
 
-        {/* Subtle grain texture over the sheet */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.03] rounded-t-[2rem] md:rounded-t-[2.5rem] overflow-hidden"

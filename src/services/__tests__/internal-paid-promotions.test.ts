@@ -89,8 +89,6 @@ void test('parses durable needs-info conversation fields for operators', () => {
 });
 
 void test('tolerates unknown campaign and payment states so the console keeps rendering', () => {
-  // Additive Bridge enum values must never brick the surface ops would use to
-  // investigate them; unknown strings pass through to the UI.
   const unknownCampaign = campaignDetail();
   unknownCampaign.status = 'future_state';
   assert.equal(parseInternalPaidPromotionCampaignDetail(unknownCampaign).status, 'future_state');
@@ -105,7 +103,6 @@ void test('tolerates unknown campaign and payment states so the console keeps re
     'provider_future_state',
   );
 
-  // A missing required field is still a boundary failure.
   const missingCampaign = campaignDetail();
   delete missingCampaign.status;
   assert.throws(
@@ -168,8 +165,6 @@ void test('preserves server totals without re-auditing checkout arithmetic', () 
   assert.equal(discounted.payment?.finalTotalMinor, 21500);
   assert.equal(discounted.payment?.refundableRemainderMinor, 21500);
 
-  // Totals that don't satisfy the checkout formula still parse; that
-  // invariant is reconciliation/Sentinel's job.
   const inconsistent = campaignDetail();
   inconsistent.payment = {
     ...(inconsistent.payment as Record<string, unknown>),
@@ -190,7 +185,6 @@ void test('preserves server totals without re-auditing checkout arithmetic', () 
   };
   assert.equal(parseInternalPaidPromotionCampaignDetail(unknown).payment?.finalTotalMinor, null);
 
-  // Wrong primitive types on money fields remain boundary failures.
   const wrongType = campaignDetail();
   wrongType.payment = {
     ...(wrongType.payment as Record<string, unknown>),
@@ -246,7 +240,6 @@ void test('parses refund responses without gating the reported status', () => {
   assert.equal(parsed.amountRefundedMinor, 0);
   assert.equal(parsed.refundableRemainderMinor, 21500);
 
-  // A refund that already settled reports its real status instead of failing.
   assert.equal(
     parseInternalPaidPromotionRefund({ ...response, paymentStatus: 'refunded' }).paymentStatus,
     'refunded',
@@ -265,8 +258,6 @@ void test('carries the effort-week refund numbers as advisory nullables', () => 
   assert.equal(parsed.weeksDelivered, 1);
   assert.equal(parsed.policyRefundableMinor, 18750);
 
-  // A campaign priced before the weekly columns existed still renders; the
-  // console shows "unavailable" rather than inventing a policy number.
   const unpriced = { ...campaignDetail() } as Record<string, unknown>;
   delete unpriced.weeks;
   delete unpriced.weeksDelivered;
@@ -276,7 +267,6 @@ void test('carries the effort-week refund numbers as advisory nullables', () => 
   assert.equal(parsedUnpriced.weeksDelivered, null);
   assert.equal(parsedUnpriced.policyRefundableMinor, null);
 
-  // A subject with no secondary names is valid; a missing list is not.
   const missing = campaignDetail() as Record<string, unknown>;
   missing.subject = { id: 'r_TestArtist01', elementType: 'artist', title: 'Mia Groove', coverArtUrl: null };
   assert.throws(

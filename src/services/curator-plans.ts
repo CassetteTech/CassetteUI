@@ -1,5 +1,3 @@
-/** Owns curator plan, feature, pricing, and deterministic economics contracts. */
-
 import { z } from 'zod';
 import { moneyMinorSchema } from './membership';
 import { CuratorPageError } from './curator';
@@ -8,10 +6,13 @@ const timestampSchema = z.string().datetime({ offset: true });
 const featureKeySchema = z.string().min(1).max(100).regex(/^[a-z0-9_]+$/);
 const basisPointsSchema = z.number().int().nonnegative().safe();
 
+export const MONTHLY_PRICE_MIN_MINOR = 500;
+export const MONTHLY_PRICE_MAX_MINOR = 10_000;
+
 const curatorPlanRequestSchema = z.object({
   name: z.string().trim().min(1).max(150),
   description: z.string().trim().max(2000),
-  amountMinor: moneyMinorSchema.min(500).max(10_000),
+  amountMinor: moneyMinorSchema.min(MONTHLY_PRICE_MIN_MINOR).max(MONTHLY_PRICE_MAX_MINOR),
   annualAmountMinor: moneyMinorSchema.positive().nullable(),
   featureKeys: z.array(featureKeySchema).max(10),
 }).strict().superRefine((plan, context) => {
@@ -24,11 +25,11 @@ const curatorPlanRequestSchema = z.object({
   }
 });
 
-const curatorPlanSchema = z.object({
+export const curatorPlanSchema = z.object({
   id: z.string().regex(/^mpl_[0-9A-Za-z]+$/).max(40),
   name: z.string().min(1).max(150),
   description: z.string().max(2000),
-  amountMinor: moneyMinorSchema.min(500).max(10_000),
+  amountMinor: moneyMinorSchema.min(MONTHLY_PRICE_MIN_MINOR).max(MONTHLY_PRICE_MAX_MINOR),
   annualAmountMinor: moneyMinorSchema.positive().nullable(),
   currency: z.literal('USD'),
   serviceFeeMinor: moneyMinorSchema.nullable(),
@@ -83,7 +84,7 @@ const curatorFeatureSchema = z.object({
   description: z.string().max(2000),
 }).strict();
 
-const curatorPricingSchema = z.object({
+export const curatorPricingSchema = z.object({
   curatorProMonthlyPriceMinor: moneyMinorSchema.positive(),
   currency: z.literal('USD'),
   platformFeeBps: basisPointsSchema.max(10_000),
@@ -102,7 +103,7 @@ const curatorPricingSchema = z.object({
 );
 
 const curatorPlansSchema = z.array(curatorPlanSchema);
-const curatorFeaturesSchema = z.array(curatorFeatureSchema);
+export const curatorFeaturesSchema = z.array(curatorFeatureSchema);
 
 export type CuratorPlanRequest = z.infer<typeof curatorPlanRequestSchema>;
 export type CuratorPlan = z.infer<typeof curatorPlanSchema>;
@@ -118,15 +119,6 @@ export type CuratorPlanEconomics = {
   processingFeeMinor: number;
   curatorAccrualMinor: number;
 };
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorPlan = (value: unknown): CuratorPlan => curatorPlanSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorPlans = (value: unknown): CuratorPlan[] => curatorPlansSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorFeatures = (value: unknown): CuratorFeature[] => curatorFeaturesSchema.parse(value);
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorPricing = (value: unknown): CuratorPricing => curatorPricingSchema.parse(value);
 
 function roundBasisPoints(amountMinor: number, basisPoints: number): number {
   const product = amountMinor * basisPoints;
@@ -211,7 +203,6 @@ export async function createCuratorPlan(request: CuratorPlanRequest): Promise<Cu
   return parseResponse(response, 'Failed to create membership plan', curatorPlanSchema);
 }
 
-/** Drafts only; Bridge answers 409 once the plan is published. */
 export async function updateCuratorPlan(id: string, request: CuratorPlanRequest): Promise<CuratorPlan> {
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}`, {
     method: 'PUT',
@@ -222,7 +213,6 @@ export async function updateCuratorPlan(id: string, request: CuratorPlanRequest)
   return parseResponse(response, 'Failed to update membership plan', curatorPlanSchema);
 }
 
-/** Drafts only; Bridge answers 409 once the plan is published. */
 export async function deleteCuratorPlan(id: string): Promise<void> {
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}`, {
     method: 'DELETE', credentials: 'include',
@@ -247,15 +237,12 @@ export const publishCuratorPlan = (id: string): Promise<CuratorPlan> =>
 export const archiveCuratorPlan = (id: string): Promise<CuratorPlan> =>
   changeCuratorPlan(id, 'archive');
 
-/** Archives the plan and schedules every member of this curator to end at their paid-through date. */
 export const endCuratorMemberships = (id: string): Promise<CuratorPlan> =>
   changeCuratorPlan(id, 'end-memberships');
 
 const annualPriceRequestSchema = z.object({ annualAmountMinor: moneyMinorSchema.positive() }).strict();
 const curatorErrorSchema = z.object({ errorCode: z.string(), message: z.string().min(1).max(500) }).strict();
 
-/** Adds the one-time annual price to an active plan. Bridge freezes it after the
-    first addition. Failures carry Bridge's own message when the body is its error shape. */
 export async function addCuratorPlanAnnualPrice(id: string, annualAmountMinor: number): Promise<CuratorPlan> {
   const response = await fetch(`/api/v1/curators/plans/${encodeURIComponent(planIdSchema.parse(id))}/annual-price`, {
     method: 'POST',
@@ -272,9 +259,6 @@ export async function addCuratorPlanAnnualPrice(id: string, annualAmountMinor: n
 
 const memberPostAuthoringSchema = z.object({ canAuthor: z.boolean() }).strict();
 
-/** Whether the signed-in user may publish members-only posts. Bridge decides with the
-    rule that post writes enforce: an active plan with member posts, or an archived one
-    whose members still pay for them. */
 export async function fetchMemberPostAuthoring(signal?: AbortSignal): Promise<boolean> {
   const response = await fetch('/api/v1/curators/me/member-post-authoring', {
     cache: 'no-store', credentials: 'include', signal,

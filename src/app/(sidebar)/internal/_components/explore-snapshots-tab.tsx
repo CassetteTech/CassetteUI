@@ -48,7 +48,6 @@ function statusTone(status: string): Tone {
   }
 }
 
-/** Pull a numeric {Type: count} distribution out of the open-shaped validation metrics, if present. */
 function readContentTypeDistribution(
   metrics: Record<string, unknown> | null | undefined
 ): [string, number][] | null {
@@ -91,10 +90,8 @@ export function ExploreSnapshotsTab() {
     void loadSnapshots();
   }, [loadSnapshots]);
 
-  // Default-select the latest successful snapshot until the user explicitly picks one.
   useEffect(() => {
     if (userPickedId) {
-      // Keep the user's selection only while it still exists in the list.
       if (selectedId && snapshots.some((s) => s.snapshotId === selectedId)) return;
     }
     const next = pickDefaultSnapshotId(snapshots);
@@ -200,7 +197,6 @@ export function ExploreSnapshotsTab() {
       />
 
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
-        {/* Snapshot selector */}
         <div className="xl:w-[300px] xl:shrink-0">
           <Panel title="Snapshots">
             {snapshotsError ? (
@@ -277,7 +273,6 @@ export function ExploreSnapshotsTab() {
           </Panel>
         </div>
 
-        {/* Selected snapshot detail + ranked items */}
         <div className="min-w-0 flex-1 flex flex-col gap-3">
           {!selectedSnapshot ? (
             <Panel>
@@ -290,7 +285,6 @@ export function ExploreSnapshotsTab() {
             </Panel>
           ) : (
             <>
-              {/* Detail panel */}
               <Panel
                 title={
                   <div className="flex items-center gap-2 min-w-0">
@@ -305,7 +299,6 @@ export function ExploreSnapshotsTab() {
                 }
               >
                 <div className="divide-y divide-border">
-                  {/* Stat strip */}
                   <StatStrip className="rounded-none border-0 border-b">
                     <Stat label="Generated" value={formatDate(selectedSnapshot.generatedAtUtc)} />
                     <Stat label="Algorithm" value={selectedSnapshot.algorithmVersion} />
@@ -314,7 +307,6 @@ export function ExploreSnapshotsTab() {
                     <Stat label="Seed" value={selectedSnapshot.seed || '—'} />
                   </StatStrip>
 
-                  {/* Field rows */}
                   {(selectedSnapshot.failureReason ||
                     selectedSnapshot.validationFatalErrors.length > 0 ||
                     selectedSnapshot.validationWarnings.length > 0 ||
@@ -370,7 +362,6 @@ export function ExploreSnapshotsTab() {
                 </div>
               </Panel>
 
-              {/* Ranked items */}
               <Panel
                 title="Ranked items"
                 actions={

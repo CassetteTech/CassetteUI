@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config';
+import { clientConfig } from '@/lib/config-client';
 import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state');
     const error = searchParams.get('error');
 
-    // Check for authorization errors
     if (error) {
       appLogger.warn('spotify_callback_route_authorization_denied', {
         error_code: error,
@@ -23,7 +22,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'spotify-invalid-callback' }, { status: 400 });
     }
 
-    // Forward the Authorization header from the client
     const authHeader = request.headers.get('authorization');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -33,8 +31,7 @@ export async function GET(request: NextRequest) {
       headers['Authorization'] = authHeader;
     }
 
-    // Forward to your backend API to handle the token exchange and storage
-    const response = await fetch(`${config.api.url}/api/v1/music-services/spotify/exchange-code`, {
+    const response = await fetch(`${clientConfig.api.url}/api/v1/music-services/spotify/exchange-code`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ Code: code, State: state }),

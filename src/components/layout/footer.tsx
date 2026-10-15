@@ -39,7 +39,6 @@ export function Footer() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-10">
-          {/* Brand block */}
           <div className="md:col-span-6">
             <Link href="/" className="inline-flex items-center gap-2 -rotate-[1deg]">
               <Image
@@ -53,15 +52,12 @@ export function Footer() {
                 Cassette
               </span>
             </Link>
-            <p className="font-roboto text-sm text-muted-foreground mt-4 max-w-xs italic border-l-2 border-foreground/30 pl-3">
+            <p className="font-roboto-flex text-sm text-muted-foreground mt-4 max-w-xs italic border-l-2 border-foreground/30 pl-3">
               Share music across every streaming platform. One link, no friction.
             </p>
             <SocialLinks className="mt-6" />
           </div>
 
-          {/* Link columns — side by side on mobile (one row instead of a
-              stack); md:contents dissolves the wrapper so each column joins
-              the outer 12-col grid on desktop unchanged */}
           <div className="grid grid-cols-3 gap-4 md:contents">
             {linkColumns.map((col) => (
               <div key={col.label} className="md:col-span-2">
@@ -80,7 +76,6 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="mt-10 md:mt-12 pt-5 border-t-2 border-dashed border-foreground/25 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             © 2026 Cassette — All rights reserved
@@ -99,7 +94,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
     <li>
       <Link
         href={href}
-        className="group inline-flex items-center gap-1.5 font-roboto text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="group inline-flex items-center gap-1.5 font-roboto-flex text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <span className="inline-block w-3 overflow-hidden scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-150 font-mono text-primary text-xs">
           →

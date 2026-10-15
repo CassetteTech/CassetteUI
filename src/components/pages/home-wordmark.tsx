@@ -1,6 +1,6 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role -- Inline SVG lets eight animated layers form one accessible image. */
 
-import { useId, type CSSProperties } from 'react';
+import { useId } from 'react';
 
 // A white face with a black outline, rendered at 4x by
 // scripts/render-home-wordmark-layer.mjs. The browser shrinks it to its
@@ -21,8 +21,6 @@ const layers = [
   { color: '#FFFFFF', offset: 0 },
 ];
 
-// Multiplies each channel by the layer color: white becomes the color, black
-// stays black, and the antialiased outline edge blends between them.
 function tintMatrix(color: string) {
   const [red, green, blue] = [1, 3, 5].map(start => parseInt(color.slice(start, start + 2), 16) / 255);
   return `${red} 0 0 0 0  0 ${green} 0 0 0  0 0 ${blue} 0 0  0 0 0 1 0`;
@@ -55,11 +53,10 @@ export function HomeWordmark() {
             {...layerFrame}
             filter={color === '#FFFFFF' ? undefined : `url(#${filterId}-${offset})`}
             className="home-wordmark-layer"
-            // SAFETY: CSSProperties has no custom-property keys; both values are plain CSS lengths or numbers.
             style={{
               '--wordmark-depth': `${offset}px`,
               '--wordmark-index': layers.length - 1 - index,
-            } as CSSProperties}
+            }}
           />
         </g>
       ))}

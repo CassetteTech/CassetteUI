@@ -30,19 +30,15 @@ interface NavigationLinksProps {
 
 interface NavigationSectionProps {
   title: string;
-  /** Names the section for screen readers only, as the sidebar's page rows have no heading. */
   titleHidden?: boolean;
   items: NavigationItemDefinition[];
   pathname: string | null;
   variant: 'primary' | 'account' | 'secondary';
   onLinkClick?: () => void;
   username?: string | null;
-  /** Rows after the links, such as Sign Out, inside the same hairline grid. */
   children?: React.ReactNode;
 }
 
-// Text-only editorial rows: Atkinson bold is the same voice as the desktop
-// navbar links; size and color carry the hierarchy, hairlines carry the grid.
 function getItemClassName(variant: NavigationSectionProps['variant'], isActive: boolean) {
   const base =
     'flex w-full items-center justify-between gap-3 font-atkinson font-bold transition-colors duration-150';
@@ -70,10 +66,8 @@ function getItemClassName(variant: NavigationSectionProps['variant'], isActive: 
   );
 }
 
-/** The menu's staggered entrance reads its order from this custom property. */
 function revealIndex(index: number) {
-  // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
-  return { '--reveal-index': index } as React.CSSProperties;
+  return { '--reveal-index': index };
 }
 
 function SectionHeading({ children, hidden = false }: { children: React.ReactNode; hidden?: boolean }) {
@@ -159,8 +153,6 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
 
   return (
     <nav className="flex flex-col gap-5">
-      {/* Signed in, the menu is the sidebar below 1024 px: Add music, then the app's pages in the
-          sidebar's order. A visitor browses the public pages. */}
       {user ? (
         <div data-menu-reveal style={revealIndex(2)}>
           <Button asChild size="sm" className="mb-2 w-full bg-foreground text-background hover:bg-foreground/90">
@@ -217,7 +209,6 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
         </section>
       )}
 
-      {/* The sidebar footer's account actions: one Promote or Your Campaigns row, then Sign Out. */}
       {user && (
         <div data-menu-reveal style={revealIndex(3)}>
           <NavigationSection

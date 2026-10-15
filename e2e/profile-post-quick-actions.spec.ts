@@ -1,5 +1,3 @@
-/** Verifies the public page offers no owner post tools, also to the owner: the right-click menu has
-    Open post and Share only. The owner edits, deletes, and sets who can open a post in Studio Music. */
 
 import { expect, test } from '@playwright/test';
 import {

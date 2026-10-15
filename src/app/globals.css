@@ -14,17 +14,12 @@
     height: 0;
   }
 
-  /* The post page's sticky toolbar and its docked tab's seam cover the top 8.5rem; focused and scrolled-to elements stop below it. */
   html:has([data-post-toolbar]) {
-    scroll-padding-top: 8.5rem;
+    scroll-padding-top: var(--post-toolbar-clearance);
   }
 }
 
 @layer components {
-  /* A focused text field darkens its hairline to ink under a faint ink halo.
-     Brand red stays for actions and errors; a red ring on every focused field
-     read as an alarm. In the components layer, so an invalid field's red
-     utilities still win. */
   .field-focus {
     @apply focus-visible:border-foreground/60 focus-visible:ring-[3px] focus-visible:ring-foreground/[0.07];
   }
@@ -37,16 +32,14 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
-  /* Hide scrollbars while keeping scroll functionality */
   .no-scrollbar {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
   .no-scrollbar::-webkit-scrollbar {
-    display: none; /* Chrome, Safari */
+    display: none;
   }
 
-  /* ─── Elevation Scale (Dual-Shadow Presets) ────────────────────────────── */
   .elev-0 {
     box-shadow: none;
   }
@@ -75,14 +68,12 @@
       0 8px 16px rgba(0, 0, 0, 0.12);
   }
 
-  /* Soft dashboard elevation: a hairline-adjacent lift instead of a drop. */
   .elev-soft {
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.04),
       0 12px 32px -20px rgba(0, 0, 0, 0.18);
   }
 
-  /* Dark mode: subtler shadows */
   .dark .elev-soft {
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.35),
@@ -113,12 +104,6 @@
       0 8px 16px rgba(0, 0, 0, 0.25);
   }
 
-  /* ─── Cards ────────────────────────────────────────────────────────────────
-     A box needs a reason: a form, a table, a floating layer, or an object such
-     as the membership pass. `card-ink` is that box: the page colour inside one
-     hairline, so it never reads as a lighter card on the paper. `card-quiet`
-     is the rail panel: one solid tone step inside a hairline. Lists are
-     hairline rows and grids are artwork tiles; neither uses a card class. */
   .card-ink {
     @apply rounded-lg border border-border bg-background;
   }
@@ -127,7 +112,6 @@
     @apply rounded-xl border border-border bg-card;
   }
 
-  /* ─── Surface Layers ───────────────────────────────────────────────────── */
   .surface-bottom {
     background: hsl(var(--background));
   }
@@ -136,7 +120,6 @@
     background: hsl(var(--card));
   }
 
-  /* ─── Editorial Section Wrappers ─────────────────────────────────────── */
   .section-dark {
     background: hsl(var(--section-dark));
     color: hsl(var(--section-dark-fg));
@@ -157,7 +140,6 @@
     color: hsl(var(--section-cream-fg));
   }
 
-  /* ─── Editorial Rules (print-inspired separators) ────────────────────── */
   .editorial-rule {
     height: 1px;
     background: hsl(var(--editorial-rule));
@@ -183,61 +165,55 @@
 }
 
 @layer base {
-  /* .force-light re-scopes the full light token set onto a subtree so a
-     component renders its light-mode appearance regardless of theme
-     (e.g. the add-music/home search bar and its results panel, which stay
-     white-on-paper by design). Nested re-declaration beats the .dark html
-     override because custom properties inherit from the nearest setter. */
   :root, .force-light {
-    --band-tone-lightness: 0.42; /* bandTone in post-label-head.tsx */
-    --background: 44 43% 92%; /* #F8F0DE */
-    --foreground: 210 10% 14%; /* #1F2327 */
-    --cassette-white: 44 100% 97%; /* #FFF8EC */
-    --card: 44 100% 97%; /* #FFF8EC */
-    --card-foreground: 210 10% 14%; /* #1F2327 */
-    --popover: 44 100% 97%; /* #FFF8EC */
-    --popover-foreground: 210 10% 14%; /* #1F2327 */
-    --primary: 350 76% 52%; /* #E22645 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 30 40% 22%; /* #4A3218 */
-    --secondary-foreground: 44 43% 92%; /* #F8F0DE */
-    --muted: 38 18% 87%; /* #E4DFD8 — warm gray, not tan: hover rows, panels, skeletons */
-    --muted-foreground: 30 8% 38%; /* #68615A — a gray of the ink, 5.3:1 on the paper */
-    --accent: 350 60% 90%; /* #F5D0D6 */
-    --accent-foreground: 210 10% 14%; /* #1F2327 */
-    --destructive: 348 74% 45%; /* #C81E3F */
-    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
-    --border: 36 19% 84%; /* #DED8CF — hairline at about 1.3:1 on the paper */
-    --input: 36 19% 84%; /* #DED8CF */
-    --field: 0 0% 100%; /* #FFFFFF — pure white input surfaces on the warm paper bg */
-    --ring: 350 76% 52%; /* #E22645 */
+    --band-tone-lightness: 0.42;
+    --background: 44 43% 92%;
+    --foreground: 210 10% 14%;
+    --cassette-white: 44 100% 97%;
+    --card: 44 100% 97%;
+    --card-foreground: 210 10% 14%;
+    --popover: 44 100% 97%;
+    --popover-foreground: 210 10% 14%;
+    --primary: 350 76% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 40% 22%;
+    --secondary-foreground: 44 43% 92%;
+    --muted: 38 18% 87%;
+    --muted-foreground: 30 8% 38%;
+    --accent: 350 60% 90%;
+    --accent-foreground: 210 10% 14%;
+    --destructive: 348 74% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 36 19% 84%;
+    --input: 36 19% 84%;
+    --field: 0 0% 100%;
+    --ring: 350 76% 52%;
     --radius: 0.5rem;
 
-    /* Easing curves — mirror tailwind.config.js (out-quart/in-quart) and src/lib/motion.ts. */
     --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-in-quart: cubic-bezier(0.64, 0, 0.78, 0);
 
-    --accent-royal: 235 86% 65%; /* #5865F2 */
-    --accent-royal-foreground: 0 0% 100%; /* #FFFFFF */
+    --accent-royal: 235 86% 65%;
+    --accent-royal-foreground: 0 0% 100%;
 
-    --success: 140 59% 30%; /* #1F7A3E */
-    --success-text: 140 59% 30%; /* #1F7A3E */
-    --success-foreground: 0 0% 100%; /* #FFFFFF */
+    --success: 140 59% 30%;
+    --success-text: 140 59% 30%;
+    --success-foreground: 0 0% 100%;
 
-    --info: 212 100% 39%; /* #005EC7 */
-    --info-text: 212 100% 39%; /* #005EC7 */
-    --info-foreground: 0 0% 100%; /* #FFFFFF */
+    --info: 212 100% 39%;
+    --info-text: 212 100% 39%;
+    --info-foreground: 0 0% 100%;
 
-    --warning: 39 100% 30%; /* #9A6400 */
-    --warning-text: 39 100% 30%; /* #9A6400 */
-    --warning-foreground: 0 0% 100%; /* #FFFFFF */
+    --warning: 39 100% 30%;
+    --warning-text: 39 100% 30%;
+    --warning-foreground: 0 0% 100%;
 
-    --platform-spotify: 141 73% 42%; /* #1DB954 */
-    --platform-apple-music: 353 96% 56%; /* #FA233B */
-    --platform-youtube: 0 100% 50%; /* #FF0000 */
-    --platform-tidal: 217 91% 60%; /* #3B82F6 */
-    --platform-deezer: 20 100% 61%; /* #FF6B3D */
-    --platform-foreground: 0 0% 100%; /* #FFFFFF */
+    --platform-spotify: 141 73% 42%;
+    --platform-apple-music: 353 96% 56%;
+    --platform-youtube: 0 100% 50%;
+    --platform-tidal: 217 91% 60%;
+    --platform-deezer: 20 100% 61%;
+    --platform-foreground: 0 0% 100%;
 
     --chart-1: 350 76% 52%;
     --chart-2: 235 86% 65%;
@@ -254,63 +230,61 @@
     --sidebar-border: 35 25% 75%;
     --sidebar-ring: 350 76% 52%;
 
-    /* ─── Editorial Section Backgrounds ─────────────────────────────────── */
-    --section-dark: 210 10% 16%;           /* Deep charcoal #242930 */
-    --section-dark-fg: 44 43% 92%;         /* Beige text on dark */
-    --section-wine: 348 45% 22%;           /* Burgundy #522028 */
-    --section-wine-fg: 44 43% 92%;         /* Beige text on wine */
-    --section-navy: 220 40% 18%;           /* Deep navy #1B2740 */
-    --section-navy-fg: 44 43% 92%;         /* Beige text on navy */
-    --section-cream: 42 50% 95%;           /* Warm cream #FAF5EA */
-    --section-cream-fg: 210 10% 14%;       /* Charcoal text on cream */
-    --editorial-rule: 210 10% 14%;         /* Strong rule lines */
-    --editorial-rule-subtle: 35 25% 65%;   /* Lighter rule lines */
-    --pullquote-bg: 38 40% 90%;            /* Warm tint for pull-quotes */
-    --number-display: 350 76% 52%;         /* Decorative numbers */
+    --section-dark: 210 10% 16%;
+    --section-dark-fg: 44 43% 92%;
+    --section-wine: 348 45% 22%;
+    --section-wine-fg: 44 43% 92%;
+    --section-navy: 220 40% 18%;
+    --section-navy-fg: 44 43% 92%;
+    --section-cream: 42 50% 95%;
+    --section-cream-fg: 210 10% 14%;
+    --editorial-rule: 210 10% 14%;
+    --editorial-rule-subtle: 35 25% 65%;
+    --pullquote-bg: 38 40% 90%;
+    --number-display: 350 76% 52%;
 
-    /* ─── Console domain accent (default = brand) ───────────────────────── */
-    --domain: 350 76% 52%;                 /* Default to primary red */
+    --domain: 350 76% 52%;
     --domain-foreground: 0 0% 100%;
-    --domain-muted: 350 60% 90%;           /* Soft accent tint */
+    --domain-muted: 350 60% 90%;
   }
 
   .dark {
     --band-tone-lightness: 0.8;
-    --background: 210 10% 14%; /* #1F2327 */
-    --foreground: 44 43% 92%; /* #F8F0DE */
-    --card: 210 10% 17%; /* #252A2F */
-    --card-foreground: 44 43% 92%; /* #F8F0DE */
-    --popover: 210 10% 17%; /* #252A2F */
-    --popover-foreground: 44 43% 92%; /* #F8F0DE */
-    --primary: 349 89% 65%; /* #F05070 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 210 8% 26%; /* #3A3F44 */
-    --secondary-foreground: 44 43% 92%; /* #F8F0DE */
-    --muted: 210 10% 19%; /* #2B3035 */
-    --muted-foreground: 213 4% 61%; /* #9A9DA1 */
-    --accent: 349 71% 25%; /* #6E1222 */
-    --accent-foreground: 44 43% 92%; /* #F8F0DE */
-    --destructive: 348 74% 45%; /* #C81E3F */
-    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
-    --border: 213 7% 22%; /* #333740 */
-    --input: 210 10% 19%; /* #2B3035 */
-    --field: 210 10% 17%; /* #252A2F — inputs follow the dark card surface */
-    --ring: 349 89% 65%; /* #F05070 */
+    --background: 210 10% 14%;
+    --foreground: 44 43% 92%;
+    --card: 210 10% 17%;
+    --card-foreground: 44 43% 92%;
+    --popover: 210 10% 17%;
+    --popover-foreground: 44 43% 92%;
+    --primary: 349 89% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 8% 26%;
+    --secondary-foreground: 44 43% 92%;
+    --muted: 210 10% 19%;
+    --muted-foreground: 213 4% 61%;
+    --accent: 349 71% 25%;
+    --accent-foreground: 44 43% 92%;
+    --destructive: 348 74% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 213 7% 22%;
+    --input: 210 10% 19%;
+    --field: 210 10% 17%;
+    --ring: 349 89% 65%;
 
-    --accent-royal: 235 86% 65%; /* #5865F2 */
-    --accent-royal-foreground: 0 0% 100%; /* #FFFFFF */
+    --accent-royal: 235 86% 65%;
+    --accent-royal-foreground: 0 0% 100%;
 
-    --success: 140 59% 30%; /* #1F7A3E */
-    --success-text: 143 66% 58%; /* #4DDB84 */
-    --success-foreground: 0 0% 100%; /* #FFFFFF */
+    --success: 140 59% 30%;
+    --success-text: 143 66% 58%;
+    --success-foreground: 0 0% 100%;
 
-    --info: 212 100% 39%; /* #005EC7 */
-    --info-text: 215 100% 74%; /* #7CB3FF */
-    --info-foreground: 0 0% 100%; /* #FFFFFF */
+    --info: 212 100% 39%;
+    --info-text: 215 100% 74%;
+    --info-foreground: 0 0% 100%;
 
-    --warning: 39 100% 30%; /* #9A6400 */
-    --warning-text: 41 100% 70%; /* #FFCF66 */
-    --warning-foreground: 210 10% 14%; /* #1F2327 */
+    --warning: 39 100% 30%;
+    --warning-text: 41 100% 70%;
+    --warning-foreground: 210 10% 14%;
 
     --platform-spotify: 141 73% 42%;
     --platform-apple-music: 353 96% 56%;
@@ -334,27 +308,24 @@
     --sidebar-border: 213 7% 22%;
     --sidebar-ring: 349 89% 65%;
 
-    /* ─── Editorial Section Backgrounds (inverted for dark mode) ────────── */
-    --section-dark: 44 30% 88%;            /* Warm light cream */
-    --section-dark-fg: 210 10% 14%;        /* Charcoal text on cream */
-    --section-wine: 348 40% 82%;           /* Dusty rose #DEB5BA */
-    --section-wine-fg: 210 10% 14%;        /* Dark text on rose */
-    --section-navy: 220 30% 85%;           /* Soft steel blue #CCDAEA */
-    --section-navy-fg: 210 10% 14%;        /* Dark text on blue */
-    --section-cream: 210 10% 19%;          /* Dark surface */
-    --section-cream-fg: 44 43% 92%;        /* Beige text on dark */
-    --editorial-rule: 44 43% 92%;          /* Beige rule lines */
-    --editorial-rule-subtle: 213 7% 35%;   /* Subtle rule lines */
-    --pullquote-bg: 210 10% 22%;           /* Dark tint for pull-quotes */
-    --number-display: 349 89% 65%;         /* Decorative numbers */
+    --section-dark: 44 30% 88%;
+    --section-dark-fg: 210 10% 14%;
+    --section-wine: 348 40% 82%;
+    --section-wine-fg: 210 10% 14%;
+    --section-navy: 220 30% 85%;
+    --section-navy-fg: 210 10% 14%;
+    --section-cream: 210 10% 19%;
+    --section-cream-fg: 44 43% 92%;
+    --editorial-rule: 44 43% 92%;
+    --editorial-rule-subtle: 213 7% 35%;
+    --pullquote-bg: 210 10% 22%;
+    --number-display: 349 89% 65%;
 
-    /* ─── Console domain accent (default = brand) ───────────────────────── */
-    --domain: 349 89% 65%;                 /* Default to primary red (dark) */
+    --domain: 349 89% 65%;
     --domain-foreground: 0 0% 100%;
     --domain-muted: 349 71% 25%;
   }
 
-  /* Force Cassette's warm white surface colors regardless of theme. */
   .force-light-surface {
     --background: var(--cassette-white);
     --card: var(--cassette-white);
@@ -366,14 +337,6 @@
     --input: var(--cassette-white);
   }
 
-  /* ─── Afterglow field ────────────────────────────────────────────────────
-     Curator Studio's dark surface, the counterpart of CoralGlow's light pane
-     tuning: a strip across the top where broad rose-coral light and a small
-     peach accent sit in warm charcoal with wine tones, then fade into the
-     page background. Gradients only; CoralGlow's dot grain supplies the
-     texture. Tuned against the brand guideline's Afterglow reference, then
-     dimmed so the header's muted text keeps AA contrast. Rendered by
-     CoralGlow `afterglow`. */
   .afterglow-field {
     background-image:
       linear-gradient(180deg, transparent 50%, hsl(var(--background)) 100%),
@@ -385,26 +348,23 @@
       linear-gradient(180deg, hsl(var(--accent) / 0.22), hsl(var(--accent) / 0.08));
   }
 
-  /* ─── Console surface ────────────────────────────────────────────────────
-     The /internal back office re-tokens the warm brand paper to a cool
-     neutral: telemetry and tables read on quiet gray, not tan-on-tan, while
-     brand red, domain accents, and status tones stay untouched. Scoped via
-     body:has() so portalled sheets, dialogs, selects, and toasts inherit the
-     console surface too (portals mount on <body>, outside the layout tree). */
+  /* Scoped via body:has() so portalled sheets, dialogs, selects, and toasts
+     inherit the console surface too (portals mount on <body>, outside the
+     layout tree). */
   body:has(.console-surface) {
-    --background: 220 14% 97%; /* #F5F6F8 */
-    --foreground: 220 12% 12%; /* #1B1E23 */
-    --card: 0 0% 100%; /* #FFFFFF */
+    --background: 220 14% 97%;
+    --foreground: 220 12% 12%;
+    --card: 0 0% 100%;
     --card-foreground: 220 12% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 220 12% 12%;
-    --secondary: 220 13% 91%; /* #E4E7EB */
+    --secondary: 220 13% 91%;
     --secondary-foreground: 220 12% 12%;
-    --muted: 220 13% 93%; /* #EAECEF */
-    --muted-foreground: 220 8% 42%; /* #62676F */
+    --muted: 220 13% 93%;
+    --muted-foreground: 220 8% 42%;
     --accent: 220 13% 93%;
     --accent-foreground: 220 12% 12%;
-    --border: 220 12% 87%; /* #D9DCE1 */
+    --border: 220 12% 87%;
     --input: 220 12% 87%;
     --field: 0 0% 100%;
     --sidebar-background: 0 0% 100%;
@@ -415,19 +375,19 @@
   }
 
   .dark body:has(.console-surface) {
-    --background: 220 10% 8%; /* #121417 */
-    --foreground: 220 10% 92%; /* #E8EAED */
-    --card: 220 9% 11%; /* #191C20 */
+    --background: 220 10% 8%;
+    --foreground: 220 10% 92%;
+    --card: 220 9% 11%;
     --card-foreground: 220 10% 92%;
     --popover: 220 9% 11%;
     --popover-foreground: 220 10% 92%;
-    --secondary: 220 9% 17%; /* #262A2F */
+    --secondary: 220 9% 17%;
     --secondary-foreground: 220 10% 92%;
-    --muted: 220 9% 15%; /* #22262B */
-    --muted-foreground: 220 6% 60%; /* #93979D */
+    --muted: 220 9% 15%;
+    --muted-foreground: 220 6% 60%;
     --accent: 220 9% 15%;
     --accent-foreground: 220 10% 92%;
-    --border: 220 8% 19%; /* #2C3036 */
+    --border: 220 8% 19%;
     --input: 220 9% 15%;
     --field: 220 9% 11%;
     --sidebar-background: 220 9% 11%;
@@ -437,17 +397,13 @@
     --sidebar-border: 220 8% 19%;
   }
 
-  /* ─── Console domain scopes ──────────────────────────────────────────────
-     Wrap a section in .domain-eng or .domain-growth to recolor every console
-     primitive that reads --domain. Engineering reads cool/telemetry; Growth
-     reads warm/editorial (brand red, auto-adapts via --primary). */
   .domain-eng {
-    --domain: 212 90% 44%;       /* Systems blue */
+    --domain: 212 90% 44%;
     --domain-foreground: 0 0% 100%;
     --domain-muted: 212 60% 90%;
   }
   .dark .domain-eng {
-    --domain: 215 100% 74%;      /* Lighter blue for dark surfaces */
+    --domain: 215 100% 74%;
     --domain-foreground: 210 10% 14%;
     --domain-muted: 215 45% 24%;
   }
@@ -464,7 +420,6 @@
   }
 
   body {
-    /* font-sans resolves to var(--font-inter) via tailwind.config.js. */
     @apply bg-background text-foreground font-sans;
   }
 
@@ -480,6 +435,8 @@
      The text-wrap-style longhand leaves nowrap and truncate (text-wrap-mode) intact. */
   :root {
     text-wrap-style: pretty;
+    --navbar-height: 4rem;
+    --post-toolbar-clearance: 8.5rem;
   }
 
   h1, h2, h3, h4 {
@@ -500,16 +457,11 @@
   }
 }
 
-/* ─── Theme cross-fade ─────────────────────────────────────────────────────
-   The theme controls wrap the change in a view transition. The browser's
-   default root cross-fade is 250 ms; a slower ease reads as one smooth fade. */
 ::view-transition-group(root) {
   animation-duration: 400ms;
   animation-timing-function: ease-in-out;
 }
 
-/* ─── Console chrome ───────────────────────────────────────────────────────
-   Signal light — a small status dot with a soft halo, like a console LED. */
 .signal-dot {
   position: relative;
   display: inline-block;
@@ -537,19 +489,6 @@
   .signal-dot-pulse::after { animation: none; }
 }
 
-/* Waveform animation */
-@keyframes waveform-pulse {
-  0%, 100% {
-    transform: scaleY(0.3);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-
-/* Conversion overlay: gentle halo breathing behind the logo */
 @keyframes progress-breath {
   0%, 100% {
     opacity: 0.45;
@@ -567,12 +506,6 @@
   }
 }
 
-/* ─── Post blueprint ───────────────────────────────────────────────────────
-   The post skeleton is a dotted blueprint on a dot grid. A part keeps
-   `data-drafting` until the post arrives, or during a conversion until its
-   step is done, then fades to its plain fill. `--blueprint-order` staggers the
-   draw-in; the element's inline transition-delay staggers the resolve. A
-   skeleton that continues another (`data-continued`) does not draw in again. */
 .blueprint-grid {
   background-image: radial-gradient(circle, hsl(var(--foreground) / 0.14) 1px, transparent 1.5px);
   background-size: 18px 18px;
@@ -588,8 +521,6 @@
   transition-timing-function: ease-in-out;
 }
 
-/* The dotted outline lives on ::after so it fades while the fill fades in.
-   ::before stays free for the skeleton shimmer. */
 .blueprint-part::after {
   content: "";
   position: absolute;
@@ -606,7 +537,6 @@
   animation: blueprint-breathe 2.4s ease-in-out 1.2s infinite;
 }
 
-/* Text bars draw as a dotted rule with a dot at each end. */
 .blueprint-part[data-text-rule]::after {
   border: 0;
   background:
@@ -627,7 +557,6 @@
   animation: none;
 }
 
-/* Once drawn, the outlines breathe (see .blueprint-part::after), so a slow load never looks stuck. */
 .blueprint-part[data-drafting]::after {
   opacity: 1;
 }
@@ -645,7 +574,6 @@
   to   { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 
-/* Print crop marks just outside the corners of a drafting frame. */
 .blueprint-crop {
   position: absolute;
   inset: -14px;
@@ -669,7 +597,6 @@
 }
 
 
-/* Conversion overlay: shimmer sweep across active step label */
 @keyframes shimmer-sweep {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
@@ -679,7 +606,6 @@
   animation: shimmer-sweep 2.4s ease-in-out infinite;
 }
 
-/* Conversion overlay: richer equalizer bars (replaces the 5-bar waveform) */
 @keyframes eq-dance {
   0%, 100% { transform: scaleY(0.25); }
   20%      { transform: scaleY(0.85); }
@@ -693,7 +619,6 @@
   animation: eq-dance 1.3s ease-in-out infinite;
 }
 
-/* Conversion overlay: conic gradient ring rotation around the artwork */
 @keyframes ring-rotate {
   to { transform: rotate(360deg); }
 }
@@ -702,7 +627,6 @@
   animation: ring-rotate 6s linear infinite;
 }
 
-/* Album-art mesh background: slow drift so the gradient feels alive without reading as motion. */
 @keyframes mesh-drift {
   0%   { transform: translate3d(-3%, -2%, 0) scale(1.04); }
   50%  { transform: translate3d(2.5%, 2%,  0) scale(1.07); }
@@ -715,9 +639,6 @@
   }
 }
 
-/* Mobile menu: staggered section reveal, keyed off the panel's data-open flag.
-   Each [data-menu-reveal] sets --reveal-index; delay is derived, so reordering
-   sections never needs new CSS. Runs once per open (class match restarts it). */
 @keyframes mobile-menu-reveal {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -730,13 +651,6 @@
   }
 }
 
-/* Home wordmark: the lettering drops a short distance into place while a
-   soft-edged mask washes it in from the top on an even curve, and its colored extrusion
-   unfolds from behind the white face, front layer first. Each layer sets
-   --wordmark-depth (its resting offset in SVG units) and --wordmark-index
-   (0 = front), so travel and stagger both follow depth. The mask lives only
-   in the keyframes, so the settled wordmark carries no mask.
-   The home page mounts client-side, so this starts with the page reveal. */
 @keyframes home-wordmark-drop {
   from { transform: translateY(-5%); }
   to   { transform: none; }
@@ -781,8 +695,6 @@
     animation: home-wordmark-badge 400ms var(--ease-out-quart) 550ms backwards;
   }
 
-  /* Home search bar and results: drop into place from above with the
-     wordmark's wash, one after the other (--home-search-delay). */
   .home-search-in {
     animation:
       home-search-drop 600ms var(--ease-out-quart) backwards,
@@ -796,14 +708,6 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* ─── Paid-promotion tape-deck hero ────────────────────────────────────────
-   Three loops drive the /promote hero: the spectrum bars, the spotlight
-   sweep that crosses them, and the two cassette reels. Everything animates
-   transform only, so the whole hero stays on the compositor. Each element
-   carries its resting frame as a plain (unanimated) transform, so under
-   `prefers-reduced-motion: reduce` the hero renders as a composed static
-   still — a lit spectrum with the spotlight parked mid-field — rather than
-   collapsing to nothing. */
 @keyframes promote-eq {
   from { transform: scaleY(var(--eq-low)); }
   to   { transform: scaleY(var(--eq-high)); }
@@ -864,21 +768,15 @@
   }
 }
 
-/* ─── Reduced-motion guards (movement loops) ───────────────────────────────
-   These are translate/scale/rotate loops — stop them entirely under reduce.
-   Opacity-only pulses (Tailwind's animate-pulse) are left running.
-   The conversion-flow classes below are the loudest, most-seen loops. */
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer-sweep,
   .animate-eq-dance,
   .animate-ring-rotate,
-  /* Tailwind shimmer (skeleton.tsx): base class and the before: layer. */
   .animate-shimmer,
   .before\:animate-shimmer::before {
     animation: none;
   }
 
-  /* Post blueprint: static; no draw-in or breathing, and parts swap to their fill at once. */
   .blueprint-part[data-drafting],
   .blueprint-part[data-drafting]::after {
     animation: none;
@@ -890,18 +788,8 @@
   .blueprint-grid {
     transition: none;
   }
-
-  /* waveform-pulse is applied via inline style (no class hook), so neutralize
-     the keyframe itself to a static, movement-free frame. */
-  @keyframes waveform-pulse {
-    0%, 100% { transform: none; opacity: 1; }
-  }
 }
 
-/* ─── Reduced transparency / increased contrast ────────────────────────────
-   Drop the blur on translucent chrome when the user asks for reduced
-   transparency; add a defined border to translucent surfaces under increased
-   contrast. Token-based only — no per-component restyling. */
 @media (prefers-reduced-transparency: reduce) {
   .backdrop-blur,
   .backdrop-blur-sm,
@@ -921,9 +809,6 @@
   }
 }
 
-/* ─── Tab scroll fade ────────────────────────────────────────────────────────
-   Edge fades for the horizontally scrollable profile tab row (mobile/tablet).
-   The 12px fade only covers tab padding, never label text. */
 @media (max-width: 1023px) {
   .tab-scroll-fade {
     mask-image: linear-gradient(
@@ -936,10 +821,6 @@
   }
 }
 
-/* ─── Tab label ───────────────────────────────────────────────────────────────
-   Underline tabs set the active label in medium weight. A hidden medium-weight
-   copy of the label (from data-label) holds that width at every weight, so
-   selecting a tab never moves the tabs beside it. */
 .tab-label {
   display: inline-flex;
   flex-direction: column;
@@ -953,16 +834,11 @@
   font-weight: 500;
 }
 
-/* ─── Squircle ───────────────────────────────────────────────────────────────
-   iOS-style superellipse corners for square artwork (vault "Apple's Corners"). */
 .squircle {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100 0C30 0 0 30 0 100s30 100 100 100 100-30 100-100S170 0 100 0Z'/%3E%3C/svg%3E");
   mask-size: 100% 100%;
 }
 
-/* ─── Artwork wall ──────────────────────────────────────────────────────
-   Each column of chart artwork drifts one full copy of itself and loops,
-   so the wall reads as slow tape motion behind the card above it. */
 @keyframes artwork-wall-drift {
   to { transform: translateY(-50%); }
 }
@@ -980,8 +856,6 @@
   }
 }
 
-/* Paper dots punched over the artwork wall, so the covers read as a
-   halftone print rather than a photo grid. */
 .artwork-wall-halftone {
   background-image: radial-gradient(circle at center, hsl(var(--background)) 0.9px, transparent 1.1px);
   background-size: 4px 4px;

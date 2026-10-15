@@ -7,8 +7,6 @@ import { usePaidPromotionSalesEnabled } from '@/hooks/use-paid-promotion-availab
 import { cn } from '@/lib/utils';
 import { STREAMING_SERVICES, StartPageLink } from './home-brand';
 
-/** The sign-up ask that closes the page, a line for artists while Boost is on
-    sale, then the footer links. The ask is skipped for signed-in visitors. */
 export function HomeClosing({ isAuthenticated, className }: { isAuthenticated: boolean; className?: string }) {
   const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
   return (

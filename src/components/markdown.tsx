@@ -1,8 +1,6 @@
 import React from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 
-// Lightweight, styled markdown renderer without relying on @tailwindcss/typography
-// Works in server components. Map common tags to Tailwind classes.
 export function Markdown({ content }: { content: string }) {
   const components: Components = {
     h1: (props) => (

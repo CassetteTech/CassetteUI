@@ -1,10 +1,10 @@
 'use client';
 
 /** Copy-to-clipboard button with a layout-stable idle → copied → error crossfade.
-    Adapted from interior.dev (MIT): the hook reads its value lazily and the
-    styled button uses Cassette's Button tokens. */
+    Adapted from interior.dev (MIT): the button reads its value lazily and uses
+    Cassette's Button tokens. */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,25 +17,90 @@ const INSTANT = { duration: 0 } as const;
 type CopyStatus = 'idle' | 'copied' | 'error';
 const resetAfterMs = 2000;
 
-function writeClipboard(value: string): Promise<void> {
-  const clipboard = globalThis.navigator?.clipboard;
-  return clipboard ? clipboard.writeText(value) : Promise.reject(new Error('Clipboard is unavailable'));
+function writeFallback(text: string): boolean {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.top = '0';
+  area.style.left = '0';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+
+  const selection = document.getSelection();
+  const previous = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+
+  document.body.removeChild(area);
+  if (selection && previous) {
+    selection.removeAllRanges();
+    selection.addRange(previous);
+  }
+  return ok;
 }
 
-function useCopyToClipboard() {
+export function useCopyToClipboard({
+  onCopy,
+  onError,
+}: {
+  onCopy?: (value: string) => void;
+  onError?: (error: Error | null) => void;
+} = {}) {
   const [status, setStatus] = useState<CopyStatus>('idle');
   const [ticket, setTicket] = useState(0);
 
-  const copy = useCallback(async (read: () => string, onCopied?: () => void) => {
+  const mounted = useRef(true);
+  const copied = useRef(onCopy);
+  copied.current = onCopy;
+  const failed = useRef(onError);
+  failed.current = onError;
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const copy = useCallback(async (text: string) => {
+    if (!text) return false;
+
+    let ok = false;
+    let failure: Error | null = null;
+
     try {
-      await writeClipboard(read());
-      setStatus('copied');
-      onCopied?.();
-    } catch {
-      setStatus('error');
+      const clipboard = globalThis.navigator?.clipboard;
+      if (clipboard) {
+        await clipboard.writeText(text);
+        ok = true;
+      } else {
+        ok = writeFallback(text);
+      }
+    } catch (error) {
+      failure = error instanceof Error ? error : null;
+      try {
+        ok = writeFallback(text);
+      } catch {
+        ok = false;
+      }
     }
-    // A fresh ticket restarts the reset timer even when the status is unchanged.
+
+    if (!mounted.current) return ok;
+
+    setStatus(ok ? 'copied' : 'error');
     setTicket((t) => t + 1);
+
+    if (ok) copied.current?.(text);
+    else failed.current?.(failure);
+
+    return ok;
   }, []);
 
   useEffect(() => {
@@ -44,7 +109,7 @@ function useCopyToClipboard() {
     return () => clearTimeout(id);
   }, [ticket, status]);
 
-  return { copy, status };
+  return { copy, status, copied: status === 'copied' };
 }
 
 export function CopyButton({
@@ -55,16 +120,14 @@ export function CopyButton({
   className,
   onCopied,
 }: {
-  /** Read on click, so callers can build the text from window.location. */
   value: () => string;
   label?: string;
   copiedLabel?: string;
   errorLabel?: string;
   className?: string;
-  /** Runs after the clipboard write succeeds. */
   onCopied?: () => void;
 }) {
-  const { copy, status } = useCopyToClipboard();
+  const { copy, status } = useCopyToClipboard({ onCopy: onCopied });
   const reduced = useReducedMotion();
   const fade = reduced ? INSTANT : CROSSFADE;
   const draw = reduced ? INSTANT : DRAW;
@@ -79,7 +142,7 @@ export function CopyButton({
       type="button"
       aria-label={label}
       aria-live="polite"
-      onClick={() => void copy(value, onCopied)}
+      onClick={() => void copy(value())}
       whileTap={reduced ? undefined : { y: 1 }}
       transition={CELL}
       className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'relative', className)}
@@ -134,7 +197,6 @@ export function CopyButton({
           <path d="M7 10.6h.01" />
         </motion.svg>
       </span>
-      {/* All labels stay mounted in one grid cell, so the button never changes width. */}
       <span className="grid" aria-hidden="true">
         {labels.map(([key, text]) => (
           <motion.span
@@ -147,7 +209,6 @@ export function CopyButton({
             {text}
           </motion.span>
         ))}
-        {/* Reserve the widest label's width. */}
         <span className="invisible col-start-1 row-start-1 whitespace-nowrap">
           {labels.reduce((a, [, b]) => (b.length > a.length ? b : a), '')}
         </span>

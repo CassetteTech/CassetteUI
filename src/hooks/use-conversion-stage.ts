@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiService } from '@/services/api';
 import type { ConvertPartialResult } from '@/types';
 
@@ -16,36 +16,13 @@ export const CONVERSION_STAGE_LABELS: Record<string, string> = {
   finalizing: 'Finalizing your post',
 };
 
-/**
- * Elapsed-time fallback labels used until Bridge reports a real stage
- * (older deployments don't write stages). Keeps the readout moving so a
- * long playlist conversion never looks stuck on one line.
- */
-const FALLBACK_LABELS: Array<{ afterMs: number; label: string }> = [
-  { afterMs: 0, label: 'Contacting your services' },
-  { afterMs: 3000, label: 'Matching across services' },
-  { afterMs: 9000, label: 'Still working on it' },
-  { afterMs: 20000, label: 'Big links take a little longer' },
-];
-
 export interface ConversionStageState {
-  /** Raw Bridge stage value, or null until one is reported. */
   stage: string | null;
-  /** Display label: the real stage's label once known, else a time-based fallback. */
   label: string;
-  /** Playlist track progress reported by Bridge, or null when not applicable. */
   progress: { processed: number; total: number } | null;
-  /** What Bridge already knows about a track, album, or artist conversion; null until reported. */
   partialResult: ConvertPartialResult | null;
 }
 
-/**
- * Polls the conversion job by idempotency key while a conversion is in
- * flight and returns the latest stage reported by Bridge plus a display
- * label. The job row is created when POST /convert is accepted, so polling
- * by the same idempotency key the client sent surfaces real progress even
- * though the convert request itself is still pending. Pass null to stop.
- */
 export function useConversionStage(
   idempotencyKey: string | null,
   options?: { anonymous?: boolean; intervalMs?: number }
@@ -53,29 +30,21 @@ export function useConversionStage(
   const [stage, setStage] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
   const [partialResult, setPartialResult] = useState<ConvertPartialResult | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const startedAtRef = useRef<number>(0);
   const anonymous = options?.anonymous;
   const intervalMs = options?.intervalMs ?? 700;
 
   useEffect(() => {
-    // A new key (or scope) is a new conversion: drop what the last one reported.
     setStage(null);
     setProgress(null);
     setPartialResult(null);
-    setElapsedMs(0);
     if (!idempotencyKey) {
       return;
     }
 
-    startedAtRef.current = Date.now();
     let cancelled = false;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
-    // The job row normally appears within a second or two of the POST being
-    // accepted. Repeated misses mean this Bridge deployment doesn't expose
-    // the by-key endpoint (or stage reporting) yet — stop polling and let
-    // the elapsed-time fallback labels carry the readout instead of logging
-    // a failed request every interval for the whole conversion.
+    // The job row normally appears within a second or two of the POST. A
+    // submission Bridge rejects before it creates the job never appears.
     let consecutiveMisses = 0;
     const MAX_CONSECUTIVE_MISSES = 6;
 
@@ -87,7 +56,6 @@ export function useConversionStage(
         if (job.stage) {
           setStage((prev) => (prev === job.stage ? prev : job.stage ?? prev));
         }
-        // Keep the last known result: a ready job answers without one.
         if (job.partialResult) {
           const next = job.partialResult;
           setPartialResult((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
@@ -107,28 +75,15 @@ export function useConversionStage(
       pollTimer = setTimeout(poll, intervalMs);
     };
 
-    // Small head start: the job row appears as soon as Bridge accepts the POST.
     pollTimer = setTimeout(poll, 250);
-
-    // Drive the elapsed-time fallback labels once a second.
-    const elapsedTimer = setInterval(() => {
-      if (!cancelled) setElapsedMs(Date.now() - startedAtRef.current);
-    }, 1000);
 
     return () => {
       cancelled = true;
       if (pollTimer) clearTimeout(pollTimer);
-      clearInterval(elapsedTimer);
     };
   }, [idempotencyKey, anonymous, intervalMs]);
 
-  const fallback = FALLBACK_LABELS.reduce(
-    (current, step) => (elapsedMs >= step.afterMs ? step.label : current),
-    FALLBACK_LABELS[0].label
-  );
-
-  const stageLabel = (stage && CONVERSION_STAGE_LABELS[stage]) || fallback;
-  // The counter only means something while tracks are being matched.
+  const stageLabel = (stage && CONVERSION_STAGE_LABELS[stage]) || CONVERSION_STAGE_LABELS.parsing_source;
   const label =
     stage === 'matching_tracks' && progress
       ? `${stageLabel} · ${progress.processed} of ${progress.total}`

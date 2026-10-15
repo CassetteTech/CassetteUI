@@ -426,9 +426,6 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
         }}
       />
 
-      {/* The full record sits below the work. It stays expanded — these values
-          are what you cite in an incident or a refund decision, so hiding them
-          behind a disclosure would cost a click every time they matter. */}
       <section aria-labelledby="campaign-record-heading" className="space-y-4 pt-2">
         <div className="border-t border-border pt-5">
           <h2
@@ -540,10 +537,6 @@ export function PaidPromotionDetail({ campaignId }: { campaignId: string }) {
         busy={busy}
         onConfirm={submitRefund}
       >
-        {/* The policy number is shown, never pre-filled: it is what the
-            published-deliverable count says is owed, while the remainder is
-            the hard cap the Bridge enforces. The person issuing the refund
-            decides which applies. */}
         <dl
           data-testid="paid-promotion-refund-policy"
           className="grid gap-1.5 rounded-md border border-border p-3 text-xs"

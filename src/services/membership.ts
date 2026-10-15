@@ -1,7 +1,6 @@
-/** Defines strict fan membership status, entitlement, checkout, and portal contracts. */
-
 import { z } from 'zod';
 import { formatPaidPromotionMinorAmount } from './paid-promotion-lifecycle';
+import { tryStorage } from '../lib/best-effort';
 
 export const membershipStatusSchema = z.enum([
   'incomplete',
@@ -40,24 +39,23 @@ const statusSubscriptionSchema = z.object({
   serviceFeeMinor: moneyMinorSchema,
   totalAmountMinor: moneyMinorSchema,
   currency: currencySchema,
-  // Optional so a response from a Bridge without the ending fields still parses.
-  endReason: z.string().min(1).max(30).nullable().optional(),
-  accessEndsAtUtc: z.string().datetime({ offset: true }).nullable().optional(),
-  refundStatus: z.enum(['pending', 'refunded', 'none']).nullable().optional(),
+  endReason: z.string().min(1).max(30).nullable(),
+  accessEndsAtUtc: z.string().datetime({ offset: true }).nullable(),
+  refundStatus: z.enum(['pending', 'refunded', 'none']).nullable(),
 }).strict().refine(
   (subscription) => Number.isSafeInteger(subscription.faceAmountMinor + subscription.serviceFeeMinor) &&
     subscription.faceAmountMinor + subscription.serviceFeeMinor === subscription.totalAmountMinor,
   { message: 'Membership subscription total is invalid' },
 );
 
-const membershipStatusViewSchema = z.object({
+export const membershipStatusViewSchema = z.object({
   curatorProfileId: curatorIdSchema,
   canSubscribe: z.boolean(),
   membership: statusSubscriptionSchema.nullable(),
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...status }) => status);
 
-const membershipCheckoutSchema = z.object({
+export const membershipCheckoutSchema = z.object({
   membershipSubscriptionId: subscriptionIdSchema,
   planId: planIdSchema,
   billingInterval: membershipIntervalSchema,
@@ -74,12 +72,12 @@ const membershipCheckoutSchema = z.object({
   { message: 'Membership Checkout total is invalid' },
 ).transform(({ correlationId: _correlationId, ...checkout }) => checkout);
 
-const membershipPortalSchema = z.object({
+export const membershipPortalSchema = z.object({
   portalUrl: httpsUrlSchema,
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...portal }) => portal);
 
-const myMembershipsSchema = z.array(z.object({
+export const myMembershipsSchema = z.array(z.object({
   curatorProfileId: curatorIdSchema,
   curatorUsername: z.string().min(1),
   curatorDisplayName: z.string(),
@@ -94,22 +92,6 @@ export type MembershipCheckout = z.infer<typeof membershipCheckoutSchema>;
 export type MembershipPortal = z.infer<typeof membershipPortalSchema>;
 export type MyMembership = z.infer<typeof myMembershipsSchema>[number];
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMembershipStatus = (value: unknown): MembershipStatusView =>
-  membershipStatusViewSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMembershipCheckout = (value: unknown): MembershipCheckout =>
-  membershipCheckoutSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMembershipPortal = (value: unknown): MembershipPortal =>
-  membershipPortalSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseMyMemberships = (value: unknown): MyMembership[] =>
-  myMembershipsSchema.parse(value);
-
 const portalBaselinePrefix = 'cassette:membership-portal-baseline:';
 const portalBaselineSchema = z.object({
   status: membershipStatusSchema,
@@ -118,19 +100,13 @@ const portalBaselineSchema = z.object({
 
 export type MembershipPortalBaseline = z.infer<typeof portalBaselineSchema>;
 
-/** Remembers the membership as the fan opens the Billing Portal, from the profile or the wallet. */
 export function rememberMembershipPortalBaseline(subscription: MembershipSubscription): void {
-  try {
-    sessionStorage.setItem(
-      `${portalBaselinePrefix}${subscription.membershipSubscriptionId}`,
-      JSON.stringify({ status: subscription.status, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd }),
-    );
-  } catch {
-    // Without a baseline the return compares later status reads with its first one.
-  }
+  tryStorage(() => sessionStorage.setItem(
+    `${portalBaselinePrefix}${subscription.membershipSubscriptionId}`,
+    JSON.stringify({ status: subscription.status, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd }),
+  ), undefined);
 }
 
-/** The membership as it stood when the fan opened the Billing Portal; read once. */
 export function takeMembershipPortalBaseline(membershipSubscriptionId: string): MembershipPortalBaseline | null {
   try {
     const key = `${portalBaselinePrefix}${membershipSubscriptionId}`;
@@ -154,19 +130,14 @@ const membershipDateFormatter = new Intl.DateTimeFormat('en-US', {
 export const formatMembershipDate = (utc: string): string =>
   membershipDateFormatter.format(new Date(utc));
 
-/** Fee-inclusive price a fan actually pays, from the subscription's immutable plan price. */
 export const formatMembershipPrice = (
   subscription: Pick<MembershipSubscription, 'totalAmountMinor' | 'currency' | 'billingInterval'>,
 ): string =>
   `${formatPaidPromotionMinorAmount(subscription.totalAmountMinor, subscription.currency)}/${subscription.billingInterval}`;
 
-/** When access ends or ended if an ending applies, otherwise when the membership renews. */
 export const membershipEndOrRenewalUtc = (subscription: MembershipSubscription): string | null =>
   subscription.accessEndsAtUtc ?? subscription.paidThroughUtc;
 
-// Curator-side endings. A scheduled ending keeps access to the paid-through date; an
-// immediate one ends access at once and refunds unused paid time. The reason code itself
-// is never shown, and an unknown code falls back to the ordinary standing copy.
 const scheduledEndReasons = new Set(['plan_archived']);
 const immediateEndReasons = new Set(['curator_suspended', 'curator_retired', 'account_deleted']);
 const refundCopy = {
@@ -177,20 +148,11 @@ const refundCopy = {
 
 export type MembershipPhase = 'ended' | 'ending' | 'payment-problem' | 'paused' | 'renewing' | 'pending';
 
-// When a scheduled or past ending cuts off access; null while the membership keeps renewing.
-// An older Bridge response has no ending fields; a fan's own cancellation ends at paid-through.
-const membershipEndUtc = (subscription: MembershipSubscription): string | null =>
-  subscription.accessEndsAtUtc ?? (subscription.cancelAtPeriodEnd ? subscription.paidThroughUtc : null);
-
 const hasScheduledEnd = (subscription: MembershipSubscription): boolean =>
-  subscription.cancelAtPeriodEnd || membershipEndUtc(subscription) !== null;
+  subscription.cancelAtPeriodEnd || subscription.accessEndsAtUtc !== null;
 
-/** Where a membership stands for the fan. Bridge's ending metadata outranks a provider
-    status that has not caught up yet: an immediate ending, or an end date that has passed,
-    reads as ended even while the status still says active or past due. Before an end date,
-    a payment problem or a pause still needs the fan's action, so it outranks the ending. */
 export function membershipPhase(subscription: MembershipSubscription, nowMs = Date.now()): MembershipPhase {
-  const endUtc = membershipEndUtc(subscription);
+  const endUtc = subscription.accessEndsAtUtc;
   if (
     subscription.status === 'canceled' ||
     immediateEndReasons.has(subscription.endReason ?? '') ||
@@ -206,20 +168,16 @@ export function membershipPhase(subscription: MembershipSubscription, nowMs = Da
     case 'trialing':
       return hasScheduledEnd(subscription) ? 'ending' : 'renewing';
     default:
-      // incomplete / incomplete_expired / abandoned: nothing renews and nothing was charged.
       return 'pending';
   }
 }
 
-/** Whether the membership gives member access now: an access status that no ending has cut off. */
 export const hasMembershipAccess = (subscription: MembershipSubscription, nowMs = Date.now()): boolean =>
   grantsMembershipAccess(subscription.status) && membershipPhase(subscription, nowMs) !== 'ended';
 
-/** Label for the pass date: a scheduled end is never shown as a renewal. */
 export const membershipDateLabel = (subscription: MembershipSubscription, nowMs = Date.now()): 'Ended' | 'Ends' | 'Renews' =>
   membershipPhase(subscription, nowMs) === 'ended' ? 'Ended' : hasScheduledEnd(subscription) ? 'Ends' : 'Renews';
 
-/** Compact billing line: what renews or ends, and when. Tax is charged on top of any amount still chargeable. */
 export function describeMembershipBilling(subscription: MembershipSubscription, nowMs = Date.now()): string {
   const price = formatMembershipPrice(subscription);
   const endUtc = membershipEndOrRenewalUtc(subscription);
@@ -245,7 +203,6 @@ export function describeMembershipBilling(subscription: MembershipSubscription, 
   }
 }
 
-/** What the fan must do about a failed payment or a pause; null when nothing is needed. */
 function statusGuidance(status: MembershipStatus): string | null {
   switch (status) {
     case 'past_due':
@@ -259,7 +216,6 @@ function statusGuidance(status: MembershipStatus): string | null {
   }
 }
 
-/** Actionable state guidance; null when the membership is in good standing with no scheduled change. */
 export function describeMembershipStanding(subscription: MembershipSubscription, nowMs = Date.now()): string | null {
   const phase = membershipPhase(subscription, nowMs);
   const reason = subscription.endReason ?? '';
@@ -277,7 +233,6 @@ export function describeMembershipStanding(subscription: MembershipSubscription,
       : `Your membership ended${on}.`;
   }
 
-  // Access lasts until a scheduled end only while billing is in good standing.
   const keepsAccess = phase === 'ending';
   const until = on || ' after the current billing period';
   const ending = scheduledEndReasons.has(reason)

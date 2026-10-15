@@ -8,13 +8,6 @@ import { PageLoader } from '@/components/ui/page-loader';
 import { AccountCheckError } from '@/components/auth/account-check';
 import { authService } from '@/services/auth';
 
-/**
- * Guards the entire /internal section. Lifted out of the old page.tsx so it now
- * lives in the section layout and resolves once for every sub-route (rather than
- * re-running per page). Behaviour is otherwise unchanged: unauthenticated users
- * are sent to sign-in, non-internal accounts are bounced home, and an unknown
- * account type triggers a single refresh before deciding.
- */
 export function InternalAccessGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, isLoading, isAuthenticated, sessionError } = useAuthState();
@@ -26,7 +19,6 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const resolveAccess = async () => {
-      // A failed session read decides nothing; the viewer can retry it.
       if (isLoading || sessionError) return;
 
       if (!isAuthenticated) {
@@ -54,7 +46,6 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
           setIsAccessResolved(true);
           return;
         }
-        // An outage shows the retry; a sign-out or another account re-runs this check.
         if (refreshed.kind !== 'authenticated') return;
       }
 

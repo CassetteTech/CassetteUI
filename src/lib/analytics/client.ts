@@ -1,11 +1,10 @@
 'use client';
 
-// Provides sanitized browser analytics capture, identity, page-view, and route-surface helpers.
-
 import type { AnalyticsBaseProps, AnalyticsEventName, SourceSurface } from './events';
 import { sanitizeAnalyticsProps, sanitizeRoute } from './sanitize';
 import { withCoreAction } from './events';
 import { isCassetteInternalAccount, shouldSuppressClientCapture } from './internal-suppression';
+import { ignoreFailure, tryStorage } from '../best-effort';
 
 const DEFAULT_CLIENT_CAPTURE_HOST = '/api/ingest';
 const ANON_DISTINCT_ID_KEY = 'cassette_posthog_distinct_id';
@@ -198,15 +197,11 @@ function writeTrafficAttribution(properties: Partial<AnalyticsBaseProps>, nowMs 
     return;
   }
 
-  try {
-    const stored: StoredTrafficAttribution = {
-      expiresAt: nowMs + TRAFFIC_ATTRIBUTION_TTL_MS,
-      properties,
-    };
-    window.localStorage.setItem(TRAFFIC_ATTRIBUTION_KEY, JSON.stringify(stored));
-  } catch {
-    // ignore storage failures
-  }
+  const stored: StoredTrafficAttribution = {
+    expiresAt: nowMs + TRAFFIC_ATTRIBUTION_TTL_MS,
+    properties,
+  };
+  tryStorage(() => window.localStorage.setItem(TRAFFIC_ATTRIBUTION_KEY, JSON.stringify(stored)), undefined);
 }
 
 function getCurrentTrafficAttribution(): Partial<AnalyticsBaseProps> {
@@ -251,24 +246,19 @@ function posthogCapture(body: Record<string, unknown>, host: string): void {
   const payload = JSON.stringify(body);
   const endpoint = `${host.replace(/\/$/, '')}/capture/`;
 
-  try {
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      const blob = new Blob([payload], { type: 'application/json' });
-      navigator.sendBeacon(endpoint, blob);
-      return;
-    }
-  } catch {
-    // ignore and fall back to fetch
-  }
+  const beaconQueued = typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' &&
+    ignoreFailure(() => {
+      navigator.sendBeacon(endpoint, new Blob([payload], { type: 'application/json' }));
+      return true;
+    });
+  if (beaconQueued) return;
 
-  void fetch(endpoint, {
+  void ignoreFailure(fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: payload,
     keepalive: true,
-  }).catch(() => {
-    // analytics must never break UX
-  });
+  }));
 }
 
 export function surfaceFromRoute(route?: string | null): SourceSurface {
@@ -323,11 +313,7 @@ function setAliasMergeGuard(guardKey: string): void {
     return;
   }
 
-  try {
-    window.localStorage.setItem(guardKey, '1');
-  } catch {
-    // ignore storage failures
-  }
+  tryStorage(() => window.localStorage.setItem(guardKey, '1'), undefined);
 }
 
 function flushCurrentPageleave(options: {

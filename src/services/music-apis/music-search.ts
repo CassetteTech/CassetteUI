@@ -6,7 +6,7 @@ import { appLogger } from '@/lib/observability/logger';
 class MusicSearchService {
   private cachedChartsData: MusicSearchResult | null = null;
   private chartsLastFetched: Date | null = null;
-  private chartsCacheDuration = 30 * 60 * 1000; // 30 minutes
+  private chartsCacheDuration = 30 * 60 * 1000;
   private activeRequests = new Set<string>();
 
   async searchMusic(query: string): Promise<MusicSearchResult> {
@@ -14,14 +14,12 @@ class MusicSearchService {
     
     const overallStartTime = Date.now();
     
-    // Cancel any previous searches
     this.cancelActiveRequests();
     
     const requestId = `search_${Date.now()}`;
     this.activeRequests.add(requestId);
 
     try {
-      // Try Apple Music first
       const appleMusicStartTime = Date.now();
       
       try {
@@ -45,12 +43,10 @@ class MusicSearchService {
           willFallback: true,
         });
         
-        // Check if request was cancelled
         if (!this.activeRequests.has(requestId)) {
           throw new Error('Request cancelled');
         }
 
-        // Fallback to Spotify
         const spotifyStartTime = Date.now();
         
         const results = await spotifyService.search(query);
@@ -84,7 +80,6 @@ class MusicSearchService {
     
     const startTime = Date.now();
 
-    // Check if we have valid cached data
     if (this.cachedChartsData && this.chartsLastFetched) {
       const cacheAge = Date.now() - this.chartsLastFetched.getTime();
       if (cacheAge < this.chartsCacheDuration) {
@@ -103,7 +98,6 @@ class MusicSearchService {
       
       const results = await appleMusicService.fetchTopCharts();
       
-      // Check if request is still active
       if (!this.activeRequests.has(requestId)) {
         throw new Error('Request cancelled');
       }
@@ -113,7 +107,6 @@ class MusicSearchService {
       const fetchTime = Date.now() - fetchStartTime;
       const totalTime = Date.now() - startTime;
       
-      // Cache the data
       this.cachedChartsData = results;
       this.chartsLastFetched = new Date();
       
@@ -128,7 +121,6 @@ class MusicSearchService {
       this.activeRequests.delete(requestId);
       const totalTime = Date.now() - startTime;
       
-      // If we have cached data and encounter an error, return the cached data
       if (this.cachedChartsData) {
         const cacheAge = this.chartsLastFetched ? 
           Date.now() - this.chartsLastFetched.getTime() : 0;

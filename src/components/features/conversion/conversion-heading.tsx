@@ -10,11 +10,6 @@ interface ConversionHeadingProps {
   className?: string;
 }
 
-/**
- * Kicker + headline pair that narrates an in-flight conversion above the
- * beamed bar/card. Rendered inside an AnimatePresence by callers so it can
- * fade away with the rest of the converting state.
- */
 export const ConversionHeading: React.FC<ConversionHeadingProps> = ({ kicker, headline, className }) => (
   <motion.div
     initial={{ opacity: 0, y: 8 }}

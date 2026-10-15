@@ -1,5 +1,3 @@
-/** Covers the Feed page contract through the real profile service: the strict post and locked union and both counts. */
-
 import './browser-service-environment';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,7 +22,6 @@ const locked = (postId: string) => ({
   curator: { id: 'cpr_Night01', username: 'night-curator', displayName: null, avatarUrl: null },
 });
 
-/** A Feed page as Bridge may send it; a count may be left out or invalid on purpose. */
 type FeedBody = { items: object[]; nextCursor: string; activeMembershipCount?: number; feedCuratorCount?: number };
 type Counts = Pick<FeedBody, 'activeMembershipCount' | 'feedCuratorCount'>;
 
@@ -117,12 +114,13 @@ void test('a full row is exactly a kind and a post', async (t) => {
   }
 });
 
-void test('each count is required and checked on its own; counts that disagree are kept', async (t) => {
+void test('both counts are required, and the source count is never below the membership count', async (t) => {
   const invalid: Counts[] = [
     { activeMembershipCount: 1 },
     { feedCuratorCount: 1 },
     { activeMembershipCount: 1, feedCuratorCount: -1 },
     { activeMembershipCount: 0.5, feedCuratorCount: 1 },
+    { activeMembershipCount: 1, feedCuratorCount: 0 },
   ];
   for (const counts of invalid) {
     t.mock.restoreAll();
@@ -131,9 +129,9 @@ void test('each count is required and checked on its own; counts that disagree a
   }
 
   t.mock.restoreAll();
-  answerWith(t, page([], { activeMembershipCount: 1, feedCuratorCount: 0 }));
+  answerWith(t, page([], { activeMembershipCount: 1, feedCuratorCount: 1 }));
   const result = await profileService.fetchCuratorFeed();
-  assert.deepEqual([result.activeMembershipCount, result.feedCuratorCount], [1, 0]);
+  assert.deepEqual([result.activeMembershipCount, result.feedCuratorCount], [1, 1]);
 });
 
 void test('the request names the cursor, page size, and filter only', async (t) => {

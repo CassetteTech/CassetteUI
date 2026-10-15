@@ -5,14 +5,6 @@ import { getPaidPromotionElementTypeLabel } from '@/services/paid-promotion-stat
 import type { InternalPaidPromotionCampaignDetail } from '@/types';
 import { formatMoney, formatState } from './paid-promotion-utils';
 
-/**
- * The top of a campaign answers the questions an operator opens the page with:
- * what am I promoting, who asked for it, what did they pay, how much of the
- * commitment is delivered, and what did they say they wanted. Everything that
- * is a record rather than a decision input — lifecycle timestamps, the quote
- * breakdown, payment internals, attestation, pricing audit — lives at the
- * bottom of the page instead.
- */
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="min-w-0">
@@ -28,8 +20,6 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 export function CampaignSummary({ campaign }: { campaign: InternalPaidPromotionCampaignDetail }) {
   const { customer, payment } = campaign;
 
-  // What the customer was actually charged is the provider-confirmed total;
-  // the quote is only a fallback label before payment settles.
   const chargedLabel = payment?.finalTotalMinor != null
     ? formatMoney(payment.finalTotalMinor, payment.currency)
     : formatMoney(campaign.amountMinor, campaign.currency);

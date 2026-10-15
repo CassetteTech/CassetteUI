@@ -36,15 +36,10 @@ export function usePaidPromotionCampaign(
     let cancelled = false;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let activeController: AbortController | null = null;
-    // A single transient failure must not end the watch on the one page whose
-    // job is to keep watching; only surface an error once retries are exhausted
-    // (compare use-conversion-stage's miss cap).
     let consecutiveFailures = 0;
     const MAX_CONSECUTIVE_FAILURES = 6;
     const startedAt = Date.now();
 
-    // Webhook confirmation usually lands within seconds; keep the first polls
-    // tight, then relax so a stuck payment doesn't hold 1 rps indefinitely.
     const nextDelayMs = () => {
       const elapsedMs = Date.now() - startedAt;
       if (elapsedMs < 30_000) return intervalMs;

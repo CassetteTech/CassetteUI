@@ -14,12 +14,6 @@ import { SectionHeader } from './kit';
 import { normalizeAccountType, PAGE_SIZE } from './internal-utils';
 import { UsersTab } from './users-tab';
 
-/**
- * Owns all Users state — lifted verbatim from the old InternalDashboardShell so
- * behaviour is identical. The request-dedup ref, post-count hydration, and
- * loadUsers stay together in one component instance so the requestId guard
- * remains coherent. Renders the presentational <UsersTab/>.
- */
 export function UsersContainer() {
   const usersRequestIdRef = useRef(0);
 
@@ -43,7 +37,7 @@ export function UsersContainer() {
   const [updatingAccountType, setUpdatingAccountType] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
 
-  const debouncedUserSearch = useDebounce(userSearch, 300);
+  const debouncedUserSearch = useDebounce(userSearch);
   const actorCanAssignVerified = usersResponse?.actorCanAssignVerified ?? false;
 
   const selectedUserAccountType = useMemo(

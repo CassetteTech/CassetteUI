@@ -20,8 +20,6 @@ import { WindowDither } from './window-dither';
 type Theme = 'light' | 'dark';
 const other = (theme: Theme): Theme => (theme === 'dark' ? 'light' : 'dark');
 
-// Wide screens (Tailwind `lg`) get the landscape media; phones and portrait
-// tablets get the portrait set, framed for copy at the bottom.
 type Layout = 'landscape' | 'portrait';
 const WIDE = '(min-width: 1024px)';
 const MEDIA = { landscape: '/videos/home-window', portrait: '/videos/home-window/portrait' } satisfies Record<Layout, string>;
@@ -31,9 +29,7 @@ const subscribeToLayout = (onChange: () => void) => {
   return () => query.removeEventListener('change', onChange);
 };
 const readLayout = (): Layout => (window.matchMedia(WIDE).matches ? 'landscape' : 'portrait');
-// Camera moves play faster than they were rendered.
 const MOVE_RATE = 1.8;
-// A theme change during a move fades to the new idle loop this fast.
 const SETTLE_MS = 350;
 // The dark idle loop does not end on its first frame, so two copies of it
 // take turns: the next copy fades in on top shortly before the current one
@@ -56,8 +52,6 @@ const SWITCH_AT = {
 const once = (target: EventTarget, event: string) =>
   new Promise((resolve) => target.addEventListener(event, resolve, { once: true }));
 
-// Waits for a media event; a clip that fails to load or decode rejects, so
-// the scene falls back to its stills.
 const until = (video: HTMLVideoElement, event: string) =>
   new Promise<void>((resolve, reject) => {
     const listening = new AbortController();
@@ -73,7 +67,6 @@ async function seek(video: HTMLVideoElement, time: number) {
   await until(video, 'seeked');
 }
 
-// Resolves once a playing video has painted a frame, so revealing it never shows a stale frame.
 const painted = (video: HTMLVideoElement) => new Promise<void>((resolve) => video.requestVideoFrameCallback(() => resolve()));
 
 async function startAt(video: HTMLVideoElement, time: number) {
@@ -141,16 +134,6 @@ function blendLoop(layer: HTMLElement, signal: AbortSignal): Idle {
   };
 }
 
-/**
- * Drives the window scene from the theme. The first theme shows its idle
- * loop with no move. Later, a change at rest plays the camera move and
- * hands over to the new idle loop with a hard cut (the move ends on the
- * loop's first frame); a change during a move goes straight to the new
- * idle loop with a short crossfade. Every change gets a run number, and an
- * async step from an older run stops as soon as it sees a newer one, so
- * rapid changes never leave stale state. `onScene` reports when the copy
- * should change colour. Under reduced motion only the stills show.
- */
 function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, switchAt: Record<Theme, number>) {
   const abort = new AbortController();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -166,7 +149,6 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   let target: Theme | undefined;
   let latest = 0;
   let atRest = false;
-  // The most recently raised layer is on top.
   let highestLayer = 0;
   const raise = (layer: HTMLElement) => { layer.style.zIndex = String(++highestLayer); };
   const setOpacity = (layer: HTMLElement, opacity: number) => {
@@ -177,7 +159,6 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     for (const idle of Object.values(idles)) idle.stop();
     for (const move of Object.values(moves)) move.pause();
   };
-  // Shows only the stills, which follow the copy, until the next change.
   let stills = false;
   const stillsOnly = (theme: Theme) => {
     stills = true;
@@ -186,9 +167,6 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     stopAll();
   };
   let disposed = false;
-  // A step that a newer run overtook can finish starting a clip after that
-  // run has settled. Put playback back to what the current state needs;
-  // a newer run still in progress settles playback itself when it rests.
   const overtaken = () => {
     if (disposed || stills || reducedMotion.matches) return stopAll();
     if (!atRest || !target) return;
@@ -196,7 +174,6 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     idles[other(target)].stop();
   };
 
-  // Shows a theme's idle loop on top, once its first frame is ready, and stops everything else.
   async function rest(theme: Theme, run: number) {
     const idle = idles[theme];
     if (!idle.running()) await idle.start();
@@ -235,8 +212,6 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     const idle = idles[theme];
     if (!idle.running()) await idle.start();
     if (run !== latest) return overtaken();
-    // A loop already on top fades on from where it is, so it does not blink;
-    // one under a camera move fades in from nothing, so the change is a crossfade.
     const onTop = Number(idle.layer.style.zIndex) === highestLayer;
     const from = onTop ? Number(getComputedStyle(idle.layer).opacity) : 0;
     raise(idle.layer);
@@ -249,8 +224,6 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     await rest(theme, run);
   }
 
-  // Reduced motion switched on or off mid-session: stills only, or the
-  // target's idle loop with no move.
   const resync = () => {
     const theme = target;
     if (!theme) return;
@@ -275,7 +248,6 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
       atRest = false;
       stills = false;
       const step = first ? rest(theme, run) : wasAtRest ? playMove(theme, run) : settle(theme, run);
-      // A video that cannot load or play leaves the stills.
       step.catch(() => { if (run === latest) stillsOnly(theme); });
     },
     dispose() {
@@ -288,18 +260,11 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   };
 }
 
-// Wide screens keep the right of the landscape frame; the portrait frame is centred.
-
 const PLACEHOLDER = 'Paste a link, or search for music';
-// The open search: fades run shorter than moves, so the pitch is gone
-// before the bar passes over its place.
 const SEARCH_MOVE = { duration: 0.38, ease: EASE_OUT_QUART };
 const SEARCH_FADE = { duration: 0.2, ease: EASE_OUT_QUART };
 const BRAND_SCALE = 0.55;
 
-/** Hero copy that leaves while the search is open: inert and hidden from
-    assistive technology from the moment it starts to fade. It carries no
-    margin, since the fade holds it in place at its offset. */
 function Departing({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<HTMLDivElement> }) {
   const leaving = !useIsPresent();
   return <motion.div ref={ref} inert={leaving} aria-hidden={leaving || undefined} {...props} />;
@@ -311,9 +276,6 @@ const SERVICE_LINKS = [
   { service: appleMusic, link: 'music.apple.com/…' },
   { service: deezer, link: 'deezer.com/…' },
 ];
-// The rows take turns to move, "Converts to" first. The moving row takes
-// the one service that neither row shows, so the rows never match and
-// six turns show every pair once.
 type CardState = { pasted: number; converted: number; next: 'pasted' | 'converted' };
 const unshown = ({ pasted, converted }: CardState) =>
   SERVICE_LINKS.findIndex((_, index) => index !== pasted && index !== converted);
@@ -331,8 +293,6 @@ const linkChip = (entry: { service: (typeof STREAMING_SERVICES)[number]; link: s
   </span>
 );
 
-/** A link chip that turns to each new service. Under reduced motion, CSS
-    swaps it for a still chip, so a change mid-session applies at once. */
 function TurningChip({ service, still, testId }: { service: number; still: number; testId: string }) {
   return (
     <>
@@ -355,9 +315,6 @@ function TurningChip({ service, still, testId }: { service: number; still: numbe
   );
 }
 
-/** What the bar does, as input and output: a link from any of the three
-    services converts to the same music on the other two, and one Cassette
-    link opens in all three. An illustration, not a post. */
 function LinkCard() {
   const [{ pasted, converted }, setCardState] = useState<CardState>({ pasted: 0, converted: 2, next: 'converted' });
   useEffect(() => {
@@ -389,10 +346,6 @@ function LinkCard() {
   );
 }
 
-/** The window backdrop: stills at the bottom that follow the scene, and
-    the video layers above them, shown and hidden by the scene driver.
-    Every layer shares one crop, so a cut between matching frames is
-    invisible. The dither prints over the whole stack. */
 function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
   theme: Theme | undefined;
   scene: Theme | undefined;
@@ -403,8 +356,6 @@ function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const driver = useRef<ReturnType<typeof createWindowScene>>(null);
-  // Known only in the browser; until then the stills show. A layout change
-  // swaps the videos for fresh ones and restarts the scene with no move.
   const screen = useSyncExternalStore(subscribeToLayout, readLayout, () => undefined);
   const layout = screen === 'portrait' && phonePan ? 'landscape' : screen;
   // Pan mode: each theme has its own crop on phones, following the page's
@@ -426,7 +377,6 @@ function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
     if (theme) driver.current?.show(theme);
   }, [theme, layout]);
 
-  // Before the scene is known, the stills follow the page theme.
   const still = (value: Theme, portrait: boolean) =>
     cn(crop, phonePan ? '[transition:opacity_0.5s,object-position_3.5s_ease-in-out]' : 'transition-opacity duration-500', portrait ? (phonePan ? 'hidden' : 'lg:hidden') : (phonePan ? '' : 'hidden lg:block'), scene
       ? scene === value ? 'opacity-100' : 'opacity-0'
@@ -434,7 +384,6 @@ function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
 
   return (
     <div ref={rootRef} aria-hidden className="absolute inset-0 overflow-hidden bg-background">
-      {/* Isolated, so raised layers stay under the dither canvas. */}
       <div className="absolute inset-0 isolate">
         <Image data-still src="/images/home-concepts/window-dark.jpg" alt="" fill sizes="100vw" priority className={still('dark', false)} />
         <Image data-still src="/images/home-concepts/window-light.jpg" alt="" fill sizes="100vw" priority className={still('light', false)} />
@@ -458,11 +407,6 @@ function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
   );
 }
 
-/** The home page: the window scene as the hero backdrop, then how Cassette
-    works, the curator membership pitch, and the sign-up ask. Dark is inside
-    the room looking out at a rainy dusk; light is outside looking in. A theme
-    change from any control plays the camera move between them, and the copy
-    changes colour when the new scene reaches it. */
 export function HomeConceptWindow() {
   const search = useHomeSearch();
   const still = useReducedMotion();
@@ -477,13 +421,9 @@ export function HomeConceptWindow() {
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.45, delay: 0.25 + 0.07 * order, ease: EASE_OUT_QUART },
   });
-  // Wide screens open the search in place: the pitch fades, and the wordmark
-  // and bar move up to make room for the results. A conversion keeps the
-  // layout it started in until the post opens.
   const expanded = wide && (search.isSearchActive || search.isConverting);
   const [hasOpened, setHasOpened] = useState(false);
   if (expanded && !hasOpened) setHasOpened(true);
-  // Crossing `lg` swaps the search field and drops its focus, so the results close with it.
   const { dismiss } = search;
   useEffect(() => dismiss(), [wide, dismiss]);
   const brandRef = useRef<HTMLDivElement>(null);
@@ -493,8 +433,6 @@ export function HomeConceptWindow() {
     observer.observe(brandRef.current!);
     return () => observer.disconnect();
   }, []);
-  // The pitch rises in on load; after the search closes it settles back from
-  // where it left, once the bar has started down.
   const intro = (order: number) => ({
     initial: still ? false : hasOpened ? { opacity: 0, y: -8 } : { opacity: 0, y: 10 },
     animate: { opacity: 1, y: 0, transition: hasOpened ? { ...SEARCH_FADE, duration: 0.25, delay: 0.12 + 0.03 * order } : rise(order).transition },
@@ -505,18 +443,9 @@ export function HomeConceptWindow() {
 
   return (
     <div className="relative min-h-svh">
-      {/* --wall: on wide screens, the plain wall left of the window. The scene
-          covers the hero anchored right, and the window frame starts at 57.6%
-          of its width, so the free wall is the viewport less 42.4% of the
-          scene's width. The copy centres in it, clear of the frame. */}
       <section data-scene={scene} className="relative -mt-16 flex min-h-svh overflow-hidden [--wall:calc(100vw_-_0.424_*_max(100vw,_100svh_*_16_/_9))]">
         <WindowScene theme={theme} scene={scene} onScene={setScene} copyRef={copyRef} phonePan={phonePan} />
-        {/* The copy keeps the scene's theme, not the page's, until the camera reaches it. */}
         <div className={cn('relative z-10 flex w-full text-foreground transition-colors duration-200', scene === 'dark' && 'dark', scene === 'light' && 'force-light')}>
-          {/* Phones: the copy sits on the lower half of the portrait scene, so
-              the scene's own paper or ink rises softly behind it, more on short
-              phones, where the copy covers more of the scene. One layer per
-              theme, crossfading with the copy colour, so they change together. */}
           {!phonePan && (['dark', 'light'] as const).map((value) => (
             <div
               key={value}
@@ -527,22 +456,17 @@ export function HomeConceptWindow() {
                   ? 'top-0 h-[60%] bg-gradient-to-b from-background from-45% via-background/80 to-transparent [@media(max-height:720px)]:h-[75%]'
                   : 'bottom-0 bg-gradient-to-t h-[55%] from-background/70 via-background/30 to-transparent [@media(max-height:720px)]:h-[75%] [@media(max-height:720px)]:from-background/85',
                 value === 'dark' ? 'dark' : 'force-light',
-                // Before the scene is known (and during hydration), follow the page theme.
                 scene ? scene === value ? 'opacity-100' : 'opacity-0' : value === 'dark' ? 'opacity-0 dark:opacity-100' : 'opacity-100 dark:opacity-0',
               )}
             />
           ))}
-          {/* Dark scene only: a soft shade behind the copy column. */}
           <div
             aria-hidden
             className={cn('pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_40%_55%_at_calc(var(--wall)_/_2)_52%,hsl(var(--background)/0.5),transparent)] transition-opacity duration-500 lg:block', scene === 'dark' ? 'opacity-100' : 'opacity-0')}
           />
-          {/* Reduced motion: the open search swaps layouts with fades only. */}
           <MotionConfig reducedMotion="user">
             <div className={cn('relative mx-auto flex w-full max-w-7xl flex-col items-start px-5 pb-12 sm:px-8 lg:mx-0 lg:w-[var(--wall)] lg:max-w-none lg:items-center lg:px-0 lg:pb-16 lg:pt-28', expanded ? 'lg:h-svh lg:justify-start' : 'lg:justify-center', phonePan ? 'justify-start pt-20' : 'justify-end pt-28')}>
               <div ref={copyRef} className={cn('w-full max-w-[560px] lg:w-[min(520px,calc(100%_-_64px))]', expanded && 'pb-2')}>
-                {/* The open search keeps the wordmark, shrunk to the top of the
-                    column; its negative margin gives back the height it loses. */}
                 <motion.div
                   ref={brandRef}
                   layout="position"
@@ -554,9 +478,6 @@ export function HomeConceptWindow() {
                 >
                   <HomeBrand />
                 </motion.div>
-                {/* The open search fades the pitch in place; the bar moves up over its place.
-                    Curators come first: the headline and the call to action speak to
-                    them; the bar and the card under it serve people sharing music. */}
                 <AnimatePresence mode="popLayout">
                   {!expanded && [
                     <Departing key="headline" {...intro(0)} className="pt-6 lg:pt-8">
@@ -580,14 +501,11 @@ export function HomeConceptWindow() {
                     </Departing>,
                   ]}
                 </AnimatePresence>
-                {/* Phones: the results drop over the card under the bar. Wide
-                    screens: the card leaves and the results fill the column below. */}
                 <motion.div {...barRise} layout="position" transition={{ ...barRise.transition, layout: { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } }} className="w-full pt-5 lg:relative lg:z-10 lg:pt-6">
                   {wide
                     ? <HomeSearchBar search={search} closeOnBlur size="sm" placeholder={PLACEHOLDER} />
                     : <HomeSearchDropdown search={search} size="sm" placeholder={PLACEHOLDER} />}
                 </motion.div>
-                {/* Short screens skip the card, so the bar stays above the fold. */}
                 <AnimatePresence mode="popLayout">
                   {!expanded && (
                     <Departing key="link-card" {...intro(4)} className="pt-3 [@media(max-height:760px)]:hidden">
@@ -596,10 +514,6 @@ export function HomeConceptWindow() {
                   )}
                 </AnimatePresence>
               </div>
-              {/* Wide screens: the results fill the column under the bar and scroll
-                  inside it, opening once the bar has nearly arrived. Pressing in
-                  the panel keeps focus in the bar. The gap above it is the copy's
-                  padding, since a margin would shift it as it fades out. */}
               <AnimatePresence mode="popLayout">
                 {wide && search.isSearchActive && !search.isConverting && (
                   <motion.div
@@ -617,7 +531,6 @@ export function HomeConceptWindow() {
             </div>
           </MotionConfig>
         </div>
-        {/* The page paper dissolves up into the scene at the hero's foot. */}
         <div className="absolute inset-x-0 bottom-0 z-[5]">
           <DitherEdge color="hsl(var(--background))" />
         </div>

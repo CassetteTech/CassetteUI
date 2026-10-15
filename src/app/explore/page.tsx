@@ -22,6 +22,7 @@ import {
 } from '@/components/features/explore/explore-cards';
 import { ArrowRight, Plus, Search, X, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { coverflowCopies, coverflowPose, easeStep, type CoverflowPose } from './coverflow-pose';
 import { ActivityPost, ExploreCurator, ExploreUser } from '@/types';
 import type { SponsoredExplorePlacement } from '@/types';
 import { rememberViewedSponsoredExplorePost } from '@/services/sponsored-explore-rotation';
@@ -39,15 +40,14 @@ import {
 
 const DASHED_NOTE = 'border-t-2 border-dashed border-foreground/30 py-4 text-center font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground';
 
+const RETIRED_EXPLORE_PARAMS = ['tab', 'filter'];
+const AUTO_PAN_PX_PER_MS = 0.024;
+
 export default function ExplorePage() {
-  // Explore was once split into tabs; an old link keeps working as plain Explore.
-  useEffect(() => removeQueryParameters('tab', 'filter'), []);
+  useEffect(() => removeQueryParameters(...RETIRED_EXPLORE_PARAMS), []);
 
   return (
-    // The creator rail bleeds to the viewport edges, so the page clips any
-    // sliver it adds past the scrollbar.
     <div className="relative min-h-svh overflow-x-hidden bg-background">
-      {/* Subtle dotted paper. Content blocks are positioned so they paint above it. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.35]"
@@ -194,8 +194,6 @@ function SponsoredPostCard({ placement }: { placement: SponsoredExplorePlacement
   );
 }
 
-/* ─── Sections ────────────────────────────────────────────────────────────── */
-
 function MusicSection({
   title,
   posts,
@@ -260,9 +258,6 @@ function MusicSection({
 function FeaturedCurators() {
   const { data: curators, isLoading } = useExploreCurators();
 
-  // Promotional section: reserve the space with a skeleton rail immediately so
-  // navigation doesn't pop the section in later; render nothing only once we
-  // know there are no verified curators (or the fetch failed).
   if (!isLoading && (!curators || curators.length === 0)) {
     return null;
   }
@@ -291,17 +286,6 @@ function FeaturedCurators() {
   );
 }
 
-/**
- * Coverflow rail: the centered card sits flat and full-size while neighbors
- * fan away with rotateY/depth based on distance from the viewport
- * center. Native scroll + snap does the driving; transforms are written
- * imperatively on a rAF so scrolling never re-renders React.
- *
- * Looping: the list renders several identical copies and the scroll position
- * teleports by one copy width whenever it settles outside the middle copy.
- * The copies are pixel-identical, so the jump is invisible, and it means the
- * first curator starts centered with real neighbors on both sides.
- */
 function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
@@ -314,34 +298,20 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
   // retarget fires transitionrun/start/cancel — hundreds of events per frame
   // across the clones — which saturates the main thread and reads as low FPS
   // while swiping.
-  const poses = useRef(new WeakMap<HTMLElement, { angle: number; depth: number; fade: number; z: number }>());
+  const poses = useRef(new WeakMap<HTMLElement, CoverflowPose>());
 
-  // Duplicate the list until the runway holds at least 75 cards, so even a
-  // hard fling stays deep inside rendered content and the rail reads as
-  // infinite. The settle-time correction still re-normalizes the position;
-  // an odd copy count keeps a true middle copy to normalize back to.
   const n = curators.length;
-  const minCards = 75;
-  const rawCopies = Math.max(3, Math.ceil(minCards / n));
-  const copies = n > 1 ? rawCopies + (1 - (rawCopies % 2)) : 1;
+  const copies = coverflowCopies(n);
   const midCopy = (copies - 1) / 2;
 
-  // Computes every card's coverflow pose from the live scroll position and
-  // eases the painted pose toward it (~60ms time constant, frame-rate
-  // independent), so coarse scroll input (wheel notches, snap landings) still
-  // glides. Returns true once every card has settled. `instant` snaps poses
-  // in one write: the loop teleport swaps every element's role with a
-  // clone's, and the swap is only invisible when nothing eases across it.
   const render = useCallback((instant: boolean) => {
     const track = trackRef.current;
     if (!track) return true;
     const items = track.children as HTMLCollectionOf<HTMLElement>;
     const mid = track.scrollLeft + track.clientWidth / 2;
-    // Cards overlap, so their pitch is narrower than a card. Measuring it makes
-    // t == ±1 the immediate neighbor no matter how deep the overlap gets.
     const pitch = items.length > 1 ? items[1].offsetLeft - items[0].offsetLeft : 1;
     const now = performance.now();
-    const k = instant ? 1 : 1 - Math.exp(-Math.min(now - lastTick.current, 64) / 60);
+    const k = instant ? 1 : easeStep(now - lastTick.current);
     lastTick.current = now;
     let settled = true;
     for (let i = 0; i < items.length; i++) {
@@ -349,32 +319,8 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       const card = item.firstElementChild as HTMLElement | null;
       if (!card) continue;
       const t = (item.offsetLeft + item.offsetWidth / 2 - mid) / pitch;
-      const a = Math.abs(t);
-      // Coverflow: the angle ramps fast then holds, so off-center cards all
-      // "file in" at the same tilt. A positive angle on a right-side card
-      // swings its OUTER edge back, so the fan faces inward toward the
-      // centered card; the opposite sign faces cards away from center and
-      // slices the forward outer edge across the centered card.
-      const angle = Math.sign(t) * Math.min(a * 2.5, 1) * 45;
-      // Depth does all the shrinking — perspective also pulls receding cards
-      // toward the centered one, which is what tucks them behind it. It must
-      // stay unclamped: two cards at the same depth stop converging and the
-      // fan opens a gap between them instead of filing back in a stack. The
-      // projection is self-limiting — centers asymptote at 4 pitches out — so
-      // distant clones pile into the edge stack instead of drifting into view.
-      const depth = -a * 300;
-      // The edge stack dissolves instead of piling: full opacity through four
-      // neighbors, gone by eight. Mobile never shows past ~1.2 pitches, so the
-      // fade only ever engages on wide viewports. Fully faded cards drop hit
-      // testing (not visibility — that would evict focusable middle-copy cards
-      // from the tab order and accessibility tree); a keyboard focus on an
-      // invisible card natively scrolls it into view, which fades it back in.
-      const fade = Math.max(0, Math.min(1, (8 - a) / 4));
+      const { angle, depth, fade, z } = coverflowPose(t);
       let pose = poses.current.get(card);
-      // A fully faded card's styles are static, so skip it once painted (the
-      // pose keeps its last painted values, so a card scrolling back into
-      // range resumes from exactly what is on screen). Most of the runway is
-      // edge-stack clones; this bounds per-frame work to the visible fan.
       if (pose && pose.fade === 0 && fade === 0) continue;
       if (!pose) {
         pose = { angle, depth, fade, z: NaN };
@@ -401,12 +347,13 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       }
       card.style.transform = `translateZ(${pose.depth.toFixed(1)}px) rotateY(${pose.angle.toFixed(2)}deg)`;
       card.style.opacity = pose.fade.toFixed(3);
+      // Not visibility: that would evict focusable middle-copy cards from the tab order and the
+      // accessibility tree. A keyboard focus on a faded card scrolls it into view, which fades it in.
       card.style.pointerEvents = pose.fade === 0 ? 'none' : '';
       // overflow-x-auto forces the track's transform-style back to flat, so the
       // browser paints in DOM order instead of depth-sorting and later cards
       // slice across the centered one. Order the stack by distance ourselves —
       // but only on change, so settled cards cost no per-frame style writes.
-      const z = 50 - Math.round(a * 10);
       if (z !== pose.z) {
         item.style.zIndex = String(z);
         pose.z = z;
@@ -423,7 +370,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     frame.current = requestAnimationFrame(tick);
   }, [render]);
 
-  // Runs the easing loop until every pose settles; scroll events keep it fed.
   const kick = useCallback(() => {
     if (running.current) return;
     running.current = true;
@@ -435,12 +381,8 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     const track = trackRef.current;
     if (!track || copies === 1) return;
     const items = track.children as HTMLCollectionOf<HTMLElement>;
-    // Measure pitch inside the repeated region: the very first card has no
-    // overlap margin, so spans that include it would skew the copy width.
     const first = items[midCopy * n];
     const copyWidth = items[(midCopy + 1) * n].offsetLeft - first.offsetLeft;
-    // Keep the settled position within one copy width centered on the middle
-    // copy's first card; anything outside teleports back by whole copies.
     const lo = first.offsetLeft + first.offsetWidth / 2 - track.clientWidth / 2 - copyWidth / 2;
     let next = track.scrollLeft;
     while (next < lo) next += copyWidth;
@@ -467,9 +409,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     settle.current = window.setTimeout(onSettle, 140);
   }, [kick, onSettle]);
 
-  // A click on an off-center card means "bring that one to the front", not
-  // "open it". Capture phase so the card's own handler (and the platform link
-  // anchors) never fire — an angled card is a poor click target anyway.
   const onClickCapture = useCallback((e: React.MouseEvent) => {
     const track = trackRef.current;
     if (!track) return;
@@ -478,7 +417,7 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     );
     if (!item) return;
     const offset = item.offsetLeft + item.offsetWidth / 2 - (track.scrollLeft + track.clientWidth / 2);
-    if (Math.abs(offset) < 12) return; // already centered — let the card open
+    if (Math.abs(offset) < 12) return;
     e.preventDefault();
     e.stopPropagation();
     track.scrollTo({ left: track.scrollLeft + offset, behavior: 'smooth' });
@@ -495,8 +434,8 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
     if (!track || copies === 1) return;
     let laidOut = track.clientWidth > 0;
     const center = () => {
-      // SAFETY: the track renders only the HTML wrapper divs below.
-      const item = (track.children as HTMLCollectionOf<HTMLElement>)[midCopy * n];
+      const item = track.children[midCopy * n];
+      if (!(item instanceof HTMLElement)) return;
       track.scrollLeft = item.offsetLeft + item.offsetWidth / 2 - track.clientWidth / 2;
       render(true);
     };
@@ -546,8 +485,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
       // compensate for the matching negative margin to keep snap centers exact.
       className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-8 -mb-12 flex overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory py-14 px-[calc(50%-104px)] sm:px-[calc(50%-116px)] lg:px-[calc(50%-108px)] [perspective:1200px] [transform-style:preserve-3d]"
     >
-      {/* Wrappers overlap each other's cards, so they must be click-transparent;
-          only the card itself (pointer-events-auto) takes the hit. */}
       {Array.from({ length: copies }, (_, copy) =>
         curators.map((curator) => (
           <div
@@ -555,9 +492,6 @@ function CuratorCoverflow({ curators }: { curators: ExploreCurator[] }) {
             aria-hidden={copy !== midCopy || undefined}
             className="pointer-events-none relative shrink-0 snap-center -ml-24 first:ml-0 [transform-style:preserve-3d]"
           >
-            {/* Pose easing is JS-driven (see render); a CSS transition here
-                would be retargeted by every rAF write and flood the page with
-                transition events. */}
             <div className="pointer-events-auto will-change-transform [transform-style:preserve-3d]">
               <CuratorCard curator={curator} focusable={copy === midCopy} />
             </div>
@@ -605,8 +539,6 @@ function CuratorCard({
       className="group relative block w-[240px] cursor-pointer overflow-hidden card-ink transition-colors duration-300 hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[280px]"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-        {/* The curator themself is the hero; recent artwork fills in when they
-            have no photo, and a branded tile when they have neither. */}
         {curator.avatarUrl ? (
           <Image
             src={curator.avatarUrl}
@@ -650,7 +582,6 @@ function CuratorCard({
           </div>
         )}
 
-        {/* Magazine cover: full-bleed photo, dark scrim, frosted badge, masthead strap. */}
         <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-section-dark/90 via-section-dark/25 to-transparent" />
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-section-dark-fg/20 bg-section-dark-fg/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-section-dark-fg backdrop-blur-md">
           Featured
@@ -704,12 +635,6 @@ function CuratorCard({
   );
 }
 
-// Alpha fade at the full-bleed rail's viewport edges so cards dissolve
-// instead of clipping hard; alpha masks are theme-agnostic. Percentage stops
-// scale the fade with the viewport but are capped at the rail's sm:px-16
-// end padding, so resting cards and the load-more card sit clear of the
-// fade on any viewport. Inline style because the repo sets mask properties
-// with both prefixes.
 const RAIL_EDGE_FADE_CSS =
   'linear-gradient(to right, transparent, black min(4%, 64px), black calc(100% - min(4%, 64px)), transparent)';
 const RAIL_EDGE_FADE: React.CSSProperties = {
@@ -740,10 +665,6 @@ function CreatorsMarquee({
 }) {
   const railRef = useRef<HTMLDivElement>(null);
 
-  // Gently pans the rail while nobody interacts with it. Any pointer, wheel,
-  // touch, or focus contact pauses the pan; it resumes a few seconds after
-  // the last contact, and not while the rail is hovered or holds focus.
-  // Ping-pongs at the ends (the list is finite) and respects reduced motion.
   // Position accumulates in a float because scrollLeft rounds to device
   // pixels and would swallow sub-pixel steps at this speed.
   useEffect(() => {
@@ -758,13 +679,11 @@ function CreatorsMarquee({
       const dt = Math.min(t - last, 64);
       last = t;
       const max = rail.scrollWidth - rail.clientWidth;
-      // Nothing to pan (rail fits) — park on a slow retry instead of a
-      // no-op 60fps loop; load-more or a resize can add overflow later.
       if (max <= 0) {
         timer = window.setTimeout(start, 3000);
         return;
       }
-      pos = Math.max(0, Math.min(max, pos + dir * dt * 0.024)); // 24px/s
+      pos = Math.max(0, Math.min(max, pos + dir * dt * AUTO_PAN_PX_PER_MS));
       if (pos <= 0) dir = 1;
       else if (pos >= max) dir = -1;
       rail.scrollLeft = pos;

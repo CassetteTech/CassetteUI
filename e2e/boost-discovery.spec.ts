@@ -1,5 +1,3 @@
-/** Verifies that closed Boost sales leave no discovery links, while customers keep a way to their campaign records. */
-
 import { expect, type Page, test } from '@playwright/test';
 import {
   fixturePaidPromotionCampaign,
@@ -10,7 +8,6 @@ import { mockCassetteApp } from './support/mock-cassette-app';
 
 const promoteLinks = (page: Page) => page.locator('a[href="/promote"]');
 
-// A rejected campaign whose payment is being refunded: a record with a receipt and a refund.
 const refundingCampaign = {
   ...fixturePaidPromotionCampaign,
   status: 'rejected',
@@ -23,8 +20,6 @@ const refundingCampaign = {
   refundableRemainderMinor: fixturePaidPromotionCampaign.amountMinor,
 } as const;
 
-/** Navigates once Bridge has answered the availability read, so a hidden link
-    means sales are closed rather than not yet known. */
 async function visit(page: Page, path: string) {
   const availability = page.waitForResponse('**/api/v1/paid-promotions/availability');
   await page.goto(path);
@@ -39,7 +34,6 @@ test('hides Boost discovery while sales are closed and keeps the direct page', a
   await ownedCampaigns;
   await expect(page.getByText('Make music?')).toHaveCount(0);
   await expect(promoteLinks(page)).toHaveCount(0);
-  // The signed-in pill only opens Curator Studio; the account routes live in the sidebar and the menu.
   await expect(page.getByTestId('navbar-account-link')).toHaveAttribute('href', '/studio');
 
   await visit(page, '/explore');
@@ -60,8 +54,6 @@ test('hides Boost discovery while sales are closed and keeps the direct page', a
   await expect(page.getByRole('heading', { name: 'Boost is not available yet' })).toBeVisible();
 });
 
-// Closing sales hides the public offer, not a customer's own records: the
-// account link stays, and it leads to the campaign, its receipt, and its refund.
 test('keeps the campaign link for a customer with campaigns while sales are closed', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
@@ -77,7 +69,6 @@ test('keeps the campaign link for a customer with campaigns while sales are clos
   await expect(page.locator('footer a[href="/promote"]')).toHaveCount(0);
   await expect(promoteLinks(page).filter({ hasNotText: 'Your Campaigns' })).toHaveCount(0);
 
-  // On desktop the customer reaches the campaigns from the sidebar, which shows one /promote row.
   await visit(page, '/memberships');
   const sidebarFooter = page.locator('[data-slot="sidebar-footer"]');
   await expect(sidebarFooter.getByRole('link', { name: 'Promote', exact: true })).toHaveCount(0);
@@ -108,7 +99,6 @@ test('shows Boost discovery once sales are open', async ({ page }) => {
   await visit(page, '/explore');
   await expect(page.getByRole('link', { name: 'Promote your music' })).toBeVisible();
 
-  // Below 1024 px the menu is the sidebar, with the same one row for /promote.
   await page.setViewportSize({ width: 900, height: 900 });
   await page.getByRole('button', { name: 'Open menu' }).click();
   const menu = page.locator('#mobile-menu-panel');
@@ -117,7 +107,6 @@ test('shows Boost discovery once sales are open', async ({ page }) => {
   await page.getByRole('button', { name: 'Close menu' }).click();
   await page.setViewportSize({ width: 1280, height: 720 });
 
-  // The sidebar shows one row for /promote: Promote while sales are open.
   await visit(page, '/memberships');
   const sidebarFooter = page.locator('[data-slot="sidebar-footer"]');
   await expect(sidebarFooter.getByRole('link', { name: 'Promote', exact: true })).toHaveAttribute('href', '/promote');

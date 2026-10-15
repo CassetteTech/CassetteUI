@@ -1,15 +1,6 @@
 'use client';
 
-/**
- * Posts from the curators the viewer follows or joined, newest first. The
- * session says how many such curators there are; the Feed reads posts only
- * after it knows that count is positive. Every page is authorized by Bridge,
- * so an ending membership or an Unfollow drops that curator's posts from the
- * next read, and a followed curator's members-only post arrives locked.
- * Billing stays on Memberships.
- */
-
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -63,15 +54,12 @@ function CuratorFeed() {
   const setFeedSourceCounts = useAuthStore((state) => state.setFeedSourceCounts);
   const [openedAt] = useState(() => Date.now());
   const viewerId = user?.id ?? null;
-  // Only the count of followed and joined curators opens the Feed; the paid
-  // count can briefly exceed it while a source changes, and never does on its own.
   const hasSources = !sessionError && feedCuratorCount !== null && feedCuratorCount > 0;
-  // Posts wait for a session read that is fresh for this visit and not being replaced.
   const sessionCurrent =
     !isRefreshingSession && sessionCheckedAt !== null && sessionCheckedAt + SESSION_MAX_AGE_MS > openedAt;
   const feedEnabled = hasSources && sessionCurrent;
   const feed = useCuratorFeed(viewerId, membersOnly, feedEnabled);
-  const { headingRef, recordFocus } = useResetFocusRecovery(feedEnabled && feed.data !== undefined);
+  const { headingRef, sectionRef } = useResetFocusRecovery(feedEnabled && feed.data !== undefined);
 
   // Reads the session on entry when the last read is too old, then again each
   // time it ages out while the page is visible. Each read restarts the Feed
@@ -126,9 +114,7 @@ function CuratorFeed() {
   }
 
   return (
-    // The section only records where focus is, for focus recovery after a reset; it takes no input itself.
-    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-    <section aria-labelledby="feed-heading" onFocus={recordFocus}>
+    <section ref={sectionRef} aria-labelledby="feed-heading">
       <header className="mb-8">
         <h1
           ref={headingRef}
@@ -173,10 +159,15 @@ function useResetFocusRecovery(postsShown: boolean) {
     }
   }, [postsShown]);
 
-  const recordFocus = (event: React.FocusEvent) => {
-    lastFocused.current = event.target;
-  };
-  return { headingRef, recordFocus };
+  const sectionRef = useCallback((section: HTMLElement | null) => {
+    if (!section) return;
+    const recordFocus = (event: FocusEvent) => {
+      lastFocused.current = event.target instanceof Element ? event.target : null;
+    };
+    section.addEventListener('focusin', recordFocus);
+    return () => section.removeEventListener('focusin', recordFocus);
+  }, []);
+  return { headingRef, sectionRef };
 }
 
 function SignInPrompt({ membersOnly }: { membersOnly: boolean }) {
@@ -198,7 +189,6 @@ function SignInPrompt({ membersOnly }: { membersOnly: boolean }) {
   );
 }
 
-/** No followed or joined curators: the curators a fan could join now, from the featured list in its own order. */
 function JoinCuratorPrompt({ viewerId }: { viewerId: string }) {
   const curators = useExploreCurators();
   const joinable = (curators.data ?? [])
@@ -335,10 +325,6 @@ function FeedPosts({
   );
 }
 
-/**
- * Whether the curator takes new members now comes from the viewer's own
- * membership status, read once per curator; the locked row never carries it.
- */
 function LockedFeedPost({ item, viewerId }: { item: Extract<CuratorFeedItem, { kind: 'locked' }>; viewerId: string }) {
   const status = useMembershipStatus(item.curator.id, viewerId, false);
   let availability: 'available' | 'unavailable' | 'unknown' = 'unknown';

@@ -1,7 +1,6 @@
 import { getBrowserApiBaseUrl } from '@/lib/utils/url';
 import {
-  EmailPreferenceRequestError,
-  parseEmailPreferencesResponse,
+  readEmailPreferencesResponse,
   type EmailPreferenceSource,
   type EmailPreferencesResponse,
 } from './email-preferences-contract';
@@ -41,14 +40,7 @@ class EmailPreferencesService {
       ...init,
       credentials: 'include',
     });
-    if (!response.ok) {
-      throw new EmailPreferenceRequestError(response.status);
-    }
-
-    const body: unknown = await response.json().catch(() => {
-      throw new EmailPreferenceRequestError(502);
-    });
-    return parseEmailPreferencesResponse(body);
+    return readEmailPreferencesResponse(response);
   }
 }
 

@@ -1,9 +1,5 @@
 'use client';
 
-/** The Studio Members tab: the active member count as the hero figure, its
-    daily trend for a chosen window, then the paginated money activity behind
-    it, printed as a statement grouped by month. */
-
 import { useContext, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -36,7 +32,7 @@ import {
   type CuratorEarningsHistoryItem,
 } from '@/services/curator-earnings';
 import { fetchCuratorMemberStats, memberAxisMax, type CuratorMemberStats } from '@/services/curator-member-stats';
-import { fetchCuratorPlans } from '@/services/curator-plans';
+import { useCuratorPlans } from '@/hooks/use-curator';
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { getUserFacingApiErrorMessage } from '@/utils/user-facing-api-error';
 
@@ -102,7 +98,6 @@ const transferEventTitle = {
   reversed: 'Payout reversed',
 } satisfies Record<Extract<CuratorEarningsHistoryItem, { kind: 'transfer' }>['status'], string>;
 
-/** Activity-stream event name per history item. */
 export function eventTitle(item: CuratorEarningsHistoryItem) {
   if (item.kind === 'transfer') return transferEventTitle[item.status];
   if (item.status === 'forfeited') return 'Earning forfeited';
@@ -110,7 +105,6 @@ export function eventTitle(item: CuratorEarningsHistoryItem) {
   return 'New member earning';
 }
 
-/** Consecutive items that share a calendar month; the ledger arrives newest first. */
 function byMonth(items: CuratorEarningsHistoryItem[]) {
   const groups: Array<{ month: string; items: CuratorEarningsHistoryItem[] }> = [];
   for (const item of items) {
@@ -122,13 +116,10 @@ function byMonth(items: CuratorEarningsHistoryItem[]) {
   return groups;
 }
 
-/** One statement line: day, event, then amount over status. */
 function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
   const showPayableAt = item.kind === 'allocation' &&
     item.status !== 'transferred' && item.status !== 'forfeited' && item.status !== 'reversed';
   const outgoing = item.kind === 'transfer' || item.status === 'forfeited' || item.status === 'reversed';
-  // Structure note: the amount's parent div and grandparent li are how tests
-  // associate an amount with its label and status. Keep both wrappers.
   return (
     <li className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-baseline gap-x-3 py-3">
       <time dateTime={item.occurredAtUtc} className="font-mono text-xs uppercase tabular-nums text-muted-foreground">
@@ -153,7 +144,6 @@ function HistoryItem({ item }: { item: CuratorEarningsHistoryItem }) {
   );
 }
 
-/** The hero figure: today's count, its change over the window, and pending endings. */
 function MemberCount({ stats }: { stats: CuratorMemberStats }) {
   const change = stats.activeMembers - stats.previousWindow.activeMembers;
   const since = formatDay(stats.daily[0].date);
@@ -177,7 +167,6 @@ function MemberCount({ stats }: { stats: CuratorMemberStats }) {
   );
 }
 
-/** The window's joins and endings beside the previous window, then the daily trend. */
 function MemberTrend({ stats }: { stats: CuratorMemberStats }) {
   const reduceMotion = useReducedMotion();
   const since = formatDay(stats.daily[0].date);
@@ -215,7 +204,6 @@ function MemberTrend({ stats }: { stats: CuratorMemberStats }) {
           className="h-56 w-full"
         >
           <Grid />
-          {/* Counts are whole members, so fractional ticks stay blank. */}
           <YAxis tickCount={3} tickFormatter={(value) => Number.isInteger(value) ? countFormatter.format(value) : ''} />
           <XAxis dataKey="day" maxTicks={6} />
           <Area dataKey="members" variant="dotted" />
@@ -229,8 +217,6 @@ function MemberTrend({ stats }: { stats: CuratorMemberStats }) {
   );
 }
 
-/** One Studio failure line with a retry. A response that failed parsing gets
-    the fallback, never the parser's text. */
 function RetryAlert({
   error,
   fallback,
@@ -275,20 +261,13 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
     enabled: Boolean(user?.id),
     staleTime: 0,
   });
-  // Shares the plan card's query key, so React Query dedupes the request.
-  const plans = useQuery({
-    queryKey: ['curator-plans', profile.id],
-    queryFn: ({ signal }) => fetchCuratorPlans(signal),
-    staleTime: 0,
-  });
+  const plans = useCuratorPlans(profile.id);
   const hasActivePlan = plans.data?.some((plan) => plan.status === 'active') === true;
-  // Members exist only after a first publish, the same gate as the earnings ledger.
   const hasPublished = plans.data?.some((plan) => plan.status !== 'draft') === true;
   const stats = useQuery({
     queryKey: ['curator-member-stats', user?.id ?? null, profile.id, days],
     queryFn: ({ signal }) => fetchCuratorMemberStats(Number(days), signal),
     enabled: Boolean(user?.id) && hasPublished,
-    // A window switch keeps the last figures on screen until the new ones land.
     placeholderData: keepPreviousData,
     staleTime: 0,
   });
@@ -301,7 +280,6 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
   );
   const showPagination = page > 1 || hasNextPage;
 
-  // Empty states take the chart's height, the same as the earnings card's empty chart.
   const noMembers = (title: string, description: string) => (
     <Empty className="mt-6 h-56 py-0">
       <EmptyTitle>{title}</EmptyTitle>
@@ -332,8 +310,6 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
   if (plans.isPending || hasPublished && stats.isPending) {
     members = <output className="mt-1.5 block text-sm text-muted-foreground">Loading members…</output>;
   } else if (!plans.data) {
-    // Without the plans the published gate is unknown, so say so rather than
-    // show a curator with members the unpublished state.
     members = (
       <RetryAlert className="mt-3" error={plans.error} fallback="Member counts are unavailable." onRetry={() => void plans.refetch()} />
     );
@@ -349,14 +325,11 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
     hero = <MemberCount stats={stats.data} />;
     members = <MemberTrend stats={stats.data} />;
   }
-  // A window switch keeps the last window on screen, dimmed and busy, until the new one lands.
   const dimmed = cn('transition-opacity motion-reduce:transition-none', stats.isPlaceholderData && 'opacity-60');
 
   return (
-    // Both groups share the view's anchor, so step links land on the hero and tests read one card.
     <div id="studio-members" data-testid="curator-earnings-card" tabIndex={-1} className="scroll-mt-24 space-y-10 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
       <section aria-labelledby="curator-earnings-title" aria-busy={stats.isPlaceholderData}>
-        {/* The earnings card's hero shape: label and figure on the left, the window control on the right. */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 id="curator-earnings-title" className="text-xs text-muted-foreground">Active members</h2>
@@ -395,7 +368,6 @@ export function CuratorEarningsCard({ profile }: { profile: CuratorProfile }) {
             No membership earnings yet. Earnings appear here as fans join your plan.
           </p>
         ) : (
-          // A statement: each month opens with a dashed rule, the receipt's device.
           <div className="mt-4 space-y-5" data-testid="curator-earnings-history">
             {byMonth(earnings.items).map((group) => (
               <section key={group.month} aria-label={group.month}>

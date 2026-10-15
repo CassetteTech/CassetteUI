@@ -13,7 +13,6 @@ interface TeamMemberModalProps {
 }
 
 export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
-  // Handle ESC key
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && memberName) {
@@ -78,10 +77,8 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
 
               return (
                 <div className="p-5 sm:p-8 md:p-10">
-                  {/* Accent bar — category color */}
                   <div className={`h-[2px] w-10 ${typeConfig.accentBar} mb-6`} />
 
-                  {/* Header */}
                   <div className="flex items-start justify-between gap-3 mb-6 sm:mb-8">
                     <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                       <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden flex-shrink-0 bg-muted">
@@ -98,7 +95,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                           {member.name}
                         </h2>
                         <p
-                          className={`font-roboto text-sm sm:text-lg ${typeConfig.iconColor}`}
+                          className={`font-roboto-flex text-sm sm:text-lg ${typeConfig.iconColor}`}
                         >
                           {member.role}
                         </p>
@@ -122,21 +119,20 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                     </button>
                   </div>
 
-                  {/* Content */}
                   <div className="space-y-6">
                     <div>
                       <h3 className="font-teko text-lg text-muted-foreground uppercase tracking-wider mb-3">
                         About
                       </h3>
                       <div className="space-y-4">
-                        <p className="font-roboto text-foreground/90 leading-relaxed">
+                        <p className="font-roboto-flex text-foreground/90 leading-relaxed">
                           {member.fullBio}
                         </p>
-                        <p className="font-roboto text-foreground/90 leading-relaxed">
+                        <p className="font-roboto-flex text-foreground/90 leading-relaxed">
                           {member.background}
                         </p>
                         {member.experience && (
-                          <p className="font-roboto text-foreground/90 leading-relaxed">
+                          <p className="font-roboto-flex text-foreground/90 leading-relaxed">
                             {member.experience}
                           </p>
                         )}
@@ -153,7 +149,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                         {member.expertise.map((skill) => (
                           <span
                             key={skill}
-                            className="px-3 py-1.5 text-sm rounded-sm border border-foreground/10 dark:border-border bg-muted/50 text-foreground/80 font-roboto"
+                            className="px-3 py-1.5 text-sm rounded-sm border border-foreground/10 dark:border-border bg-muted/50 text-foreground/80 font-roboto-flex"
                           >
                             {skill}
                           </span>
@@ -176,7 +172,7 @@ export function TeamMemberModal({ memberName, onClose }: TeamMemberModalProps) {
                             aria-label={label}
                           >
                             <Icon size={18} />
-                            <span className="font-roboto font-medium">
+                            <span className="font-roboto-flex font-medium">
                               {label}
                             </span>
                           </a>

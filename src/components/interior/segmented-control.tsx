@@ -11,7 +11,6 @@ const CELL = { type: 'spring', stiffness: 520, damping: 34, mass: 0.45 } as cons
 
 const SEG = 'px-3 py-[5px] text-center text-xs font-medium leading-[18px] whitespace-nowrap';
 
-/** `icon` renders before the label in the visible segment; the accessible name stays the label. */
 export type SegmentedOption = { value: string; label: string; icon?: ReactNode; disabled?: boolean };
 
 export function SegmentedControl({
@@ -22,7 +21,7 @@ export function SegmentedControl({
   onValueChange,
   className,
 }: {
-  options: SegmentedOption[];
+  options: ReadonlyArray<SegmentedOption>;
   label: string;
   value?: string;
   defaultValue?: string;
@@ -38,7 +37,6 @@ export function SegmentedControl({
   const controlled = value !== undefined;
   const current = controlled ? value : internal;
   const found = options.findIndex((o) => o.value === current);
-  // A value outside the options (a legacy setting) checks nothing; the thumb hides.
   const unset = found < 0;
   const index = unset ? 0 : found;
 
@@ -60,7 +58,6 @@ export function SegmentedControl({
     return () => controls.stop();
   }, [index, reduced, pos]);
 
-  // Every selection emits, the current value included, so a caller can react to a re-click.
   const select = useCallback((next: string) => {
     if (!controlled) setInternal(next);
     emit.current?.(next);

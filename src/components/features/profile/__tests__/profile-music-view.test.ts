@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CuratorPage } from '../../../../services/curator';
+import { AccountType } from '../../../../types';
 import {
   curatorMusicViews,
   curatorPageFilterOf,
@@ -22,7 +23,7 @@ const page = (overrides: {
     bio: null,
     avatarUrl: null,
     profileLinks: [],
-    accountType: 'Regular',
+    accountType: AccountType.REGULAR,
     headline: null,
     about: null,
     declaredGenres: [],
@@ -76,10 +77,8 @@ void test('a curator page offers types it holds, and Members only to members and
   );
   assert.deepEqual(curatorMusicViews(page({ typeCounts: twoTypes, memberPosts: true, viewer: { isOwner: true } }), 'all'),
     ['all', 'members', 'playlists', 'tracks']);
-  // The owner of a plan without member posts has nothing to lock, so no Members only.
   assert.deepEqual(curatorMusicViews(page({ typeCounts: twoTypes, memberPosts: false, viewer: { isOwner: true } }), 'all'),
     ['all', 'playlists', 'tracks']);
-  // One type is the same list as All, so it gets no tab; an open view keeps its tab.
   assert.deepEqual(curatorMusicViews(page({ typeCounts: [{ elementType: 'Playlist', count: 3 }] }), 'all'), ['all']);
   assert.deepEqual(curatorMusicViews(page({ typeCounts: [{ elementType: 'Playlist', count: 3 }] }), 'albums'), ['all', 'albums']);
 });

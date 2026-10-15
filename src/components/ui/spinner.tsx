@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils"
 const spinnerVariants = cva("animate-spin", {
   variants: {
     size: {
-      xs: "size-3",   // 12px
-      sm: "size-4",   // 16px
-      md: "size-6",   // 24px
-      lg: "size-8",   // 32px
-      xl: "size-12",  // 48px
+      xs: "size-3",
+      sm: "size-4",
+      md: "size-6",
+      lg: "size-8",
+      xl: "size-12",
     },
     variant: {
       default: "text-current",

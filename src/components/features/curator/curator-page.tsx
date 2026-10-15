@@ -1,7 +1,5 @@
 'use client';
 
-/** Coordinates the public curator feed, fan entitlement state, and Stripe handoff flows. */
-
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -9,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuthState } from '@/hooks/use-auth';
+import { useProviderReturnPoll } from '@/hooks/use-provider-return-poll';
 import { useCuratorPage } from '@/hooks/use-curator';
 import { refreshAfterMembershipChange, useMembershipStatus } from '@/hooks/use-membership-status';
 import {
@@ -30,6 +29,7 @@ import {
   takeMembershipPortalBaseline,
   type MembershipInterval,
   type MembershipPortalBaseline,
+  type MembershipStatusView,
   type MembershipSubscription,
 } from '@/services/membership';
 import { captureClientEvent } from '@/lib/analytics/client';
@@ -40,29 +40,23 @@ import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
 import { CarriedActionConfirmation } from '@/components/features/curator/carried-action-confirmation';
 import { Empty, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { tryStorage } from '@/lib/best-effort';
 
 type MembershipFlow = 'join' | 'return' | 'canceled' | 'portal-return' | null;
 const joinIntentPrefix = 'cassette:membership-join-intent:';
 const joinIntentLifetimeMs = 10 * 60 * 1_000;
 
-/** A signed-out Join: this tab remembers the click, and sign-in returns with `membership=join`. */
 function signInToJoin(
   router: ReturnType<typeof useRouter>,
   username: string,
   planId: string,
   interval: MembershipInterval,
 ) {
-  try {
-    sessionStorage.setItem(`${joinIntentPrefix}${planId}:${interval}`, String(Date.now()));
-  } catch {
-    // The fan can select Join again after signing in.
-  }
+  tryStorage(() => sessionStorage.setItem(`${joinIntentPrefix}${planId}:${interval}`, String(Date.now())), undefined);
   const returnPath = `/profile/${encodeURIComponent(username)}?membership=join&interval=${interval}`;
   router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
 }
 
-/** What a Portal return compares status reads with: the membership as the fan opened the
-    Portal when that baseline survived, otherwise the first read after the return. */
 type PortalReturnReference = { state: MembershipPortalBaseline; openedBaseline: boolean };
 
 export function PublicCuratorPage({
@@ -77,11 +71,8 @@ export function PublicCuratorPage({
   username: string;
   membershipFlow: MembershipFlow;
   initialInterval: MembershipInterval;
-  /** Page rail the membership card renders into; the same rail Curator Studio uses. */
   membershipSlot: HTMLElement | null;
-  /** The profile's bio, services, and links, printed inside the pass on wide screens. */
   identitySummary?: ReactNode;
-  /** The Music view in the URL. */
   view: ProfileMusicView;
   onViewChange: (view: ProfileMusicView) => void;
 }) {
@@ -100,8 +91,6 @@ export function PublicCuratorPage({
   const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
   const page = query.data?.pages[0];
   const [interval, setBillingInterval] = useState(initialInterval);
-  // A Portal change reaches Bridge by webhook, possibly after the fan is back,
-  // so a Portal return also polls for a bounded time.
   const [pollStatus, setPollStatus] = useState(membershipFlow === 'return' || membershipFlow === 'portal-return');
   const [notice, setNotice] = useState<string | null>(
     membershipFlow === 'canceled' ? 'Checkout was canceled. You were not charged.' : null,
@@ -172,14 +161,13 @@ export function PublicCuratorPage({
   }, []);
 
   useEffect(() => {
-    // bfcache restore: the page comes back with stale "opening…" pending state.
-    const onPageShow = (event: PageTransitionEvent) => {
+    const resetPendingAfterBackForwardRestore = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
       setCheckoutPending(false);
       setPortalPending(false);
     };
-    window.addEventListener('pageshow', onPageShow);
-    return () => window.removeEventListener('pageshow', onPageShow);
+    window.addEventListener('pageshow', resetPendingAfterBackForwardRestore);
+    return () => window.removeEventListener('pageshow', resetPendingAfterBackForwardRestore);
   }, []);
 
   useEffect(() => {
@@ -207,27 +195,30 @@ export function PublicCuratorPage({
     });
   }, [page]);
 
-  useEffect(() => {
-    if (!pollStatus) return;
-    const timeout = window.setTimeout(() => {
+  useProviderReturnPoll({
+    flow: membershipFlow === 'return' || membershipFlow === 'portal-return' ? membershipFlow : null,
+    polling: pollStatus,
+    read: statusQuery,
+    onTimeout: (flow) => {
       setPollStatus(false);
       setPollTimedOut(true);
-      setNotice(membershipFlow !== 'portal-return'
+      setNotice(flow !== 'portal-return'
         ? 'Your membership update is still processing.'
         : portalReturn.current?.openedBaseline
           ? 'No membership change has reached Cassette yet. A change made in Stripe can take a minute to appear.'
           : 'A change made in Stripe can take a minute to appear here.');
       removeQueryParameters('membership', 'interval');
-    }, 30_000);
-    return () => window.clearTimeout(timeout);
-  }, [membershipFlow, pollStatus]);
+    },
+    onRead: (flow, status) => {
+      if (flowHandled.current) return;
+      settleMembershipReturn(flow, status);
+    },
+  });
 
-  useEffect(() => {
-    const status = statusQuery.data;
-    if (!status || flowHandled.current) return;
+  function settleMembershipReturn(flow: 'return' | 'portal-return', status: MembershipStatusView) {
     const membership = status.membership;
 
-    if (membershipFlow === 'return') {
+    if (flow === 'return') {
       if (!membership) return;
       if (grantsMembershipAccess(membership.status)) {
         flowHandled.current = true;
@@ -247,24 +238,17 @@ export function PublicCuratorPage({
       return;
     }
 
-    if (membershipFlow !== 'portal-return') return;
-    // Settle only on a status read completed after this mount, never on a cached snapshot.
-    if (!statusQuery.isFetchedAfterMount || statusQuery.isFetching || !membership) return;
+    if (!membership) return;
 
     const current = { status: membership.status, cancelAtPeriodEnd: membership.cancelAtPeriodEnd };
     if (!portalReturn.current) {
       const opened = takeMembershipPortalBaseline(membership.membershipSubscriptionId);
       portalReturn.current = { state: opened ?? current, openedBaseline: opened !== null };
-      // Without that baseline, the page can predate a change that this first read
-      // already shows, so the page is read once more.
       if (!opened) void queryClient.invalidateQueries({ queryKey: ['curator-page', username.toLowerCase()] });
     }
     const { state: reference, openedBaseline } = portalReturn.current;
-    // An unchanged read proves nothing: the change can still be on its way, or
-    // the fan only looked. The bounded poll ends with neutral copy instead.
     if (current.status === reference.status && current.cancelAtPeriodEnd === reference.cancelAtPeriodEnd) return;
 
-    // Any change, such as a repaired payment, refreshes the server-owned page and its posts.
     flowHandled.current = true;
     setPollStatus(false);
     setPollTimedOut(false);
@@ -278,11 +262,9 @@ export function PublicCuratorPage({
       (reference.cancelAtPeriodEnd && !current.cancelAtPeriodEnd) ||
       (reference.status === 'canceled' && current.status !== 'canceled');
     if (cancellationObserved) {
-      // The persistent state (ends on date / canceled) renders inline via the standing notice.
       toast.info(membership.status === 'canceled'
         ? 'Your membership is canceled.'
         : 'Your membership renewal is canceled.');
-      // A first read after the return cannot show that the Portal visit caused it.
       if (!openedBaseline) return;
       void captureClientEvent('membership_canceled', {
         route: '/profile/[username]',
@@ -297,15 +279,7 @@ export function PublicCuratorPage({
     } else if (continuationObserved) {
       setNotice('Your membership will continue.');
     }
-  }, [
-    membershipFlow,
-    queryClient,
-    statusQuery.data,
-    statusQuery.isFetchedAfterMount,
-    statusQuery.isFetching,
-    userCohort,
-    username,
-  ]);
+  }
 
   useEffect(() => {
     if (membershipFlow !== 'canceled') return;
@@ -323,14 +297,12 @@ export function PublicCuratorPage({
 
     flowHandled.current = true;
     removeQueryParameters('membership', 'interval');
-    let intentCreatedAt = Number.NaN;
-    try {
-      const key = `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`;
-      intentCreatedAt = Number(sessionStorage.getItem(key));
-      sessionStorage.removeItem(key);
-    } catch {
-      // An explicit authenticated Join remains available when storage is unavailable.
-    }
+    const intentKey = `${joinIntentPrefix}${page.membership.planId}:${checkoutInterval}`;
+    const intentCreatedAt = tryStorage(() => {
+      const createdAt = Number(sessionStorage.getItem(intentKey));
+      sessionStorage.removeItem(intentKey);
+      return createdAt;
+    }, Number.NaN);
     const intentAge = Date.now() - intentCreatedAt;
     if (!Number.isFinite(intentCreatedAt) || intentAge < 0 || intentAge > joinIntentLifetimeMs) {
       setNotice('Choose a billing option and select Join to continue.');
@@ -357,9 +329,6 @@ export function PublicCuratorPage({
     statusQuery.data,
   ]);
 
-  // A Join carried from an in-app browser (`intent=join`) arrives without this
-  // tab's intent. Signed out, it starts the same sign-in as a Join click; signed
-  // in, the fan confirms it, so a link never starts checkout by itself.
   useEffect(() => {
     if (!carriedJoinInterval || carriedJoinHandled.current || authLoading || !page) return;
     const done = () => {
@@ -447,9 +416,6 @@ export function PublicCuratorPage({
       <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
       <div className="grid gap-6">
-        {/* Compact membership summary: mobile-only, sits under the identity header and scrolls to
-            the full offer. Join is reserved for the actual checkout control in the card. The owner
-            previews it as a visitor does. */}
         {page.membership && !page.viewer.isMember && (
           <a
             href={`#${membershipId}`}
@@ -536,7 +502,6 @@ export function PublicCuratorPage({
   );
 }
 
-/** A curator page post in the shape the music card reads. */
 function toMusicCardPost(post: Extract<CuratorPostItem, { kind: 'post' }>['post']): MusicCardPost {
   return {
     ...post,
@@ -578,7 +543,6 @@ function CuratorLoadError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** The music list's skeleton; the profile page draws the rail. */
 function CuratorPageSkeleton() {
   return (
     <div aria-label="Loading curator">

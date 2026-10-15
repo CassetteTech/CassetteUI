@@ -1,8 +1,5 @@
 'use client';
 
-/** Earnings on the Membership view after the first publish: the hero figure for a chosen period,
-    the payout figures, and the dithered earned-versus-paid chart. */
-
 import { useContext, useMemo, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { Area } from '@/components/dither-kit/area';
@@ -32,12 +29,10 @@ const periods = [
   { value: '6', label: '6 months' },
   { value: '12', label: '12 months' },
 ];
-// Paid out is registered first so the earned series paints on top of it.
 const chartConfig: ChartConfig = {
   paid: { label: 'Paid out', color: 'grey' },
   earned: { label: 'Earned', color: 'brand' },
 };
-/** Whole units keep the y axis short ("$27", not "$27.00"). */
 const axisMoney = (currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 });
 
@@ -49,7 +44,6 @@ function nextPayout(balances: CuratorEarningsBalances) {
   return { value: 'None yet', hint: 'Nothing is waiting for payout' };
 }
 
-/** Rendered only after the first publish; before it there are no earnings. */
 export function StudioEarnings() {
   const views = useContext(StudioStepsContext);
   const earnings = useCuratorLedger(true);
@@ -62,7 +56,6 @@ export function StudioEarnings() {
   const balances = ledger?.balances;
   const currency = balances?.currency ?? 'USD';
   const axis = useMemo(() => axisMoney(currency), [currency]);
-  // The ledger is read newest-first up to a page cap; say so when the window is cut short.
   const windowHint = ledger && !ledger.coversWindow
     ? `From your latest ${countFormatter.format(ledger.items.length)} ledger events`
     : null;
@@ -88,7 +81,6 @@ export function StudioEarnings() {
       }));
   const reduceMotion = useReducedMotion();
 
-  // Earned is the hero figure, so the totals line holds the period's other outcomes.
   const summary = period
     ? [
         { label: 'Paid out', value: money(period.paid, currency) },
@@ -96,7 +88,6 @@ export function StudioEarnings() {
       ]
     : [];
 
-  // Stripe Express shape: the hero figure and its period control, the payout figures, then the chart at full width.
   return (
     <section aria-labelledby="studio-earned-title">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -157,7 +148,6 @@ export function StudioEarnings() {
               <BlockLegend config={chartConfig} className="mt-2" />
             </div>
           )}
-          {/* Period totals read as one line under the chart. */}
           <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t border-border pt-4">
             {summary.map((row) => (
               <div key={row.label}>

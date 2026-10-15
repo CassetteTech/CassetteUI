@@ -35,7 +35,6 @@ test.describe('account deletion', () => {
 
     await expect(confirmButton(page)).toHaveCount(0);
 
-    // Still signed in, and the session survives a reload.
     await page.reload();
     await expect(page).toHaveURL('/profile/miagroove/edit?tab=account');
   });
@@ -49,7 +48,6 @@ test.describe('account deletion', () => {
 
     await expect(page).toHaveURL('/');
 
-    // The session is genuinely gone, not just navigated away from.
     await page.goto('/profile');
     await expect(page).toHaveURL('/auth/signin');
   });
@@ -69,7 +67,6 @@ test.describe('account deletion', () => {
     await expect(page.getByText('Failed to delete account. Please try again.')).toBeVisible();
     await expect(page).toHaveURL('/profile/miagroove/edit?tab=account');
 
-    // The retry succeeds against the same open modal.
     await confirmButton(page).click();
     await expect(page).toHaveURL('/');
   });

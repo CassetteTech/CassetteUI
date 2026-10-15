@@ -6,14 +6,9 @@ import { useTopCharts } from '@/hooks/use-music';
 
 const COLUMNS = 7;
 
-/** Decorative full-viewport backdrop: chart artwork drifts in slow columns
-    under a paper halftone screen. Until the charts arrive, the columns hold
-    muted tiles so the surface above still has something to sit on. Hidden
-    from assistive technology; the columns stand still under reduced motion. */
 export function ArtworkWallBackground() {
   const { data: charts } = useTopCharts();
 
-  // Distinct artwork from the charts, dealt into columns.
   const columns = useMemo(() => {
     const artworks = Array.from(new Set(
       [...(charts?.tracks ?? []), ...(charts?.albums ?? []), ...(charts?.playlists ?? [])]
@@ -23,7 +18,6 @@ export function ArtworkWallBackground() {
     return Array.from({ length: COLUMNS }, (_, column) => {
       const dealt = artworks.filter((_, index) => index % COLUMNS === column);
       const tiles = dealt.length ? dealt : Array<null>(8).fill(null);
-      // Two copies, so the drift can move one copy's height and loop.
       return [...tiles, ...tiles];
     });
   }, [charts]);
@@ -45,7 +39,6 @@ export function ArtworkWallBackground() {
           </div>
         ))}
       </div>
-      {/* Paper dots over the covers: the wall is a print, not a photo grid. */}
       <div className="artwork-wall-halftone absolute inset-0 opacity-80" />
       <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-transparent to-background" />
     </div>

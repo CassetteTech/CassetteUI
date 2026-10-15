@@ -1,5 +1,3 @@
-/** Covers public curator visibility, locked-content privacy, entitlement, and responsive layout. */
-
 import { expect, type Page, test } from '@playwright/test';
 
 import {
@@ -10,6 +8,7 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { AccountType } from '../src/types';
 
 const CURATOR_PATH = `/profile/${fixtureCuratorPage.curator.username}`;
 const MOBILE_VIEWPORT = { width: 390, height: 667 };
@@ -32,7 +31,6 @@ test('shows a paid curator plan without leaking locked content to a nonmember', 
   await expect(
     page.getByText(fixtureUsers.playlistCurator.displayName, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();
-  // The page identity is the ordinary, editable profile; the free curator profile has no editable fields of its own.
   await expect(
     page.getByText(fixtureUsers.playlistCurator.bio!, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();
@@ -113,7 +111,7 @@ test('names the original author on a repost and the curator as the reposter', as
             title: 'Borrowed Light',
             isRepost: true,
             originalPostOwnerUsername: author,
-            originalPostOwnerAccountType: 'Regular',
+            originalPostOwnerAccountType: AccountType.REGULAR,
           },
         }],
       },

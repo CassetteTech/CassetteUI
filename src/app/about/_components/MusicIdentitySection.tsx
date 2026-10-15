@@ -17,12 +17,6 @@ const tabs = [
 
 const services = ["spotify", "apple_music", "deezer"] as const;
 
-/**
- * Cream band introducing the profile. The real-profile teaser card is the
- * single focal element — one tap lands on a live profile, which is the
- * interactive demo, with real data. (The mock ProfileDemo stays on the
- * homepage; repeating it here spent a section re-showing it.)
- */
 export function MusicIdentitySection() {
   return (
     <section className="section-cream relative">

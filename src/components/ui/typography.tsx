@@ -9,7 +9,6 @@ interface TypographyProps {
   as?: keyof React.JSX.IntrinsicElements;
 }
 
-// Headline styles (Teko font)
 export const HeadlineText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -50,7 +49,6 @@ export const ArtistName: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Body text styles (Roboto Flex)
 export const BodyText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -76,7 +74,7 @@ export const AlbumName: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-base sm:text-lg font-medium text-foreground', className)}>
+  <Component className={cn('font-roboto-flex text-base sm:text-lg font-medium text-foreground', className)}>
     {children}
   </Component>
 );
@@ -86,12 +84,11 @@ export const GenreText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-sm font-normal text-muted-foreground', className)}>
+  <Component className={cn('font-roboto-flex text-sm font-normal text-muted-foreground', className)}>
     {children}
   </Component>
 );
 
-// UI/Interface text (Atkinson Hyperlegible)
 export const UIText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -127,7 +124,7 @@ export const HintText: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'span' 
 }) => (
-  <Component className={cn('font-roboto text-sm font-semibold text-muted-foreground', className)}>
+  <Component className={cn('font-roboto-flex text-sm font-semibold text-muted-foreground', className)}>
     {children}
   </Component>
 );
@@ -142,7 +139,6 @@ export const ButtonText: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Profile page specific styles
 export const ProfileName: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -183,7 +179,6 @@ export const ProfileLink: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Track page specific styles
 export const TrackPageSongTitle: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -209,7 +204,7 @@ export const TrackPageAlbumName: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-base sm:text-lg font-medium text-white', className)}>
+  <Component className={cn('font-roboto-flex text-base sm:text-lg font-medium text-white', className)}>
     {children}
   </Component>
 );
@@ -219,12 +214,11 @@ export const TrackPageGenres: React.FC<TypographyProps> = ({
   className, 
   as: Component = 'p' 
 }) => (
-  <Component className={cn('font-roboto text-sm font-normal text-white', className)}>
+  <Component className={cn('font-roboto-flex text-sm font-normal text-white', className)}>
     {children}
   </Component>
 );
 
-// Add Music page styles
 export const AddMusicTitle: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -245,7 +239,6 @@ export const AddMusicSubtitle: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Error and validation text
 export const ErrorText: React.FC<TypographyProps> = ({ 
   children, 
   className, 
@@ -256,7 +249,6 @@ export const ErrorText: React.FC<TypographyProps> = ({
   </Component>
 );
 
-// Toast and notification text
 export const ToastText: React.FC<TypographyProps> = ({ 
   children, 
   className, 

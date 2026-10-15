@@ -29,8 +29,6 @@ const defaultFeatures = [
   },
 ];
 
-// Promote-intent signups are mid-purchase; frame the account as campaign
-// infrastructure rather than a social-app enrollment.
 const promoteFeatures = [
   {
     icon: Megaphone,
@@ -55,14 +53,12 @@ export function WelcomeStep({ onNext, displayName, variant = 'default' }: Welcom
 
   return (
     <div className="space-y-8">
-      {/* Hero Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="text-center space-y-4"
       >
-        {/* Cassette Logo */}
         <motion.div
           initial={{ scale: 0.8, rotate: -10 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -79,7 +75,6 @@ export function WelcomeStep({ onNext, displayName, variant = 'default' }: Welcom
           />
         </motion.div>
 
-        {/* Cassette Word Logo */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -116,7 +111,6 @@ export function WelcomeStep({ onNext, displayName, variant = 'default' }: Welcom
         </motion.p>
       </motion.div>
 
-      {/* Features */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -142,7 +136,6 @@ export function WelcomeStep({ onNext, displayName, variant = 'default' }: Welcom
         ))}
       </motion.div>
 
-      {/* CTA */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

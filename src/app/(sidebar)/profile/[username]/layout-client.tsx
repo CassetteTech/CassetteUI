@@ -1,7 +1,5 @@
 'use client';
 
-/** Provides profile layout context without mounting duplicate desktop and mobile page trees. */
-
 import { ProfileLayoutContext } from './layout-context';
 
 export default function ProfileLayoutClient({ children }: Readonly<{ children: React.ReactNode }>) {

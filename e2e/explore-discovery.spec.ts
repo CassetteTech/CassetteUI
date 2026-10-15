@@ -1,5 +1,3 @@
-/** Verifies that Explore is discovery only: no tabs, no Feed reads, old links normalized, and the centered curator coverflow. */
-
 import { expect, type Page, test } from '@playwright/test';
 
 import { fixtureUsers } from './support/cassette-fixtures';

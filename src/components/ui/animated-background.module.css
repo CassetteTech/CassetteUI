@@ -1,22 +1,5 @@
-/* Pure-CSS drift for the floating animation elements.
- *
- * Each element is generated once; drift/entrance run entirely on the
- * compositor (transform + opacity only). Per-element randomness
- * (position, duration, delay, direction, distance) is supplied via inline
- * CSS custom properties from the component.
- *
- * Responsiveness is owned here, not in JS: element positions are viewport
- * percentages, and these media queries scale sizes / hide the tail of the
- * element list on smaller screens. Nothing depends on a window measurement
- * taken at mount, so the layout survives resizes, orientation changes, and
- * pages that mount before the viewport has settled.
- */
-
 .container {
   --ab-scale: 0.62;
-  /* Element opacity = min + seed * range. The pale pastel PNGs sit on the
-     light theme's cream surface; the dark theme lifts the floor below so
-     they don't wash out against the near-black background. */
   --ab-op-min: 0.3;
   --ab-op-range: 0.4;
 }
@@ -38,7 +21,6 @@
   --ab-op-range: 0.3;
 }
 
-/* Tail of the element list, hidden as the viewport narrows (25 → 20 → 15). */
 @media (max-width: 1023.98px) {
   .desktopOnly {
     display: none;
@@ -58,13 +40,11 @@
   --target-opacity: calc(
     var(--ab-op-min, 0.3) + var(--opacity-seed, 0.5) * var(--ab-op-range, 0.4)
   );
-  /* Entrance: fade + settle from 0.9 -> 1 (no scale(0)). */
   opacity: 0;
   transform: translate3d(0, 0, 0) scale(0.9);
   animation:
     ab-enter 0.5s ease-out forwards,
     ab-drift var(--drift-duration, 24s) ease-in-out infinite alternate;
-  /* Staggered entrance; drift delay is negative so cycles start desynced. */
   animation-delay: var(--enter-delay, 0s), var(--drift-delay, 0s);
   will-change: transform, opacity;
 }
@@ -88,8 +68,6 @@
       rotate(var(--rotation, 0deg));
   }
   to {
-    /* Drift distance scales with element size so motion reads the same on
-       small screens as on desktop. */
     transform: translate3d(
         calc(var(--drift-x, 0px) * var(--ab-scale, 1)),
         calc(var(--drift-y, 0px) * var(--ab-scale, 1)),
@@ -102,7 +80,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .element {
-    /* Drop the drift; keep a settled, static element at full opacity. */
     animation: ab-enter 0.5s ease-out forwards;
     animation-delay: 0s;
     transform: translate3d(0, 0, 0) scale(1) rotate(var(--rotation, 0deg));

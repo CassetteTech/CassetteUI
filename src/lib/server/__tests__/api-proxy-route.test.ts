@@ -1,5 +1,3 @@
-/** Runs the real generic API proxy route handlers: every browser write passes the origin check before it leaves the app, whatever path spelling reached the catch-all. */
-
 import '../../../services/__tests__/browser-service-environment';
 import test, { afterEach, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

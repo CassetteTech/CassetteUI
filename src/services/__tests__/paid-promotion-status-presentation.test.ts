@@ -76,7 +76,6 @@ void test('a dispute hold is explained differently from a generic hold', () => {
   const generic = getPaidPromotionStatusPresentation({ status: 'on_hold', holdKind: 'other' });
   assert.match(dispute.explanation, /dispute/i);
   assert.notEqual(dispute.explanation, generic.explanation);
-  // Dispute copy never carries internal identifiers either.
   assert.doesNotMatch(dispute.explanation, /stripe_dispute|dp_/);
 });
 

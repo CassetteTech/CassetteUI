@@ -1,5 +1,3 @@
-/** Verifies fan membership checkout, return polling, billing management, and privacy-safe analytics. */
-
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import {
@@ -32,8 +30,6 @@ const unpaidMembershipStatus = {
   membership: { ...fixtureActiveMembershipStatus.membership!, status: 'unpaid' as const },
 };
 
-/** After a repaired payment the page reads the server-owned feed again: the posts
-    unlock, the pass updates, the bounded poll stops, and no notice is left behind. */
 async function expectRepairedMembership(page: Page, state: { membershipStatusRequests: string[] }) {
   await expect(page.getByTestId('membership-view-posts')).toBeVisible();
   await expect(page.getByTestId('curator-locked-post')).toHaveCount(0);
@@ -45,7 +41,6 @@ async function expectRepairedMembership(page: Page, state: { membershipStatusReq
   expect(state.membershipStatusRequests.length).toBe(requests);
 }
 
-// The fixtures renew on Sep 16, 2026. Endings read as scheduled only before that date.
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-24T12:00:00Z'));
 });
@@ -94,7 +89,6 @@ async function expectMembershipEvent(
   }
 }
 
-/** Every session read the browser makes; each page load makes one. */
 function trackSessionReads(page: Page) {
   const reads: string[] = [];
   page.on('request', (request) => {
@@ -180,7 +174,6 @@ test('unlocks subscriber content only after the polled membership becomes active
   await expect.poll(() => state.membershipStatusRequests.length).toBeGreaterThanOrEqual(2);
   await expect(page).not.toHaveURL(/session_id=/);
   await expect(page.getByTestId('membership-notice')).toHaveText('Your membership is active.');
-  // Both page loads read the session; the confirmed activation reads it again, which restarts the Feed.
   await expect.poll(() => sessionReads.length).toBe(3);
   await page.getByTestId('membership-view-posts').click();
   await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
@@ -189,7 +182,6 @@ test('unlocks subscriber content only after the polled membership becomes active
   await expect(
     page.getByTestId('curator-membership-card').getByRole('link', { name: 'Memberships' }),
   ).toBeVisible();
-  // Conversion is confirmed by the backend from paid subscriptions, never by the client return.
   expect(captures.some((capture) => capture.event === 'membership_started')).toBe(false);
 });
 
@@ -217,7 +209,6 @@ test('opens the owned Billing Portal membership and trusts its cancellation webh
   );
   await expect(page.getByText('Member', { exact: true }).first()).toBeVisible();
   await expectMembershipEvent(captures, 'membership_canceled', true);
-  // Both page loads read the session; the confirmed Portal change reads it again, which restarts the Feed.
   await expect.poll(() => sessionReads.length).toBe(3);
 });
 
@@ -308,8 +299,6 @@ test('does not attribute an unchanged canceled membership to a new Portal action
   expect(captures.some((capture) => capture.event === 'membership_canceled')).toBe(false);
 });
 
-// Stripe's webhook can reach Bridge after the fan is back from the Portal, so an
-// unchanged first read never confirms the outcome.
 test('shows a Portal cancellation that reaches Bridge after the first status read', async ({ page }) => {
   const captures: MembershipAnalyticsCapture[] = [];
   await mockCassetteApp(page, {
@@ -365,8 +354,6 @@ test('a return URL alone does not read the session again', async ({ page }) => {
   expect(sessionReads).toHaveLength(1);
 });
 
-// A Portal visit that changed nothing looks like a change still on its way. The
-// bounded check ends with neutral copy and lets the fan check again.
 test('ends an unchanged Portal return with neutral copy and a way to check again', async ({ page }) => {
   test.setTimeout(60_000);
   const { state } = await mockCassetteApp(page, {
@@ -394,8 +381,6 @@ test('ends an unchanged Portal return with neutral copy and a way to check again
   await expect(page.getByText(/up to date/)).toHaveCount(0);
 });
 
-// A payment repaired in the Portal can reach Bridge after the fan is back. Any
-// status change, not only a cancellation, refreshes the server-owned page.
 test('unlocks member posts when a Portal payment repair reaches Bridge after the first read', async ({ page }) => {
   const captures: MembershipAnalyticsCapture[] = [];
   const { state } = await mockCassetteApp(page, {
@@ -413,8 +398,6 @@ test('unlocks member posts when a Portal payment repair reaches Bridge after the
   await manageControl(page).click();
   await page.waitForURL(/membership=portal-return/);
   await expect(page.getByTestId('membership-standing')).toContainText('on hold');
-  // A window property lives only as long as this document, so a reload removes it.
-  // The return parameter is still present, so the repair has not been handled yet.
   await page.evaluate(() => { Object.defineProperty(window, 'portalReturnDocument', { value: true }); });
   expect(page.url()).toContain('membership=portal-return');
 
@@ -423,8 +406,6 @@ test('unlocks member posts when a Portal payment repair reaches Bridge after the
   expect(captures.some((capture) => capture.event === 'membership_canceled')).toBe(false);
 });
 
-// The wallet stores the same Portal baseline, and the change can already be in
-// Bridge when the first status read after the return arrives.
 test('unlocks member posts after a wallet Portal repair that Bridge saw before the first read', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
@@ -448,8 +429,6 @@ test('unlocks member posts after a wallet Portal repair that Bridge saw before t
   await expectRepairedMembership(page, state);
 });
 
-// Without session storage no baseline survives the Portal visit, so the return
-// compares later reads with its first one.
 test('detects a Portal repair when session storage is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'sessionStorage', {
@@ -474,8 +453,6 @@ test('detects a Portal repair when session storage is unavailable', async ({ pag
   await expectRepairedMembership(page, state);
 });
 
-// Only a baseline from the moment the fan opened the Portal attributes a
-// cancellation to it; a change seen after the first return read is still shown.
 test('shows a cancellation seen without a Portal baseline but does not attribute it', async ({ page }) => {
   const captures: MembershipAnalyticsCapture[] = [];
   const { state } = await mockCassetteApp(page, {
@@ -583,7 +560,6 @@ test('lists the fan’s own memberships at their retained prices', async ({ page
     'href',
     '/profile/second_curator',
   );
-  // Billing is folded by default; the manage action lives inside it.
   await expect(rows.nth(1).getByTestId('my-membership-manage')).toBeHidden();
   await rows.nth(1).locator('summary').click();
   await rows.nth(1).getByTestId('my-membership-manage').click();
@@ -634,8 +610,6 @@ test('explains curator-side endings with the access end date and refund state', 
   await expect(rows.nth(1)).not.toContainText('suspend');
 });
 
-// Bridge records a curator-side ending before Stripe confirms the cancellation. The
-// pass, its billing line, and the active count follow the ending, not the stale status.
 test('reads an immediate ending as ended while Stripe still reports the membership active', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
@@ -665,9 +639,6 @@ test('reads an immediate ending as ended while Stripe still reports the membersh
   await expect(page.getByText(/active of 1/)).toContainText('0 active of 1');
 });
 
-// Before a scheduled end, a failed payment or a pause still needs the fan's action:
-// the pass keeps that guidance and the end date, never calls the end a renewal, and
-// counts only memberships that Bridge entitles.
 test('keeps payment and pause guidance on passes with a future end date', async ({ page }) => {
   const ending = fixtureCancelingMembershipStatus.membership!;
   const entry = (index: number, status: 'past_due' | 'unpaid' | 'paused') => ({
@@ -745,6 +716,7 @@ test('keeps payment guidance on the profile pass before a scheduled end', async 
 test('slides a membership pass into the curator profile rail on navigation', async ({ page }) => {
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
+    reducedMotion: 'no-preference',
     curatorPage: fixtureMemberCuratorPage,
     membershipStatus: fixtureActiveMembershipStatus,
     myMemberships: [
@@ -756,14 +728,11 @@ test('slides a membership pass into the curator profile rail on navigation', asy
       },
     ],
   });
-  // The shared mock asks for reduced motion, which the handoff honours by not animating.
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/memberships');
   await page.getByTestId('my-membership').getByRole('link').click();
 
   const pass = page.getByTestId('curator-membership-card');
   await expect(pass).toBeVisible();
-  // The shared-position handoff plays a transform animation on the freshly mounted pass.
   await expect
     .poll(() => pass.evaluate((node) => node.getAnimations().some((animation) => animation.playState === 'running')))
     .toBe(true);

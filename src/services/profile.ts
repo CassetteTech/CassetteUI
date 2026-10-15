@@ -18,59 +18,11 @@ import {
   normalizeStreamingServiceType,
 } from '@/utils/platform-normalization';
 import { normalizeSponsoredExplorePlacementEnvelope } from './sponsored-explore-contract';
+import { accountTypeSchema } from '../lib/account-type';
 
-interface ActivityItemPayload {
-  postId: string;
-  redirectPostId?: string;
-  isRepost?: boolean;
-  originalPostId?: string | null;
-  originalUsername?: string;
-  originalPostOwnerUserId?: string | null;
-  originalPostOwnerUsername?: string | null;
-  originalPostOwnerAvatarUrl?: string | null;
-  originalPostOwnerAccountType?: string | number | null;
-  elementType: string;
-  title: string;
-  name?: string;
-  elementName?: string;
-  elementTitle?: string;
-  artistName?: string;
-  albumName?: string;
-  subtitle?: string;
-  description?: string;
-  caption?: string;
-  imageUrl?: string;
-  coverArtUrl?: string;
-  artworkUrl?: string;
-  artwork?: string;
-  image?: string;
-  details?: {
-    coverArtUrl?: string;
-    imageUrl?: string;
-    artworkUrl?: string;
-    artwork?: string;
-    title?: string;
-    name?: string;
-    artist?: string;
-    album?: string;
-    description?: string;
-    caption?: string;
-  };
-  metadata?: {
-    artwork?: string;
-  };
-  platforms?: Record<string, { artworkUrl?: string; imageUrl?: string; coverArtUrl?: string }>;
-  username: string;
-  userId?: string;
-  createdAt: string;
-  privacy?: PostPrivacy;
-  conversionSuccessCount?: number;
-  likeCount?: number;
-  likedByCurrentUser?: boolean;
-  commentsEnabled?: boolean;
-  accountType?: string | number;
-  [key: string]: unknown;
-}
+const activityItemPayloadSchema = z.record(z.string(), z.unknown());
+
+type ActivityItemPayload = z.infer<typeof activityItemPayloadSchema>;
 
 interface ActivityApiResponse {
   items?: ActivityItemPayload[];
@@ -95,18 +47,18 @@ interface ActivityApiResponse {
   HasPrevious?: boolean;
   sponsoredPlacement?: unknown;
   SponsoredPlacement?: unknown;
+  nextCursor?: string | null;
 }
 
 const feedCount = z.number().int().nonnegative();
 
 // The feed metadata drives paging and the empty states, so a response without
-// it is an error, never an empty feed. Each count is checked on its own: Bridge
-// counts them in separate statements, so they can briefly disagree. A full
-// post keeps the activity mapping; a locked row is exact, because an added
-// field on it would carry the post's content to a viewer without access.
+// it is an error, never an empty feed. A full post keeps the activity mapping;
+// a locked row is exact, because an added field on it would carry the post's
+// content to a viewer without access.
 const curatorFeedPageSchema = z.object({
   items: z.array(z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('post'), post: z.record(z.string(), z.unknown()) }).strict(),
+    z.object({ kind: z.literal('post'), post: activityItemPayloadSchema }).strict(),
     z.object({
       kind: z.literal('locked'),
       postId: z.string().min(1),
@@ -122,7 +74,10 @@ const curatorFeedPageSchema = z.object({
   nextCursor: z.string().min(1).nullable(),
   activeMembershipCount: feedCount,
   feedCuratorCount: feedCount,
-});
+}).refine(
+  (page) => page.feedCuratorCount >= page.activeMembershipCount,
+  { message: 'Feed source count is below the membership count' },
+);
 
 interface ExploreUserPayload {
   userId?: string;
@@ -160,7 +115,6 @@ interface ExploreUsersApiResponse {
 }
 
 export class ProfileService {
-  // Note: Caching is now handled by React Query (see hooks/use-profile.ts)
   private readonly apiBaseUrl = getBrowserApiBaseUrl();
 
   private firstArrayCandidate(...values: unknown[]): unknown[] | undefined {
@@ -247,8 +201,6 @@ export class ProfileService {
       merged.LikedPostsTabVisibility ??
       merged.liked_posts_visibility ??
       merged.liked_posts_privacy ??
-      merged.showLikedPosts ??
-      merged.ShowLikedPosts ??
       merged.isLikedPostsPublic ??
       merged.IsLikedPostsPublic
     ) as unknown;
@@ -295,9 +247,6 @@ export class ProfileService {
       isOwnProfile: Boolean(merged.isOwnProfile ?? merged.IsOwnProfile ?? false),
       likedPostsPrivacy: normalizedLikedPostsPrivacy,
       likedPostsVisibility: normalizedLikedPostsPrivacy,
-      showLikedPosts: normalizedLikedPostsPrivacy
-        ? normalizedLikedPostsPrivacy === 'public'
-        : Boolean(merged.showLikedPosts ?? merged.ShowLikedPosts ?? true),
       totalLikesReceived: Number(
         merged.totalLikesReceived ??
         merged.TotalLikesReceived ??
@@ -309,21 +258,13 @@ export class ProfileService {
       profileLinks: (this.firstArrayCandidate(merged.profileLinks, merged.ProfileLinks) ?? []).filter(
         (link): link is string => typeof link === 'string' && link.length > 0,
       ),
-      accountType: (merged.accountType ?? merged.AccountType ?? merged.account_type) as UserBio['accountType'],
+      accountType: accountTypeSchema.parse(merged.accountType ?? merged.AccountType ?? merged.account_type),
     };
   }
 
   private buildApiUrl(path: string) {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    const baseUrl = this.apiBaseUrl?.trim();
-
-    // Some environments set NEXT_PUBLIC_API_URL to literal "undefined"/"null".
-    if (!baseUrl || baseUrl === 'undefined' || baseUrl === 'null') {
-      return normalizedPath;
-    }
-
-    const base = baseUrl.replace(/\/+$/, '');
-    return `${base}${normalizedPath}`;
+    return `${this.apiBaseUrl.replace(/\/+$/, '')}${normalizedPath}`;
   }
 
   private mapActivityResponse(
@@ -389,8 +330,7 @@ export class ProfileService {
 
     const sourceItems = json.items ?? json.data ?? json.Items ?? json.Data ?? [];
     const items: ActivityPost[] =
-      sourceItems.map((item) => {
-        const itemObj = item as Record<string, unknown>;
+      sourceItems.map((itemObj) => {
         const detailsObj = asObject(itemObj.details);
         const metadataObj = asObject(itemObj.metadata);
         const originalPostObj = asObject(itemObj.originalPost) || asObject(itemObj.OriginalPost);
@@ -481,7 +421,7 @@ export class ProfileService {
             pickString(itemObj, ['originalPostOwnerAvatarUrl', 'OriginalPostOwnerAvatarUrl']) ||
             (originalOwnerObj ? pickString(originalOwnerObj, ['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']) : undefined) ||
             null,
-          originalPostOwnerAccountType:
+          originalPostOwnerAccountType: accountTypeSchema.parse(
             pickString(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
             pickNumber(itemObj, ['originalPostOwnerAccountType', 'OriginalPostOwnerAccountType']) ??
             (originalOwnerObj
@@ -489,8 +429,8 @@ export class ProfileService {
                   pickString(originalOwnerObj, ['accountType', 'AccountType']) ??
                   pickNumber(originalOwnerObj, ['accountType', 'AccountType'])
                 )
-              : undefined) ??
-            null,
+              : undefined),
+          ) ?? null,
           elementType:
             pickString(itemObj, ['elementType', 'ElementType']) ||
             'Track',
@@ -506,9 +446,10 @@ export class ProfileService {
           likeCount: pickNumber(itemObj, ['likeCount', 'LikeCount']),
           likedByCurrentUser: pickBoolean(itemObj, ['likedByCurrentUser', 'LikedByCurrentUser']),
           commentsEnabled: pickBoolean(itemObj, ['commentsEnabled', 'CommentsEnabled']),
-          accountType:
+          accountType: accountTypeSchema.parse(
             pickString(itemObj, ['accountType', 'AccountType']) ??
             pickNumber(itemObj, ['accountType', 'AccountType']),
+          ),
         };
       });
 
@@ -527,6 +468,7 @@ export class ProfileService {
       totalPages: resolvedTotalPages,
       hasNext: json.hasNext ?? json.HasNext ?? resolvedPage < resolvedTotalPages,
       hasPrevious: json.hasPrevious ?? json.HasPrevious ?? resolvedPage > 1,
+      nextCursor: json.nextCursor ?? null,
     };
   }
 
@@ -541,7 +483,7 @@ export class ProfileService {
     }
 
     const post = this.mapActivityResponse(
-      { items: [envelope.postPayload as ActivityItemPayload] },
+      { items: [envelope.postPayload] },
       1,
       1,
     ).items[0];
@@ -597,14 +539,14 @@ export class ProfileService {
     userIdentifier: string,
     options: {
       page?: number;
+      cursor?: string;
       pageSize?: number;
       elementType?: string;
-      /** Narrows the posts this viewer can see to one audience. */
       privacy?: 'public' | 'subscriber' | 'private';
     } = {},
   ): Promise<PaginatedActivityResponse> {
     try {
-      const { page = 1, pageSize = 20, elementType, privacy } = options;
+      const { page = 1, cursor, pageSize = 20, elementType, privacy } = options;
 
       const path =
         userIdentifier === 'edit'
@@ -613,10 +555,8 @@ export class ProfileService {
 
       const url = this.buildApiUrl(path);
 
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-      });
+      const queryParams = new URLSearchParams(cursor ? { cursor } : { page: page.toString() });
+      queryParams.append('pageSize', pageSize.toString());
 
       if (elementType) {
         queryParams.append('elementType', elementType);
@@ -703,7 +643,6 @@ export class ProfileService {
     }
   }
 
-  /** Posts from the curators the signed-in viewer follows or joined, newest first. */
   async fetchCuratorFeed(
     options: { cursor?: string; pageSize?: number; membersOnly?: boolean; signal?: AbortSignal } = {},
   ): Promise<CuratorFeedPage> {
@@ -730,14 +669,12 @@ export class ProfileService {
     }
     const { items, nextCursor, activeMembershipCount, feedCuratorCount } = parsed.data;
     const posts = this.mapActivityResponse(
-      // SAFETY: each post is an object; mapActivityResponse reads every field defensively.
-      { items: items.flatMap((item) => (item.kind === 'post' ? [item.post as ActivityItemPayload] : [])) },
+      { items: items.flatMap((item) => (item.kind === 'post' ? [item.post] : [])) },
       1,
       pageSize,
     ).items;
     let postIndex = 0;
     return {
-      // One server order for both kinds: full rows take their mapped posts in sequence.
       items: items.map((item): CuratorFeedItem =>
         item.kind === 'post' ? { kind: 'post', post: posts[postIndex++] } : item),
       nextCursor,
@@ -807,9 +744,10 @@ export class ProfileService {
             username: pickString(['username', 'Username']) || 'unknown',
             displayName: pickString(['displayName', 'DisplayName']),
             avatarUrl: pickString(['avatarUrl', 'AvatarUrl', 'profilePicture', 'ProfilePicture']),
-            accountType:
+            accountType: accountTypeSchema.parse(
               pickString(['accountType', 'AccountType']) ??
               pickNumber(['accountType', 'AccountType']),
+            ),
             latestExplorePostAt: pickString(['latestExplorePostAt', 'LatestExplorePostAt']),
           };
         });
@@ -866,6 +804,7 @@ export class ProfileService {
         curator.profileLinks ?? (curator as { ProfileLinks?: string[] }).ProfileLinks ?? [],
       topGenres: curator.topGenres ?? (curator as { TopGenres?: string[] }).TopGenres ?? [],
       hasActiveMembershipPlan: curator.hasActiveMembershipPlan === true,
+      accountType: accountTypeSchema.parse(curator.accountType),
     }));
   }
 
@@ -914,7 +853,6 @@ export class ProfileService {
     }
   }
 
-  // Convenience methods for specific element types
   async fetchUserTracks(
     userIdentifier: string,
     options: { page?: number; pageSize?: number } = {},
@@ -967,7 +905,6 @@ export class ProfileService {
     try {
       const url = this.buildApiUrl('/api/v1/profile');
 
-      // Backend expects multipart/form-data via [FromForm] attribute
       const formData = new FormData();
       if (data.username) formData.append('Username', data.username.trim().toLowerCase());
       if (data.displayName) formData.append('DisplayName', data.displayName);
@@ -977,11 +914,7 @@ export class ProfileService {
         formData.append('Avatar', data.avatarFile, data.avatarFile.name);
       }
       if (data.avatarUrl && !data.avatarFile) formData.append('AvatarUrl', data.avatarUrl);
-      if (data.likedPostsPrivacy) {
-        formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
-        // Compatibility fallback for older servers
-        formData.append('showLikedPosts', String(data.likedPostsPrivacy === 'public'));
-      }
+      if (data.likedPostsPrivacy) formData.append('likedPostsPrivacy', data.likedPostsPrivacy);
       if (data.profileLinks !== undefined) {
         // Whole-list replace; the server treats a single blank entry as "clear all"
         // since multipart forms cannot express an empty list.

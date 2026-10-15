@@ -28,7 +28,6 @@ export function CoralGlow({
     // overflow-clip trims the blurred layers without becoming a scroll container,
     // so a sticky bar inside still tracks the page scroll.
     <div className={cn('relative isolate overflow-clip bg-background', className)} {...props}>
-      {/* Light: coral washes over the paper. */}
       {vivid ? (
         <div aria-hidden className="pointer-events-none absolute -inset-6 -z-10 blur-xl dark:hidden">
           <div className="absolute -left-[8%] top-[6%] h-[68%] w-[62%] rounded-full bg-rose-300/75 blur-3xl" />
@@ -42,17 +41,13 @@ export function CoralGlow({
           <div className="absolute -right-[6%] -top-[20%] h-[70%] w-[40%] rounded-full bg-orange-300 blur-3xl" />
           <div className="absolute left-[28%] -top-[10%] h-[60%] w-[44%] rounded-full bg-rose-400/70 blur-3xl" />
           <div className="absolute right-[18%] top-[20%] h-[50%] w-[36%] rounded-full bg-amber-200 blur-3xl" />
-          {/* Fade the glow into the paper so content below sits on plain background. */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         </div>
       )}
-      {/* Dark, Afterglow: a gradient strip across the top, fading to the page background. */}
       {afterglow ? (
         <div aria-hidden className="afterglow-field pointer-events-none absolute inset-x-0 top-0 -z-10 hidden h-[42rem] dark:block" />
       ) : (
         <>
-          {/* Dark: ember base and low embers. The literal colors are the vendored palette at the
-              source opacities; the pane tuning dims the group by a third so it stays a low glow. */}
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 -z-10 hidden bg-[radial-gradient(circle_at_50%_120%,#1A1210_0%,#100C0A_48%,#080605_100%)] dark:block"

@@ -28,7 +28,6 @@ test('pickDefaultSnapshotId prefers the latest successful snapshot', () => {
 });
 
 test('pickDefaultSnapshotId falls back to first Succeeded, then newest, then null', () => {
-  // No flagged-latest: fall back to first Succeeded in the (newest-first) list.
   assert.equal(
     pickDefaultSnapshotId([
       { snapshotId: 'exs_failed', status: 'Failed', isLatestSuccessful: false },
@@ -36,7 +35,6 @@ test('pickDefaultSnapshotId falls back to first Succeeded, then newest, then nul
     ]),
     'exs_ok'
   );
-  // No successful at all: fall back to the newest (first) row.
   assert.equal(
     pickDefaultSnapshotId([
       { snapshotId: 'exs_failed_a', status: 'Failed', isLatestSuccessful: false },

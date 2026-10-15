@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { TeamPixelHero } from "./_components/TeamPixelHero";
+import { Mail } from "lucide-react";
+import { PIXEL_HERO_PRIMARY_ACTION_CLASS, PixelHero } from "@/components/features/marketing/pixel-hero";
 import { CurtainSheet } from "@/components/features/marketing/curtain-sheet";
 import { StatStrip } from "@/components/features/marketing/stat-strip";
 import { KofiSupportBand } from "@/components/features/marketing/kofi-support-band";
@@ -18,10 +19,6 @@ const teamStats = [
   { value: "2022", label: "Founded" },
 ];
 
-/**
- * Mirrors /about's structure: pinned pixel hero, curtain sheet, liner-notes
- * strip, then the roster and values bands.
- */
 export default function TeamPage() {
   const [expandedMember, setExpandedMember] = React.useState<string | null>(
     null
@@ -29,8 +26,21 @@ export default function TeamPage() {
 
   return (
     <div className="relative">
-      {/* Pinned image hero — the sheet below scrolls up and over it */}
-      <TeamPixelHero />
+      <PixelHero
+        label="The Cassette team"
+        imageClassName="object-cover object-[30%_78%]"
+        eyebrow="Team · Cassette Technologies"
+        title={["Meet", "The Crew"]}
+        lead="Music obsessives, developers, and creators united by one mission—"
+        emphasis="making music universal again"
+        primaryAction={
+          <a href="mailto:team@cassette.tech" className={PIXEL_HERO_PRIMARY_ACTION_CLASS}>
+            <Mail size={16} />
+            <span>Work With Us</span>
+          </a>
+        }
+        secondaryLink={{ href: "/about", label: "Our Story" }}
+      />
 
       <CurtainSheet tab="The Crew">
         {/* Liner notes — quiet stat strip. Bottom padding keeps clear of any
@@ -39,13 +49,10 @@ export default function TeamPage() {
           <StatStrip items={teamStats} />
         </section>
 
-        {/* Roster on page background */}
         <TeamGrid onSelectMember={setExpandedMember} />
 
-        {/* Values — dark statement band */}
         <ValuesSection />
 
-        {/* Support — quiet ruled strip */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <KofiSupportBand
             title="Back The Team"
@@ -53,10 +60,8 @@ export default function TeamPage() {
           />
         </div>
 
-        {/* Closing CTA — navy band, bookended with the hero halftone */}
         <JoinCTA />
 
-        {/* Print-sheet footer — paper dithers up into the navy band */}
         <MarketingFooter />
       </CurtainSheet>
 

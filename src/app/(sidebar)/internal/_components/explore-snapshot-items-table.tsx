@@ -50,7 +50,6 @@ export function ExploreSnapshotItemsTable({ items, isLoading }: ExploreSnapshotI
 
   return (
     <>
-      {/* Desktop table */}
       <table className="hidden w-full border-collapse lg:table">
         <thead>
           <tr className="border-b border-border">
@@ -154,7 +153,6 @@ export function ExploreSnapshotItemsTable({ items, isLoading }: ExploreSnapshotI
         </tbody>
       </table>
 
-      {/* Mobile list */}
       <div className="divide-y divide-border lg:hidden">
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (

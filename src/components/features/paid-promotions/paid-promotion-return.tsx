@@ -106,9 +106,6 @@ const RETURN_STATE_PRESENTATIONS: Record<PaidPromotionReturnState, ReturnStatePr
   },
 };
 
-// Shown when the visitor arrived through Stripe's cancel URL and no payment
-// outcome has been confirmed — leaving checkout must never read as a payment
-// that is still pending.
 const CANCELED_CHECKOUT_PRESENTATION: ReturnStatePresentation = {
   title: 'Checkout not completed',
   description:
@@ -159,8 +156,6 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
   }, [campaign]);
 
   const state = campaign ? getPaidPromotionReturnState(campaign) : null;
-  // An arrival via Stripe's cancel URL with no confirmed payment outcome
-  // shows the abandoned-checkout panel, never the waiting-for-payment one.
   const showCanceledCheckout =
     cameFromCancelUrl && (state === 'pending' || state === 'not_started');
   const presentation = showCanceledCheckout
@@ -223,7 +218,6 @@ export function PaidPromotionReturn({ campaignId }: PaidPromotionReturnProps) {
         aria-labelledby="paid-promotion-return-heading"
         className="relative w-full max-w-xl"
       >
-        {/* Persistent escape hatch in every state, including errors. */}
         <BackButton route="/promote" label="Promotion home" className="mb-4" />
 
         <Card>

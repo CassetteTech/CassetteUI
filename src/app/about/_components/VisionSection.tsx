@@ -5,10 +5,6 @@ import { SectionHeader } from "@/components/features/marketing/section-header";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
 import { PixelSun } from "@/components/features/marketing/pixel-sun";
 
-/**
- * Closing statement band. Mirrors the Problem band's flat display-type
- * layout; the pixel sun sets low in warning gold to bookend the sheet.
- */
 export function VisionSection() {
   return (
     <section className="section-dark relative">
@@ -46,7 +42,7 @@ export function VisionSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-6 max-w-xl font-roboto text-sm sm:text-base italic opacity-80 leading-relaxed border-l-2 border-primary/70 pl-4"
+          className="mt-6 max-w-xl font-roboto-flex text-sm sm:text-base italic opacity-80 leading-relaxed border-l-2 border-primary/70 pl-4"
         >
           We&apos;re building a platform where modern tastemakers thrive—where
           sharing your taste builds community and earns recognition. Join us to

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "noEmit": false,
     "outDir": ".analytics-test-dist",
-    "rootDir": "src/lib/analytics",
+    "rootDir": "src/lib",
     "module": "node16",
     "target": "es2020",
     "moduleResolution": "node16",
@@ -12,6 +12,7 @@
     "jsx": "react-jsx"
   },
   "include": [
+    "src/lib/best-effort.ts",
     "src/lib/analytics/**/*.ts",
     "src/lib/analytics/**/*.test.ts"
   ],

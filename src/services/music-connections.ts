@@ -46,13 +46,12 @@ class MusicConnectionsService {
 
   async isTokenExpired(connection: MusicConnection): Promise<boolean> {
     if (!connection.expiresAt) {
-      return false; // No expiry means it doesn't expire (like Apple Music)
+      return false;
     }
 
     const expiryTime = new Date(connection.expiresAt);
     const now = new Date();
     
-    // Add 5 minute buffer
     const bufferTime = new Date(now.getTime() + 5 * 60 * 1000);
     
     return expiryTime <= bufferTime;
@@ -60,8 +59,6 @@ class MusicConnectionsService {
 
   async refreshSpotifyToken(): Promise<void> {
     try {
-      // Your backend API should handle token refresh automatically
-      // This would be triggered when the backend detects expired tokens
       appLogger.debug('spotify_token_refresh_delegated');
     } catch (error) {
       appLogger.error('spotify_token_refresh_failed', { error });

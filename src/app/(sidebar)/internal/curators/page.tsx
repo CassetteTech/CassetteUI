@@ -1,7 +1,5 @@
 'use client';
 
-/** Provides Cassette operators with curator lifecycle, pricing policy, and payout controls. */
-
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -50,8 +48,8 @@ import {
   fetchInternalCurators,
   fetchPricingAssignments,
   fetchPricingPolicies,
-  parsePricingAssignmentRequest,
-  parsePricingPolicyRequest,
+  pricingAssignmentRequestSchema,
+  pricingPolicyRequestSchema,
   reinstateInternalCurator,
   setDefaultPricingPolicy,
   suspendInternalCurator,
@@ -251,8 +249,6 @@ function CuratorOperations({
           </div>
 
           {selected.status === 'active' && (
-            /* Keyed on the curator so a half-typed reason never carries over to
-               another profile; success flips status and unmounts the form. */
             <form key={selected.id} className="grid gap-2" onSubmit={suspend}>
               <label className={fieldClassName} htmlFor="suspension-reason">
                 Suspension reason
@@ -338,7 +334,7 @@ function AssignmentPanel({
     if (!curator) return;
     const values = new FormData(event.currentTarget);
     const effectiveAt = formString(values, 'effectiveAt');
-    assignment.mutate(parsePricingAssignmentRequest({
+    assignment.mutate(pricingAssignmentRequestSchema.parse({
       curatorProfileId: curator.id,
       policyId: formString(values, 'policyId'),
       effectiveAtUtc: effectiveAt ? new Date(effectiveAt).toISOString() : null,
@@ -455,7 +451,7 @@ function PricingPolicies({
     event.preventDefault();
     const values = new FormData(event.currentTarget);
     try {
-      createPolicy.mutate(parsePricingPolicyRequest({
+      createPolicy.mutate(pricingPolicyRequestSchema.parse({
         policyKey: formString(values, 'policyKey'),
         displayName: formString(values, 'displayName'),
         isActive: values.get('isActive') === 'on',
@@ -674,8 +670,6 @@ export default function InternalCuratorsPage() {
 
   const refreshCurators = () => queryClient.invalidateQueries({ queryKey: ['internal-curators'] });
 
-  /* Instant paint via setQueryData, then invalidate so the cache reconciles
-     with server truth (covers other status-filter variants of the list too). */
   const updateCurator = (next: InternalCurator) => {
     queryClient.setQueryData<InternalCurator[]>(curatorsKey, (current = []) =>
       current.map((curator) => curator.id === next.id ? next : curator));

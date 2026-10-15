@@ -49,7 +49,6 @@ test.describe('post engagement', () => {
 
     await page.goto('/post/post-public-track');
 
-    // A signed-in like proves the viewer state has loaded before the absence check.
     await page.getByRole('button', { name: 'Like post' }).click();
     await expect(page.getByRole('button', { name: 'Unlike post' })).toBeVisible();
     await expect(page.getByRole('button', { name: /repost/i })).toHaveCount(0);

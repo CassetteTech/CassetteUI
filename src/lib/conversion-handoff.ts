@@ -1,41 +1,22 @@
 import type { PlatformUiKey } from '@/lib/platforms';
 import type { ConvertPartialResult, MusicLinkConversion } from '@/types';
 
-/**
- * Hands a conversion to /post?url=, which shows the post building. The home URL
- * bar hands over a link for /post to convert; Add music hands over a conversion
- * it already started. Either records the auth scope it settled, so /post follows
- * the conversion as the same person, and where its bar or card sits on screen, so
- * the post can grow out of it. Module memory, not storage: it only has to survive
- * a client-side route change, and a reload of /post?url= simply converts as a
- * direct link.
- */
 export interface ConversionHandoff {
-  /** The link exactly as the home page read it; /post converts this. */
   url: string;
-  /** Convert without the session (signed-out visitors), as the home page decided. */
   anonymous: boolean;
-  /** The URL bar's viewport box when the conversion was handed over. */
   barRect: { left: number; top: number; width: number; height: number } | null;
   /** Add music: the owner's own playlist links, which the post shows as listen rows. */
   curatorLinks?: { handle: string | null; links: Partial<Record<PlatformUiKey, string>> };
-  /**
-   * A conversion already running: /post follows it instead of starting one, and shows
-   * what Bridge already reported until its own first poll returns.
-   */
   running?: {
     idempotencyKey: string;
     result: Promise<MusicLinkConversion>;
-    /** `stageLabel` is null until Bridge reports a stage; /post then keeps its own time-based label. */
     reported: { stageLabel: string | null; partialResult: ConvertPartialResult | null };
   };
   handedOffAt: number;
 }
 
-/** How long the beam runs on the home bar or the Add music card before it grows into the post. */
 export const HANDOFF_BEAT_MS = 450;
 
-/** Past this, the bar is long gone: convert as handed over, but do not grow out of it. */
 const GROWTH_WINDOW_MS = 5000;
 
 let pending: ConversionHandoff | null = null;
@@ -57,7 +38,6 @@ export function clearConversionHandoff(handoff: ConversionHandoff): void {
   if (pending === handoff) pending = null;
 }
 
-/** The bar's box, while it is still fresh enough to grow out of. */
 export function growthBox(handoff: ConversionHandoff | null): ConversionHandoff['barRect'] {
   return handoff && Date.now() - handoff.handedOffAt <= GROWTH_WINDOW_MS ? handoff.barRect : null;
 }

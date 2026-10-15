@@ -45,7 +45,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebounce } from '@/hooks/use-debounce';
 import { PAGE_SIZE, formatDate } from './internal-utils';
-import { useCopyToClipboard } from '@/components/ui/interior/copy-button';
+import { useCopyToClipboard } from '@/components/interior/copy-button';
 import {
   SectionHeader,
   Panel,
@@ -65,6 +65,7 @@ import {
   type Tone,
 } from './kit';
 import { SentinelRuntimePanel } from './sentinel-runtime-panel';
+import { ignoreFailure } from '@/lib/best-effort';
 
 const ALL_FILTER = 'all';
 const COORDINATOR_PAGE_SIZE = 100;
@@ -77,9 +78,6 @@ function isSubView(value: string | null): value is SubView {
   return value != null && (SUB_VIEWS as readonly string[]).includes(value);
 }
 
-/* Findings are machine-only: active or resolved, decided exclusively by
-   Sentinel scans. Humans get an indirect lever (Rescan) and a human layer
-   (per-invariant cause annotations); nothing here can set a finding status. */
 type FindingStatus = 'active' | 'resolved';
 
 const FINDING_STATUS_OPTIONS: ReadonlyArray<{ value: FindingStatus; label: string }> = [
@@ -93,9 +91,6 @@ function findingStatusTone(status: string): Tone {
   return 'neutral';
 }
 
-/* Recurrence marker: a finding that came back after being resolved is the
-   most urgent thing on the page, so it gets the one loud treatment in the
-   row — colour-only mono text, no filled chip. */
 function RecurrenceBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
@@ -133,8 +128,6 @@ function statusTone(status: string): Tone {
   return 'neutral';
 }
 
-/* The status a single invariant earned in a run — collapses severity + finding
-   count into one tone so it can drive both the heatmap square and the dot. */
 function resultTone(result: InternalSentinelInvariantResult): Tone {
   const label = result.maxSeverity ?? result.status;
   if (label === 'Critical') return 'critical';
@@ -144,8 +137,6 @@ function resultTone(result: InternalSentinelInvariantResult): Tone {
   return 'success';
 }
 
-/* A short, commit-SHA-style handle so each run row has a stable identity without
-   dumping the full id (that lives in the detail sheet). */
 function shortRunHandle(runId: string): string {
   const compact = runId.replace(/[^a-zA-Z0-9]/g, '');
   return compact ? compact.slice(0, 7) : runId;
@@ -159,8 +150,6 @@ function severityRank(result: InternalSentinelInvariantResult): number {
   return 0;
 }
 
-/* Solid fills for the contribution-graph squares. Kept here (not in StatusPill)
-   because the pill is a text+dot marker, while these are filled cells. */
 const HEAT_BG: Record<Tone, string> = {
   success: 'bg-[hsl(var(--success))]',
   warning: 'bg-[hsl(var(--warning))]',
@@ -190,11 +179,6 @@ function EvidenceList({ evidence }: { evidence: Record<string, string> }) {
   );
 }
 
-/* ─────────────────────────── Invariant heatmap ─────────────────────────────
-   One square per invariant evaluated in a run, GitHub-contribution-graph style.
-   Colour encodes the worst severity that invariant produced. In a table cell the
-   squares are inert (native title on hover, row click opens the sheet); inside
-   the sheet they become buttons that focus the matching result row. */
 function InvariantHeatmap({
   results,
   size = 'sm',
@@ -574,9 +558,6 @@ export function SentinelFindingsTab() {
   const paramView = searchParams.get('view');
   const [activeView, setActiveView] = useState<SubView>(isSubView(paramView) ? paramView : 'findings');
 
-  /* View selection is mirrored into `?view=` (replaceState, no navigation) so
-     Sentinel views are deep-linkable; `?job=` only applies to the runtime view
-     and is dropped when leaving it. */
   const changeView = (view: SubView) => {
     setActiveView(view);
     const url = new URL(window.location.href);
@@ -606,11 +587,6 @@ export function SentinelFindingsTab() {
   );
 }
 
-/* Rescan: the one lever operators have over finding status, and it is
-   indirect — it queues an audit.requested run for the Sentinel worker and the
-   scan decides. Deliberately quiet: ghost variant, small, no colour.
-   `withTitle={false}` drops the native tooltip when a richer Radix tooltip
-   wraps the button (the maintenance strip). */
 function RescanButton({
   invariantId,
   label,
@@ -661,11 +637,6 @@ function RescanButton({
   );
 }
 
-/* Revalidate: sweeps every unresolved conversion issue and resolves the ones
-   whose detection condition no longer holds. Unlike Rescan, the Bridge endpoint
-   runs synchronously and hands back a summary, so we surface the resolved /
-   still-holding / skipped counts inline rather than waiting on a worker pass.
-   Kept as quiet as Rescan — ghost, small, no colour. */
 function RevalidateIssuesButton({ withTitle = true }: { withTitle?: boolean }) {
   const [pending, setPending] = useState(false);
 
@@ -708,11 +679,6 @@ function RevalidateIssuesButton({ withTitle = true }: { withTitle?: boolean }) {
   );
 }
 
-/* Adjudicate: deterministic duplicate-pair merges sourced from unresolved
-   duplicate_stub issues. Two-step by design — this button only ever runs a
-   dry run; committing is an explicit confirm inside the summary dialog. Dry
-   runs execute the full merge in a transaction and roll back, so every count
-   shown is real. */
 function AdjudicateDuplicatesButton() {
   const [pending, setPending] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -889,9 +855,6 @@ function AdjudicateDuplicatesButton() {
   );
 }
 
-/* One maintenance control: a quiet button, a one-line caption beneath it, and
-   a hover tooltip carrying the operational fine print. Keeps the fact sheet
-   available without an explainer card. */
 function MaintenanceAction({
   caption,
   details,
@@ -920,18 +883,12 @@ function MaintenanceAction({
   );
 }
 
-/* Cause annotations are keyed by invariant id; one fetch serves both the
-   findings sheet (read) and the invariant sheet (read/write). */
 function useInvariantNotes() {
   const [notes, setNotes] = useState<Record<string, InternalSentinelInvariantNote>>({});
 
   const loadNotes = useCallback(async () => {
-    try {
-      const response = await apiService.getInternalSentinelInvariantNotes();
-      setNotes(Object.fromEntries(response.items.map((note) => [note.invariantId, note])));
-    } catch {
-      // Notes are contextual enrichment; the findings themselves still load.
-    }
+    const response = await ignoreFailure(apiService.getInternalSentinelInvariantNotes());
+    if (response) setNotes(Object.fromEntries(response.items.map((note) => [note.invariantId, note])));
   }, []);
 
   useEffect(() => {
@@ -941,8 +898,6 @@ function useInvariantNotes() {
   return { notes, reloadNotes: loadNotes };
 }
 
-/* Read-only rendering of an invariant's cause annotation. Shown with the
-   invariant's findings; it explains them and never restyles or hides them. */
 function InvariantNoteFields({ note }: { note: InternalSentinelInvariantNote }) {
   return (
     <div className="divide-y divide-border/60 rounded-lg border border-border bg-card/40 px-3">
@@ -986,7 +941,7 @@ function SentinelFindingsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFingerprint, setSelectedFingerprint] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(search);
   const { notes } = useInvariantNotes();
 
   const loadFindings = useCallback(async () => {
@@ -1116,8 +1071,6 @@ function SentinelFindingsPanel() {
         </div>
       }
     >
-      {/* Maintenance strip: the three operational levers, each with a one-line
-          caption and a hover tooltip for the fine print. Quiet on purpose. */}
       <div className="flex flex-wrap items-start gap-x-6 gap-y-2 border-b border-border px-3 py-2">
         <MaintenanceAction
           caption="Async full audit — results land in ~30–90 s."
@@ -1245,13 +1198,6 @@ function SentinelFindingsPanel() {
     </>
   );
 }
-
-/* ─────────────────────── Finding detail sheet ──────────────────────────────
-   Read-only: status, recurrence context, entity, and evidence. There is no
-   status action here by design — resolution is machine-earned by a Sentinel
-   scan; the only lever is a quiet per-invariant rescan. The invariant's cause
-   annotation (if any) is shown alongside so the finding is explained without
-   ever being hidden or restyled. */
 
 function SentinelFindingDetailSheet({
   finding,
@@ -1381,7 +1327,7 @@ function SentinelRunsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<InternalSentinelAuditRun | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(search);
 
   const loadRuns = useCallback(async () => {
     setLoading(true);
@@ -1577,9 +1523,6 @@ function SentinelRunsPanel() {
   );
 }
 
-/* Slide-in detail for a single audit run. Holds everything that used to clutter
-   the table row — run id, environment, metadata, and the full per-invariant
-   breakdown — so the list itself can stay scannable. */
 function SentinelRunDetailSheet({
   run,
   open,
@@ -1591,7 +1534,6 @@ function SentinelRunDetailSheet({
 }) {
   const [selectedInvariantId, setSelectedInvariantId] = useState<string | null>(null);
 
-  // Clear the in-sheet highlight whenever a different run is opened.
   useEffect(() => {
     setSelectedInvariantId(null);
   }, [run?.runId]);
@@ -1765,8 +1707,6 @@ function SentinelInvariantRegistryPanel() {
 
   const invariants = response?.items ?? [];
 
-  // Group the registry by scope so each invariant type is its own section
-  // rather than a single column value.
   const scopeGroups = useMemo(() => {
     const map = new Map<string, InternalSentinelInvariantRegistryItem[]>();
     for (const item of response?.items ?? []) {
@@ -1778,15 +1718,11 @@ function SentinelInvariantRegistryPanel() {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [response]);
 
-  // Scope is now the section heading, so it's dropped from the columns. Every
-  // column top-aligns so a multi-line "What it tests" doesn't shove the name and
-  // status pill to the vertical centre of a tall row.
   const columns: Column<InternalSentinelInvariantRegistryItem>[] = [
     {
       key: 'invariant',
       header: 'Invariant',
       valign: 'top',
-      // Fixed width in every scope table so the name column lines up across panels.
       className: 'w-[260px]',
       cell: (row) => (
         <div className="space-y-0.5">
@@ -1801,8 +1737,6 @@ function SentinelInvariantRegistryPanel() {
     {
       key: 'description',
       header: 'What it tests',
-      // No width cap: this is the single flexible column, so it absorbs the row's
-      // remaining space and aligns consistently because every other column is fixed.
       className: 'hidden md:table-cell pr-8',
       valign: 'top',
       cell: (row) => (
@@ -1846,7 +1780,6 @@ function SentinelInvariantRegistryPanel() {
     </div>
   );
 
-  // Loading / empty / error: render a single framing panel.
   if (error || !invariants.length) {
     return (
       <Panel
@@ -1913,10 +1846,6 @@ function SentinelInvariantRegistryPanel() {
   );
 }
 
-/* ───────────────────── Invariant detail sheet ──────────────────────────────
-   The write surface for the human layer: the per-invariant cause annotation
-   (root cause, fixed-in, regression test, deliberate residue) plus a quiet
-   single-invariant rescan. Nothing here touches finding status. */
 function SentinelInvariantDetailSheet({
   invariant,
   note,
@@ -1937,7 +1866,6 @@ function SentinelInvariantDetailSheet({
   const [residueNote, setResidueNote] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Re-seed the form whenever a different invariant (or fresh note) opens.
   useEffect(() => {
     setEditing(false);
     setRootCauseSummary(note?.rootCauseSummary ?? '');

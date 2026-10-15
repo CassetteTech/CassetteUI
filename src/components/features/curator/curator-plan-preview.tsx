@@ -1,7 +1,5 @@
 'use client';
 
-/** Presentation for a membership plan: the fan-facing preview and the curator earnings receipt. */
-
 import { MembershipOffer, type OfferBenefit, type OfferPrice } from '@/components/features/membership/membership-offer';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,20 +10,16 @@ export function money(amountMinor: number, currency: string) {
   return formatPaidPromotionMinorAmount(amountMinor, currency, 'en-US');
 }
 
-/** Scalloped edge cut from the card tone so the paper reads as torn. */
 export const tornEdge = (side: 'top' | 'bottom') => ({
   background: `radial-gradient(circle at 8px ${side === 'top' ? 0 : 8}px, transparent 6px, hsl(var(--card)) 6px)`,
   backgroundSize: '16px 8px',
 });
 
-/** One receipt line. A row header and one cell per billing interval, so tests
-    and screen readers read a label with its amounts. */
 function ReceiptLine({ label, amounts, emphasized, deduction, rule }: {
   label: string;
   amounts: string[];
   emphasized?: boolean;
   deduction?: boolean;
-  /** A dashed rule above the line opens a new group. */
   rule?: boolean;
 }) {
   return (
@@ -42,9 +36,6 @@ function ReceiptLine({ label, amounts, emphasized, deduction, rule }: {
   );
 }
 
-/** Curator-side receipt: the fan charge builds down to what the curator keeps,
-    with a column per billing interval. Same paper as the fan receipt in the
-    rail, so the two read as one pair. */
 export function EconomicsBreakdown({
   monthly,
   annual,
@@ -60,8 +51,6 @@ export function EconomicsBreakdown({
   return (
     <div className="relative my-2 bg-card px-4 py-4 font-mono text-xs text-card-foreground">
       <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-2 h-2" style={tornEdge('top')} />
-      {/* Large prices in two columns can outgrow a 320px phone; the table scrolls instead of widening the form.
-          Focusable so keyboard users in every browser can scroll it. */}
       <section
         aria-label="Earnings estimate"
         // A scrollable region must take focus (WCAG 2.1.1); it is the one exception to this rule.
@@ -102,8 +91,6 @@ export function EconomicsBreakdown({
 
 export type PreviewPrice = OfferPrice;
 
-/** The offer exactly as a fan sees it on the public page. `frozen` marks
-    published fan charges versus current-policy estimates. */
 export function FanPreview({
   name,
   description,
@@ -142,7 +129,6 @@ export function FanPreview({
       currency={currency}
       interval="month"
     >
-      {/* Preview only: non-interactive stand-in for the join button. */}
       <Button
         type="button"
         aria-disabled="true"

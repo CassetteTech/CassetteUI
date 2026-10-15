@@ -10,11 +10,6 @@ import { showcaseLinks } from "../_data";
 
 const SOURCE_PLATFORMS = ["spotify", "apple_music", "deezer"] as const;
 
-/**
- * Live smart-link demo. One flat diagram explains the whole product — any
- * link in, one Cassette link out, opens in the listener's player — then the
- * example rows just invite a tap; the conversion itself is the payoff.
- */
 export function ShowcaseStrip() {
   return (
     <section className="py-16 md:py-20">
@@ -39,7 +34,6 @@ export function ShowcaseStrip() {
         </Link>
       </div>
 
-      {/* How it works — flat diagram strip */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -101,7 +95,7 @@ export function ShowcaseStrip() {
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
             Opens everywhere
           </p>
-          <p className="font-roboto text-sm italic text-foreground/80 leading-snug">
+          <p className="font-roboto-flex text-sm italic text-foreground/80 leading-snug">
             Every listener lands in their own player. No dead ends.
           </p>
         </div>
@@ -128,7 +122,7 @@ export function ShowcaseStrip() {
                 <span className="block font-teko text-2xl sm:text-3xl uppercase leading-[0.95] tracking-tight truncate">
                   {link.title}
                 </span>
-                <span className="block font-roboto text-xs italic text-muted-foreground group-hover:text-background/70 transition-colors mt-0.5">
+                <span className="block font-roboto-flex text-xs italic text-muted-foreground group-hover:text-background/70 transition-colors mt-0.5">
                   {link.artist} &middot; {link.kind}
                 </span>
               </span>

@@ -1,9 +1,9 @@
 'use client';
 
-/** Manages Stripe Connect onboarding and renders only the payout status confirmed by Bridge. */
-
 import { useContext, useEffect, useId, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { payoutAccountKey } from '@/hooks/use-curator';
+import { useRedirectMutation } from '@/hooks/use-redirect-mutation';
 import { ArrowRight, Check, Clock } from 'lucide-react';
 import {
   StudioNotice,
@@ -34,7 +34,6 @@ function needsAttention(account: CuratorPayoutAccount) {
   return account.onboardingStatus === 'restricted' || account.requirementsDue;
 }
 
-/** One line that names the state and the next step; the state word leads. */
 function statusCopy(account: CuratorPayoutAccount | null) {
   if (!account) return 'Not started. Set up payouts before you publish a membership plan.';
   if (account.transfersCapabilityStatus === 'active') {
@@ -62,7 +61,6 @@ function ReadinessRing({ done, total }: { done: number; total: number }) {
   const progress = drawn ? done / total : 0;
   return (
     <div className="relative mx-auto size-28 sm:mx-0">
-      {/* An inline SVG is the drawing itself; role="img" names it for assistive technology. */}
       {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role */}
       <svg role="img" aria-label={`${done} of ${total} payout steps ready`} viewBox="0 0 100 100" className="size-full -rotate-90">
         <circle cx="50" cy="50" r={ringRadius} fill="none" className="stroke-border/70" strokeWidth="6" />
@@ -93,17 +91,14 @@ function ReadinessRing({ done, total }: { done: number; total: number }) {
   );
 }
 
-/** `nextStep` is the plan step a completed payout return offers; it lives on the Membership view. */
 export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   const views = useContext(StudioStepsContext);
   const queryClient = useQueryClient();
   const initialized = useRef(false);
   const returnHandled = useRef(false);
   const [flow, setFlow] = useState<PayoutFlow>('checking');
-  // Landing from an expired hosted-onboarding link (?payout=refresh) shows a
-  // renewal notice alongside the normal status view instead of a locked mode.
   const [linkExpired, setLinkExpired] = useState(false);
-  const onboarding = useMutation({
+  const onboarding = useRedirectMutation({
     mutationFn: () => startCuratorPayoutOnboarding(),
     onSuccess: (result) => window.location.assign(result.onboardingUrl),
     onError: () => void queryClient.invalidateQueries({ queryKey: ['curator-profile', 'me'] }),
@@ -132,7 +127,7 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   useEffect(() => {
     if (flow !== 'return' || !status.isSuccess || returnHandled.current) return;
     returnHandled.current = true;
-    queryClient.setQueryData(['curator-payout-account', 'current'], status.data ?? null);
+    queryClient.setQueryData(payoutAccountKey, status.data ?? null);
     removeQueryParameters('payout');
   }, [flow, queryClient, status.data, status.isSuccess]);
 
@@ -140,9 +135,6 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
   const loading = flow === 'checking' || status.isPending;
   const payoutsActive = account?.transfersCapabilityStatus === 'active';
   const returned = flow === 'return' && !loading && !status.isError;
-  // Onboarding keeps the button disabled through isSuccess: the mutation resolves
-  // before the Stripe navigation completes, so re-enabling would allow a double submit.
-  const onboardingBusy = onboarding.isPending || onboarding.isSuccess;
   const actionLabel = linkExpired
     ? 'Open a new setup link'
     : account ? 'Continue payout setup' : 'Set up payouts';
@@ -176,7 +168,6 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
             ? 'Your secure payout setup link expired. Open a new link to continue.'
             : null}
       </StudioNotice>
-      {/* Once payouts are active, setup is one line: the state, the last check, and the update action. */}
       <div className={payoutsActive ? 'flex flex-wrap items-center justify-between gap-x-4 gap-y-3' : 'space-y-5'}>
         {loading ? (
           <output className="text-sm text-muted-foreground">Loading payout status…</output>
@@ -195,7 +186,6 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
             <p className="max-w-prose text-sm leading-relaxed">{statusCopy(account)}</p>
 
             {account && !payoutsActive && (
-              /* Setup in progress: the ring counts the steps, and each figure is the parent of its label and state. */
               <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
               <ReadinessRing done={1} total={2} />
               <dl className="grid gap-3 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
@@ -240,10 +230,10 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
               variant={payoutsActive ? 'outline' : 'default'}
               data-testid="curator-payout-onboarding"
               className="w-full sm:w-auto"
-              disabled={onboardingBusy}
+              disabled={onboarding.busy}
               onClick={() => onboarding.mutate()}
             >
-              {onboardingBusy ? 'Opening…' : payoutsActive ? 'Update payout details' : actionLabel}
+              {onboarding.busy ? 'Opening…' : payoutsActive ? 'Update payout details' : actionLabel}
             </Button>
           </>
         )}

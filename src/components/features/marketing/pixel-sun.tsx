@@ -5,8 +5,6 @@ const CELL = 8;
 const CENTER = (GRID - 1) / 2;
 const RADIUS = 6.9;
 
-// Deterministic at module scope so SSR and CSR agree: solid core, ordered
-// dither at the rim — a square-pixel echo of the sun in the hero image.
 const CELLS: Array<[number, number]> = [];
 for (let y = 0; y < GRID; y++) {
   for (let x = 0; x < GRID; x++) {
@@ -19,10 +17,6 @@ for (let y = 0; y < GRID; y++) {
   }
 }
 
-/**
- * Decorative dithered pixel sun. Colored via `text-*` on the parent
- * (`fill-current`); size it with width classes.
- */
 export function PixelSun({ className }: { className?: string }) {
   return (
     <svg

@@ -121,12 +121,6 @@ function createIdempotencyKey(): string {
     : `key-${Date.now()}-${Math.random()}`;
 }
 
-/**
- * Numbered rule between steps. The flow used to be four stacked offset-shadow
- * cards, which gave every step the same visual weight as the thing being
- * bought; a hairline rule and a numbered kicker keep the sequence legible
- * without four competing focal elements.
- */
 function Step({
   index,
   title,
@@ -227,10 +221,7 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
   const isResolvingSubject = isConverting || isLoadingRepeatSubject;
   const isLocked = Boolean(createdCampaignId);
 
-  // The one input accepts either a link or a search phrase. Anything that looks
-  // like a URL goes down the existing resolve path; anything else queries the
-  // catalog, so a buyer who does not have a link to hand is not stuck.
-  const debouncedQuery = useDebounce(musicUrl, 300);
+  const debouncedQuery = useDebounce(musicUrl);
   const trimmedQuery = debouncedQuery.trim();
   const queryIsLink = trimmedQuery.includes('http') || trimmedQuery.startsWith('www.');
   const searchQuery =
@@ -357,8 +348,6 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
   const resolveSubject = useCallback(async (explicitUrl?: string) => {
     if (isConverting) return;
 
-    // A search pick passes its URL explicitly: the input's state update has not
-    // committed yet at call time, so reading it back here would resolve stale.
     const normalizedUrl = normalizeMusicLinkInput(explicitUrl ?? musicUrl);
     const validationError = validateMusicLink(normalizedUrl);
     const detected = detectContentType(normalizedUrl);
@@ -404,8 +393,6 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
         elementType,
         submittedUrl: normalizedUrl,
         title: post.details.title || post.details.name || post.musicElementId,
-        // Artists are the secondary line for tracks and albums; artist and
-        // playlist pages are their own name, so they carry no subtitle.
         subtitle: elementType === 'track' || elementType === 'album'
           ? post.details.artist || post.details.artists?.[0]?.name || ''
           : '',
@@ -463,15 +450,11 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
     setResolutionFailure(null);
   };
 
-  // Packages are sold per element type: a resolved subject whose type has no
-  // active rate card is a catalog state, not a failure.
   const availableRateCards = resolvedSubject
     ? rateCards.filter((rateCard) => rateCard.subjectType === resolvedSubject.elementType)
     : [];
   const selectedRateCard =
     availableRateCards.find((rateCard) => rateCard.id === selectedRateCardId) ?? null;
-  // A stored pick can fall outside a newly selected package's range; clamping
-  // at render keeps the selector, pricing, and submit in agreement.
   const weeks = selectedRateCard
     ? Math.min(Math.max(rawWeeks, selectedRateCard.minWeeks), selectedRateCard.maxWeeks)
     : rawWeeks;
@@ -634,7 +617,6 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
           onSubmit={handleReviewSubmit}
           className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-12"
         >
-          {/* Flow */}
           <div className="min-w-0 space-y-8">
             <Step
               index="01"
@@ -760,15 +742,11 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
                   </div>
                 )}
 
-                {/* Results are capped and scroll internally: an unbounded list
-                    shoves the rest of the form down the page while you type. */}
                 {showSearchResults && (
                   <div className="max-h-[24rem] overflow-y-auto overscroll-contain rounded-lg">
                   <SearchResults
                     results={searchResultsData}
                     query={searchQuery}
-                    // This page has no top-charts fallback, so the only
-                    // in-flight state is the search request itself.
                     isLoading={false}
                     isSearching={isSearchingMusic}
                     showSearchResults
@@ -1154,8 +1132,6 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
                   </div>
                 </div>
 
-                {/* The attestation is the legally load-bearing control on this
-                    page, so it keeps the one heavy border in the flow. */}
                 {attestation && (
                   <div className="flex items-start gap-3 card-ink shadow-none p-4">
                     <input
@@ -1314,15 +1290,8 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
             )}
           </div>
 
-          {/* Order rail — one element, two behaviours. On desktop it pins
-              below the fixed navbar (h-16) and scrolls internally if the
-              contents ever outgrow the viewport, so the action can never be
-              stranded off-screen. On mobile the verbose blocks collapse and it
-              pins to the bottom of the viewport as a compact checkout bar,
-              rather than sitting at the end of a long form where the buyer has
-              to scroll to find out what anything costs. */}
           <aside
-            className="sticky bottom-0 z-30 self-start max-lg:-mx-4 max-lg:mt-2 lg:bottom-auto lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain"
+            className="sticky bottom-0 z-30 self-start max-lg:-mx-4 max-lg:mt-2 lg:bottom-auto lg:top-[calc(var(--navbar-height)+1rem)] lg:max-h-[calc(100vh-var(--navbar-height)-2rem)] lg:overflow-y-auto lg:overscroll-contain"
           >
             <div className="space-y-5 border-border bg-card p-5 max-lg:border-t max-lg:shadow-[0_-4px_16px_hsl(var(--foreground)/0.08)] lg:card-quiet">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground max-lg:hidden">
@@ -1363,8 +1332,6 @@ function PaidPromotionIntakeForm({ repeatElementId }: { repeatElementId?: string
                   data-testid="paid-promotion-weekly-total"
                   className="space-y-1.5 text-sm lg:border-t lg:border-border lg:pt-4"
                 >
-                  {/* The per-week breakdown is desktop-only; the pinned mobile
-                      bar shows the number the buyer is committing to. */}
                   <div className="flex items-baseline justify-between gap-3 max-lg:hidden">
                     <dt className="text-muted-foreground">
                       {formatPaidPromotionMinorAmount(

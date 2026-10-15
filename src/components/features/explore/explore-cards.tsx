@@ -1,4 +1,3 @@
-/** Explore's tiles, shared with the Feed: post tiles, the Feed's locked post tile, their grid and skeleton, section headings, and creator cards. */
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,7 +11,6 @@ import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 import type { ActivityPost, CuratorFeedItem, ExploreUser } from '@/types';
 
-// Row gaps leave room for the offset shadow below each tile's artwork.
 export const POST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 sm:gap-x-6 sm:gap-y-8';
 
 /** The tile's artwork is the card: an ink frame on three sides, and the page's paper dissolving
@@ -44,11 +42,6 @@ export function SectionHeading({
 
 const ARTWORK_CHIP = 'absolute top-2 inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium leading-none';
 
-/**
- * A post tile: the artwork framed in ink, the title and detail on the paper
- * beneath it, the curator in the footer. The tile lifts on hover and the
- * artwork takes the brand's red offset shadow.
- */
 export function PostCard({
   post,
   label,
@@ -56,7 +49,6 @@ export function PostCard({
   onClick,
 }: {
   post: ActivityPost;
-  /** A disclosure printed in the footer, such as "Sponsored"; it also turns the shadow red. */
   label?: string;
   artworkTestId?: string;
   onClick?: () => void;
@@ -123,12 +115,6 @@ export function PostCard({
   );
 }
 
-/**
- * A members-only post the viewer has not joined for: the lock where the
- * artwork goes, the curator, and the time, and no link to the post. Join opens
- * the curator's offer and never starts Checkout. `availability` comes from the
- * viewer's membership status; while it is unknown the tile offers the profile.
- */
 export function LockedPostCard({
   item,
   joinHref,

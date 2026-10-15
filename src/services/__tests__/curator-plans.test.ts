@@ -1,5 +1,3 @@
-/** Locks plan contracts, pricing-policy math, and lifecycle request behavior to Bridge. */
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -12,11 +10,14 @@ import {
   fetchCuratorPlans,
   fetchCuratorPricing,
   fetchMemberPostAuthoring,
-  parseCuratorFeatures,
-  parseCuratorPlan,
-  parseCuratorPricing,
+  MONTHLY_PRICE_MAX_MINOR,
+  MONTHLY_PRICE_MIN_MINOR,
+  curatorFeaturesSchema,
+  curatorPlanSchema,
+  curatorPricingSchema,
   publishCuratorPlan,
   updateCuratorPlan,
+  type CuratorPlanRequest,
   type CuratorPricing,
 } from '../curator-plans';
 import { CuratorPageError } from '../curator';
@@ -52,12 +53,9 @@ const draft = {
 } as const;
 
 function requestUrl(input: string | URL | Request): string {
-  // SAFETY: every client function under test calls fetch with a string path.
-  return input as string;
+  return input instanceof Request ? input.url : String(input);
 }
 
-// The browser no longer infers this from plan states: an archived plan with paying
-// members still allows member posts, which only Bridge can know.
 void test('members-only authoring uses the Bridge decision privately and strictly', async (t) => {
   const calls: { input: string; init?: RequestInit }[] = [];
   const answers = [{ canAuthor: true }, { canAuthor: false }, { canAuthor: true, plans: [] }];
@@ -75,8 +73,8 @@ void test('members-only authoring uses the Bridge decision privately and strictl
 });
 
 void test('plan and feature parsers enforce the public contract and published evidence', () => {
-  assert.equal(parseCuratorPlan(draft).status, 'draft');
-  assert.equal(parseCuratorPlan({
+  assert.equal(curatorPlanSchema.parse(draft).status, 'draft');
+  assert.equal(curatorPlanSchema.parse({
     ...draft,
     status: 'active',
     serviceFeeMinor: 58,
@@ -84,11 +82,11 @@ void test('plan and feature parsers enforce the public contract and published ev
     publishedAtUtc: '2026-08-16T13:00:00Z',
   }).serviceFeeMinor, 58);
 
-  assert.throws(() => parseCuratorPlan({ ...draft, stripePriceId: 'price_secret' }));
-  assert.throws(() => parseCuratorPlan({ ...draft, currency: 'EUR' }));
-  assert.throws(() => parseCuratorPlan({ ...draft, status: 'active' }));
-  assert.throws(() => parseCuratorPlan({ ...draft, annualAmountMinor: 8401 }));
-  assert.throws(() => parseCuratorFeatures([{
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, stripePriceId: 'price_secret' }));
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, currency: 'EUR' }));
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, status: 'active' }));
+  assert.throws(() => curatorPlanSchema.parse({ ...draft, annualAmountMinor: 8401 }));
+  assert.throws(() => curatorFeaturesSchema.parse([{
     featureKey: 'member_posts',
     displayName: 'Member-only posts',
     description: 'Unlock subscriber posts.',
@@ -97,14 +95,14 @@ void test('plan and feature parsers enforce the public contract and published ev
 });
 
 void test('pricing parser accepts every economics input and rejects internal or invalid fields', () => {
-  assert.deepEqual(parseCuratorPricing(pricing), pricing);
-  assert.throws(() => parseCuratorPricing({ ...pricing, feeScheduleId: 'msf_internal' }));
-  assert.throws(() => parseCuratorPricing({ ...pricing, currency: 'EUR' }));
-  assert.throws(() => parseCuratorPricing({
+  assert.deepEqual(curatorPricingSchema.parse(pricing), pricing);
+  assert.throws(() => curatorPricingSchema.parse({ ...pricing, feeScheduleId: 'msf_internal' }));
+  assert.throws(() => curatorPricingSchema.parse({ ...pricing, currency: 'EUR' }));
+  assert.throws(() => curatorPricingSchema.parse({
     ...pricing,
     processingBorneBy: 'curator',
   }), /Fan service fees/);
-  assert.throws(() => parseCuratorPricing({
+  assert.throws(() => curatorPricingSchema.parse({
     ...pricing,
     processingFeeBps: Number.MAX_SAFE_INTEGER + 1,
   }));
@@ -257,7 +255,6 @@ void test('annual price client posts once, parses the plan strictly, and keeps B
       message: 'This plan already has immutable annual pricing.',
     }), { status: 409 }),
     new Response('<html>bad gateway</html>', { status: 502 }),
-    // Published with an annual price but no frozen annual fee: inconsistent evidence.
     new Response(JSON.stringify({ ...active, annualAmountMinor: 7000 })),
   ];
   const calls: Array<{ init?: RequestInit; input: string | URL | Request }> = [];
@@ -287,19 +284,39 @@ void test('annual price client posts once, parses the plan strictly, and keeps B
   await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 7000), (error) =>
     error instanceof CuratorPageError && error.status === 502 && error.message === 'Failed to add annual price');
   await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 7000), /Annual plan fields are inconsistent/);
-  // Invalid input never reaches the network.
   await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 0));
   await assert.rejects(addCuratorPlanAnnualPrice('not-a-plan', 7000));
   assert.equal(calls.length, 4);
 });
 
 void test('a matching monthly fee does not prove the annual fan charge of a plan\'s frozen fees', () => {
-  // A $5 plan frozen under a 10% service fee, and today's policy at a fixed $0.50 fee.
   const frozen = { ...pricing, serviceFeeBps: 1000, serviceFeeFixedMinor: 0 };
   const today = { ...pricing, serviceFeeBps: 0, serviceFeeFixedMinor: 50 };
   assert.equal(calculateCuratorPlanEconomics(500, frozen).serviceFeeMinor, 50);
   assert.equal(calculateCuratorPlanEconomics(500, today).serviceFeeMinor, 50);
-  // For a $60 annual price Bridge charges $66.00; today's policy would show $60.50.
   assert.equal(calculateCuratorPlanEconomics(6000, frozen).fanChargeMinor, 6600);
   assert.equal(calculateCuratorPlanEconomics(6000, today).fanChargeMinor, 6050);
+});
+
+void test('plan requests accept monthly prices from 500 to 10,000 minor units only', async (t) => {
+  let sent = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    sent++;
+    return new Response(JSON.stringify(draft));
+  });
+  const request = (amountMinor: number): CuratorPlanRequest => ({
+    name: 'Selector Club',
+    description: '',
+    amountMinor,
+    annualAmountMinor: null,
+    featureKeys: [],
+  });
+
+  await createCuratorPlan(request(500));
+  await createCuratorPlan(request(10_000));
+  await assert.rejects(createCuratorPlan(request(499)));
+  await assert.rejects(createCuratorPlan(request(10_001)));
+
+  assert.equal(sent, 2);
+  assert.deepEqual([MONTHLY_PRICE_MIN_MINOR, MONTHLY_PRICE_MAX_MINOR], [500, 10_000]);
 });

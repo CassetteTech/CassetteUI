@@ -1,4 +1,3 @@
-// Apple Music API types
 export interface AppleMusicSearchResponse {
   results: {
     songs?: {
@@ -65,7 +64,6 @@ export interface AppleMusicAlbum {
   };
 }
 
-// Spotify API types
 export interface SpotifySearchResponse {
   tracks?: {
     items: SpotifyTrack[];

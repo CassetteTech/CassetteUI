@@ -9,21 +9,13 @@ import { cn } from '@/lib/utils';
 type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost';
 
 interface BackButtonProps {
-  /** Explicit route to navigate to (overrides router.back()) */
   route?: string;
-  /** Fallback route when there is no browser history (default: "/") */
   fallbackRoute?: string;
-  /** Visual variant: "icon" for header back arrows, "button" for error states */
   variant?: 'icon' | 'button';
-  /** Text label next to the icon (only shown for "icon" variant) */
   label?: string;
-  /** Button text for "button" variant (defaults to "Go Back") */
   children?: React.ReactNode;
-  /** Override click handler entirely (for skeleton onCancel pattern) */
   onClick?: () => void;
-  /** Additional className for the root element */
   className?: string;
-  /** shadcn Button variant for "button" mode (defaults to "destructive") */
   buttonVariant?: ButtonVariant;
 }
 

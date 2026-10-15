@@ -18,11 +18,6 @@ function getMessage(error: unknown, details: ApiErrorDetails): string {
   return error instanceof Error ? error.message.trim() : '';
 }
 
-/**
- * Maps API failures to stable product copy without wrapping or mutating the
- * original error. Callers can inspect ApiError metadata first, then use this
- * helper only when rendering the failure.
- */
 export function getUserFacingApiErrorMessage(
   error: unknown,
   fallback = DEFAULT_ERROR_MESSAGE,

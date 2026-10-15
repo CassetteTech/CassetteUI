@@ -69,14 +69,27 @@ test.describe('home conversion funnel', () => {
     await expect(page.getByRole('heading', { name: 'Midnight City' })).toBeVisible();
   });
 
+  test('converts a direct link with percent escapes exactly as written', async ({ page }) => {
+    const link = 'https://music.apple.com/us/album/100%25-pure%2Fmix/404040?i=404041';
+    await mockCassetteApp(page, {
+      convertTemplates: [{ ...fixtureConvertTemplates.homeTrack, originalUrl: link }],
+    });
+    const convert = page.waitForRequest(
+      (request) => request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/convert',
+    );
+
+    await page.goto(`/post?url=${encodeURIComponent(link)}`);
+
+    expect((await convert).postDataJSON().sourceLink).toBe(link);
+    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+  });
+
   test('hands a signed-in paste to the conversion page with its session and the link as pasted', async ({ page, context, baseURL }) => {
-    // Percent-encoded characters are common in Apple Music links; the router decodes the query once.
     const link = 'https://music.apple.com/us/album/caf%C3%A9-nights/303030?i=303031';
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.viewer,
       convertTemplates: [{ ...fixtureConvertTemplates.homeTrack, originalUrl: link }],
     });
-    // The session cookie travels only with a signed-in request (anonymous ones omit credentials).
     await context.addCookies([{ name: 'e2e_session_marker', value: 'signed-in', url: baseURL! }]);
     const convert = page.waitForRequest(
       (request) => request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/convert',
@@ -111,7 +124,6 @@ test.describe('home conversion funnel', () => {
     await dispatchPaste(page, 'home-search-input', fixtureConvertTemplates.homeTrack.originalUrl);
     await expect(page).toHaveURL(/\/post\?url=/);
 
-    // The owner's post has its column beside the card, so the skeleton keeps room for it.
     const drawnCard = await page.locator('[data-grow-target]').filter({ visible: true }).boundingBox();
     releaseConversion();
     await expect(page).toHaveURL(/\/post\/post-home-converted$/);
@@ -151,7 +163,6 @@ test.describe('home conversion funnel', () => {
       await route.fallback();
     });
     const source = { elementType: 'playlist', title: 'Late Drives', artists: [], platform: 'spotify', tracks };
-    // What Bridge reports at each step; the test advances the step.
     const reported = [
       { stage: 'fetching_source', partialResult: null },
       { stage: 'matching_tracks', tracksProcessed: 1, tracksTotal: 2, partialResult: { source } },
@@ -189,7 +200,6 @@ test.describe('home conversion funnel', () => {
       await route.fallback();
     });
     const source = { elementType: 'track', title: track.title, artists: [track.artist], platform: 'spotify' };
-    // What Bridge reports at each step; the test advances the step.
     const reported = [
       { stage: 'parsing_source', partialResult: null },
       { stage: 'matching_platforms', partialResult: { source } },
@@ -204,10 +214,8 @@ test.describe('home conversion funnel', () => {
     await dispatchPaste(page, 'home-search-input', track.originalUrl);
     await expect(page).toHaveURL(/\/post\?url=/);
 
-    // The skeleton renders both layouts and CSS shows the one for the viewport.
     const visible = (text: string) => page.getByText(text, { exact: true }).filter({ visible: true });
     await expect(visible('Reading your link')).toBeVisible();
-    // The source link is known from the start; the other services wait for their match.
     await expect(page.getByRole('link', { name: 'Spotify' }).filter({ visible: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Apple Music' })).toHaveCount(0);
 

@@ -1,31 +1,19 @@
 'use client';
 
-/** Sliding underline for an underline-style tab list or link row. Rendered as the
-    first child of the list, it measures the element marked
-    `data-state="active"` and tweens transform and width between tabs (the
-    transitions.dev tabs-sliding recipe). The first position is written without
-    a transition, so the bar never grows in from the left edge. Reduced motion
-    snaps. The list must be `position: relative`; the marked element may sit
-    inside a positioned tab. The bar is ink: a selected state is ink, and brand
-    red marks actions. */
-
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export function TabUnderline({ value }: { value: string }) {
   const bar = useRef<HTMLSpanElement>(null);
   const [box, setBox] = useState<{ x: number; width: number } | null>(null);
-  // True once a resting position has painted; only then do moves tween.
   const [settled, setSettled] = useState(false);
 
-  // A passive effect: the list and its triggers are committed and measurable by then.
   useEffect(() => {
     const list = bar.current?.parentElement;
     if (!list) return;
     const measure = () => {
       const active = list.querySelector<HTMLElement>('[data-state="active"]');
       if (!active) return;
-      // Offsets count from the nearest positioned ancestor, so they add up to the list.
       let x = 0;
       for (let node: Element | null = active; node instanceof HTMLElement && node !== list; node = node.offsetParent) {
         x += node.offsetLeft;

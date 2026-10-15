@@ -7,18 +7,10 @@ import { Lock } from 'lucide-react';
 import { EASE_OUT_QUART } from '@/lib/motion';
 import { STREAMING_SERVICES } from './home-brand';
 
-// Placeholder posts; the ones marked true are kept for members.
 const rows = [false, true, false, true];
 
 const bar = 'block rounded-full bg-muted';
 
-/**
- * A curator page as a template, with no example curator or music: the
- * membership card with the curator's price and Join, and posts kept for
- * members behind a lock. A join notice lands every few seconds, so the
- * money in "get paid for your playlists" is visible. Reduced motion hides
- * the notice in CSS, so a change mid-session applies at once.
- */
 export function CuratorPhoneDemo() {
   const [joined, setJoined] = useState(false);
 
@@ -71,7 +63,6 @@ export function CuratorPhoneDemo() {
                   Your price<span className="text-muted-foreground">/mo</span>
                 </p>
               </div>
-              {/* A picture of the control, not a control: the phone is an illustration. */}
               <span className="mt-2.5 block rounded-md bg-primary py-1.5 text-center text-xs font-bold text-primary-foreground">
                 Join
               </span>
@@ -102,7 +93,6 @@ export function CuratorPhoneDemo() {
             </ul>
           </div>
 
-          {/* Simulated activity: shown, never announced. */}
           <div aria-hidden className="motion-reduce:hidden">
             <AnimatePresence>
               {joined && (

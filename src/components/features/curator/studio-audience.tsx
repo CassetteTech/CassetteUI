@@ -1,7 +1,5 @@
 'use client';
 
-/** The owner's audience figures, under the pass on every Studio view. */
-
 import { useQuery } from '@tanstack/react-query';
 import { StudioStat } from '@/components/features/curator/studio-shell';
 import { Button } from '@/components/ui/button';
@@ -10,8 +8,6 @@ import { fetchCuratorAudience } from '@/services/curator';
 
 const countFormatter = new Intl.NumberFormat('en-US');
 
-/** The owner's current audience from its own read, never the earnings ledger's status count. Members
-    are part of the audience; neither figure is shown to anyone else. */
 export function StudioAudience({ onOpenMembers }: { onOpenMembers: () => void }) {
   const { user } = useAuthState();
   const audience = useQuery({

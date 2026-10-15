@@ -3,12 +3,8 @@
 import type { ReactNode } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SegmentedControl as SlidingSegments } from '@/components/ui/interior/segmented-control';
+import { SegmentedControl as SlidingSegments } from '@/components/interior/segmented-control';
 
-/**
- * Shared filter toolbar. A flat search field plus a slot for per-tab filter
- * controls and an actions slot. Dense, no card chrome.
- */
 export function Toolbar({
   search,
   onSearchChange,
@@ -53,10 +49,6 @@ export function Toolbar({
   );
 }
 
-/**
- * Dense segmented toggle, used for inline filters (account type, status, etc.).
- * Sliding thumb + radiogroup semantics via the interior primitive.
- */
 export function SegmentedControl<T extends string>({
   label,
   value,
@@ -76,7 +68,9 @@ export function SegmentedControl<T extends string>({
       <SlidingSegments
         label={label ?? 'Filter'}
         value={value}
-        onValueChange={(next) => onChange(next as T)}
+        onValueChange={(next) => {
+          if (next !== value) onChange(next as T);
+        }}
         options={options}
       />
     </div>

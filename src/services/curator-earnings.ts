@@ -1,6 +1,3 @@
-/** Parses and requests the curator's paginated membership earnings ledger view,
-    and derives the period figures the Studio shows from it. */
-
 import { z } from 'zod';
 import { CuratorPageError } from './curator';
 import { moneyMinorSchema } from './membership';
@@ -28,7 +25,7 @@ const transferSchema = z.object({
   occurredAtUtc: timestampSchema,
 }).strict();
 
-const curatorEarningsSchema = z.object({
+export const curatorEarningsSchema = z.object({
   activeMemberCount: int32Schema,
   balances: z.object({
     currency: currencySchema,
@@ -53,10 +50,6 @@ export type CuratorEarnings = z.infer<typeof curatorEarningsSchema>;
 export type CuratorEarningsBalances = CuratorEarnings['balances'];
 export type CuratorEarningsHistoryItem = CuratorEarnings['items'][number];
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorEarnings = (value: unknown): CuratorEarnings =>
-  curatorEarningsSchema.parse(value);
-
 export async function fetchCuratorEarnings(
   page: number,
   pageSize: number,
@@ -77,12 +70,11 @@ export async function fetchCuratorEarnings(
   if (!response.ok) {
     throw new CuratorPageError('Failed to load membership earnings', response.status);
   }
-  return parseCuratorEarnings(await response.json());
+  return curatorEarningsSchema.parse(await response.json());
 }
 
 type Allocation = Extract<CuratorEarningsHistoryItem, { kind: 'allocation' }>;
 
-/** First day (UTC) of the month `monthsAgo` months before `now`. */
 export function monthStart(monthsAgo: number, now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsAgo, 1));
 }
@@ -95,10 +87,6 @@ const sum = (items: CuratorEarningsHistoryItem[]) => items.reduce((total, item) 
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
 
-/** Earned versus paid out per calendar month for the trailing `months`, plus
-    the period's totals by outcome. Earned follows the allocation date; paid
-    out follows the transfer date. `complete` is false when the loaded slice
-    (of `totalItems`) does not reach back to the period start. */
 export function periodSummary(
   items: CuratorEarningsHistoryItem[],
   totalItems: number,

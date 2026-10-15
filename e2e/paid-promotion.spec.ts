@@ -51,8 +51,6 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
   )).toContainText('$25.00');
   await expectCustomerCopy(page);
 
-  // Campaigns of either type render with a type badge and their own title —
-  // no track-shaped fallbacks.
   const albumCampaign = page.getByTestId(
     `paid-promotion-campaign-card-${fixturePaidPromotionAlbumCampaign.id}`,
   );
@@ -68,7 +66,6 @@ test('renders the signed-in promoter home from owner-scoped campaign and subject
   await expect(subjectCatalog.getByText('2 campaigns')).toBeVisible();
   await expect(subjectCatalog.getByText('In review · 1')).toBeVisible();
   await expect(subjectCatalog.getByText('Completed · 1').first()).toBeVisible();
-  // The artist subject has no secondary names and must not claim one.
   await expect(subjectCatalog.getByText('Artist', { exact: true })).toBeVisible();
   await expect(subjectCatalog.getByText('Artist unavailable')).toHaveCount(0);
   await expect(page.getByTestId('paid-promotion-new-campaign')).toHaveAttribute(
@@ -368,13 +365,10 @@ test('renders the full public landing for signed-out visitors with no auth redir
   await expect(page.getByTestId('promote-landing')).toBeVisible();
   await expect(page.getByText('Cassette itself is the promoter.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Packages' })).toBeVisible();
-  // Boost is the only sellable package: weekly price, run-length bounds, and
-  // the bulk discount are the offer.
   const boost = page.getByTestId('promote-package-boost');
   await expect(boost).toContainText('/ week');
   await expect(boost).toContainText('1–8 weeks · Tracks and albums');
   await expect(boost).toContainText('10% off when you buy 4 weeks or more');
-  // Unsold packages are held back whole — no price, and never a partial claim.
   for (const name of ['spotlight', 'headline']) {
     const unsold = page.getByTestId(`promote-package-${name}`);
     await expect(unsold).toContainText('Not live yet');
@@ -382,7 +376,6 @@ test('renders the full public landing for signed-out visitors with no auth redir
     await expect(unsold).not.toContainText('/ week');
   }
   await expect(page.getByRole('heading', { name: 'No guaranteed outcomes' })).toBeVisible();
-  // The week is countable, which is what makes the refund promise falsifiable.
   await expect(page.getByRole('heading', { name: /What a paid week buys/ })).toBeVisible();
   await expect(page.getByText('Each paid week buys at least one story placement')).toBeVisible();
   await expect(page.getByRole('heading', { name: /Refunds/ })).toBeVisible();
@@ -460,8 +453,6 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await selectedPackage.click();
   await expect(selectedPackage.getByRole('radio')).toBeChecked();
 
-  // Weeks drive the displayed total: 4 weeks crosses the discount threshold,
-  // so $25/week × 4 shows as $90.00 (10% off), not $100.00.
   await expect(page.getByTestId('paid-promotion-weekly-total')).toContainText('$25.00');
   await page.getByTestId('paid-promotion-weeks').click();
   await page.getByRole('option', { name: '4 weeks', exact: true }).click();
@@ -488,8 +479,6 @@ test('creates a server-priced paid-promotion campaign and trusts webhook-backed 
   await attestation.check();
   await expect(requirements).toContainText('All required details are complete.');
 
-  // The review step gates checkout: the amount to be charged and policy
-  // links must be shown before any campaign/checkout request fires.
   await page.getByTestId('paid-promotion-submit').click();
   const reviewPanel = page.getByTestId('paid-promotion-review-panel');
   await expect(reviewPanel).toBeVisible();
@@ -575,7 +564,6 @@ test('creates an album campaign from an album link', async ({ page }) => {
   await expect(resolvedSubject).toContainText('Signal Fire (Deluxe)');
   await expect(resolvedSubject).toContainText('Album selected');
 
-  // Only the album package is offered for an album subject.
   await expect(page.getByTestId(
     `paid-promotion-rate-card-${fixturePaidPromotionRateCards[1].id}`,
   )).toBeVisible();
@@ -630,14 +618,12 @@ test('resolves a subject picked from catalog search, not just a pasted link', as
   await mockCassetteApp(page, { currentUser: fixtureUsers.member });
 
   await page.goto('/promote/new');
-  // A non-link phrase searches the catalog instead of trying to resolve a URL.
   await page.getByTestId('paid-promotion-subject-input').fill('signal fire');
   const result = page.getByText('Signal Fire', { exact: true });
   await result.waitFor();
   await result.click();
 
   await expect(page.getByTestId('paid-promotion-resolved-subject')).toContainText('Signal Fire');
-  // The picked result must reach the package step the same way a pasted link does.
   await expect(
     page.getByTestId(`paid-promotion-rate-card-${fixturePaidPromotionRateCards[0].id}`),
   ).toBeVisible();
@@ -719,7 +705,6 @@ test('turns resolution failures into customer copy with a recovery action', asyn
 });
 
 test('offers support instead of a dead end when the whole catalog is empty', async ({ page }) => {
-  // An environment whose rate-card catalog has not been seeded yet.
   await mockCassetteApp(page, { currentUser: fixtureUsers.member, paidPromotionRateCards: [] });
 
   await page.goto('/promote/new');
@@ -760,7 +745,6 @@ for (const expected of [
     );
 
     await expect(page.getByRole('heading', { name: expected.heading })).toBeVisible();
-    // Every return state keeps an escape hatch and a support contact.
     await expect(page.getByRole('button', { name: 'Promotion home', exact: true })).toBeVisible();
     await expect(page.getByTestId('paid-promotion-support-contact')).toBeVisible();
   });
@@ -779,7 +763,6 @@ test('shows the abandoned-checkout panel on the cancel URL, never pending paymen
 
   await page.goto(`/promote/${fixturePaidPromotionCampaign.id}/return?checkout=canceled`);
 
-  // The run length the buyer picked is part of what they are confirming.
   await expect(page.getByTestId('paid-promotion-campaign-weeks')).toContainText('1 week');
   await expect(page.getByRole('heading', { name: 'Checkout not completed' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Waiting for payment confirmation' })).toHaveCount(0);

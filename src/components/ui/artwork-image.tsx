@@ -57,8 +57,6 @@ export function ArtworkImage({
       src={normalizedSrc}
       alt={alt}
       className={cn(
-        // Blur-up reveal: hidden+blurred until decoded, then eased in.
-        // motion-reduce flips instantly.
         'transition-[opacity,filter] duration-500 ease-out motion-reduce:transition-none',
         loaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm',
         className,

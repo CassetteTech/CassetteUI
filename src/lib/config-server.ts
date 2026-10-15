@@ -1,23 +1,12 @@
-import { getBaseUrl } from './utils/url';
+import 'server-only';
 import { appLogger } from '@/lib/observability/logger';
 
-// Server-only configuration - contains sensitive secrets
-// This config should NEVER be imported by client components
-// Only use in API routes, server actions, and server-side code
 
 export const serverConfig = {
-  // Supabase server configuration
   supabase: {
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key',
   },
 
-  // NextAuth configuration
-  nextAuth: {
-    url: getBaseUrl(),
-    secret: process.env.NEXTAUTH_SECRET || 'placeholder-secret',
-  },
-
-  // Music API secrets
   spotify: {
     clientId: process.env.SPOTIFY_CLIENT_ID || '',
     clientSecret: process.env.SPOTIFY_CLIENT_SECRET || '',
@@ -29,7 +18,6 @@ export const serverConfig = {
     privateKey: process.env.APPLE_MUSIC_PRIVATE_KEY || '',
   },
 
-  // Webhook secrets
   webhooks: {
     reportUrl: process.env.REPORT_WEBHOOK_URL || '',
   },
@@ -37,7 +25,6 @@ export const serverConfig = {
 
 export type ServerConfig = typeof serverConfig;
 
-// Validation function for server-only environment variables
 export function validateServerConfig() {
   appLogger.debug('server_config_validation_started', {
     node_env: process.env.NODE_ENV || 'not set',
@@ -47,7 +34,6 @@ export function validateServerConfig() {
     node_version: process.version,
   });
 
-  // Check all music API credentials
   const musicApiStatus = {
     spotify: {
       client_id_present: Boolean(serverConfig.spotify.clientId),
@@ -72,7 +58,6 @@ export function validateServerConfig() {
 
   const required = {
     'SUPABASE_SERVICE_ROLE_KEY': serverConfig.supabase.serviceRoleKey,
-    'NEXTAUTH_SECRET': serverConfig.nextAuth.secret,
     'SPOTIFY_CLIENT_SECRET': serverConfig.spotify.clientSecret,
     'APPLE_MUSIC_PRIVATE_KEY': serverConfig.appleMusic.privateKey,
   };
@@ -102,7 +87,6 @@ export function validateServerConfig() {
     appLogger.warn('server_config_optional_env_missing', { missing_optional: missingOptional });
   }
 
-  // Log deployment info if available
   if (process.env.VERCEL) {
     appLogger.debug('server_config_vercel_environment', {
       env: process.env.VERCEL_ENV,

@@ -1,11 +1,9 @@
 'use client';
 
-/** Profile content tabs in the Curator Studio underline style: Radix tabs, text only, sentence case.
-    Music holds everything the account posted, narrowed by list tabs; Liked holds what it liked. */
-
 import { useEffect, useRef } from 'react';
 import { TabUnderline } from '@/components/ui/tab-underline';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { scrollTabIntoRow } from '@/lib/utils/scroll-tab-into-row';
 
 export type TabType = 'music' | 'liked';
 
@@ -26,18 +24,18 @@ export function ProfileTabs({
   if (showLikedTab) tabs.push({ key: 'liked', label: 'Liked' });
 
   const listRef = useRef<HTMLDivElement>(null);
-  // The strip scrolls on narrow screens; a deep-linked tab must not start off-screen.
   useEffect(() => {
-    listRef.current?.querySelector('[data-state="active"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    const list = listRef.current;
+    const tab = list?.querySelector<HTMLElement>('[data-state="active"]');
+    if (list && tab) scrollTabIntoRow(list, tab);
   }, [activeTab]);
 
   return (
-    // SAFETY: every trigger value below is a TabType, so Radix only ever reports one.
     // Manual activation: each tab change rewrites the URL and fetches, so arrow keys
     // move focus and Enter or Space selects.
     <Tabs
       value={activeTab}
-      onValueChange={(next) => onTabChange(next as TabType)}
+      onValueChange={(next) => onTabChange(next === 'liked' ? 'liked' : 'music')}
       activationMode="manual"
       className="gap-0 px-3 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pt-5"
     >

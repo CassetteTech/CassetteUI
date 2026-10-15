@@ -12,11 +12,6 @@ interface SectionHeaderProps {
   className?: string;
 }
 
-/**
- * Section header in the pixel hero's voice: mono kicker behind a primary
- * dash, then large flat Teko display type. Inherits the band's text color,
- * so it works on page background and colored bands alike.
- */
 export function SectionHeader({
   kicker,
   title,
@@ -43,7 +38,7 @@ export function SectionHeader({
         {title}
       </h2>
       {sub ? (
-        <p className="font-roboto text-base italic opacity-70 mt-4 max-w-md">
+        <p className="font-roboto-flex text-base italic opacity-70 mt-4 max-w-md">
           {sub}
         </p>
       ) : null}

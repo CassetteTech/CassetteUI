@@ -16,11 +16,6 @@ const tabs = [
 
 const services = ["spotify", "apple_music", "deezer"] as const;
 
-/**
- * The one focal card of the sheet. Everything around it is flat, so the
- * profile card keeps its hard border + offset shadow and nothing else
- * competes with it.
- */
 export function ExampleProfileSection() {
   return (
     <section className="py-16 md:py-20">

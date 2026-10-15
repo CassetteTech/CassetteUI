@@ -15,7 +15,6 @@ const outputPath = new URL('../public/images/home-wordmark-layer.png', import.me
 const browser = await chromium.launch();
 const page = await browser.newPage();
 
-// Bounds of the stroked outline, snapped outward to whole output pixels.
 await page.setContent(`<svg xmlns="http://www.w3.org/2000/svg"><path d="${outline}" /></svg>`);
 const box = await page.evaluate(() => {
   const { x, y, width, height } = document.querySelector('path').getBBox();

@@ -106,14 +106,11 @@ void test('verifies the rendered shape but does not re-audit server arithmetic',
   };
   assert.equal(parsePaidPromotionCampaign(response).finalTotalMinor, 21500);
 
-  // Server totals pass through even when they don't satisfy the checkout
-  // formula; auditing that invariant is Bridge/Sentinel's job.
   assert.equal(
     parsePaidPromotionCampaign({ ...response, finalTotalMinor: 25000 }).finalTotalMinor,
     25000,
   );
 
-  // Wrong primitive types on money fields are still boundary failures.
   assert.throws(
     () => parsePaidPromotionCampaign({ ...response, amountMinor: '25000' }),
     /campaign\.amountMinor/,
@@ -132,7 +129,6 @@ void test('tolerates additive backend changes', () => {
   };
   assert.equal(parsePaidPromotionCampaign(withUnknownStatus).status, 'brand_new_status');
 
-  // Missing nullable fields degrade to null instead of throwing.
   const sparse = { ...campaign('pending') } as Record<string, unknown>;
   delete sparse.taxAmountMinor;
   delete sparse.rateCardId;
@@ -254,8 +250,6 @@ void test('carries the weekly pricing snapshot through the boundary', () => {
   assert.equal(parsed.weeklyAmountMinor, 2500);
   assert.equal(parsed.durationDiscountBps, 1000);
 
-  // Weeks and the weekly rate are required from pending_payment onward; a
-  // missing one is a boundary failure, not a silent zero.
   assert.throws(
     () => parsePaidPromotionCampaign({ ...campaign('paid'), weeks: null }),
     /campaign\.weeks/,
@@ -265,15 +259,12 @@ void test('carries the weekly pricing snapshot through the boundary', () => {
 void test('mirrors the server duration-discount math for display', () => {
   const card = { amountMinor: 2500, discountMinWeeks: 4, discountBps: 1000 };
 
-  // Below the threshold there is no discount at all.
   assert.deepEqual(computePaidPromotionPricing(card, 3), {
     grossMinor: 7500,
     discountMinor: 0,
     totalMinor: 7500,
   });
 
-  // At and above it, the discount rounds up so the shown total never exceeds
-  // what the Bridge charges.
   assert.deepEqual(computePaidPromotionPricing(card, 4), {
     grossMinor: 10000,
     discountMinor: 1000,
@@ -285,7 +276,6 @@ void test('mirrors the server duration-discount math for display', () => {
     67,
   );
 
-  // A package with no discount configured never discounts.
   assert.equal(
     computePaidPromotionPricing({ amountMinor: 2500, discountMinWeeks: null, discountBps: null }, 8)
       .totalMinor,
@@ -294,17 +284,12 @@ void test('mirrors the server duration-discount math for display', () => {
 });
 
 void test("renders minor amounts using the currency's own minor-unit size", () => {
-  // A two-minor-unit currency: 2500 minor units is 25 major units.
   assert.equal(formatPaidPromotionMinorAmount(2500, 'USD', 'en-US'), '$25.00');
-  // A zero-minor-unit currency is not divided by 100.
   assert.equal(formatPaidPromotionMinorAmount(2500, 'JPY', 'en-US'), '¥2,500');
-  // Every paid-promotion surface uses this same null presentation.
   assert.equal(formatPaidPromotionMinorAmount(null, 'USD', 'en-US'), 'Not available yet');
 });
 
 void test('degrades instead of throwing when the currency cannot be resolved', () => {
-  // These amounts render inline all over the intake, so throwing on a currency
-  // the runtime does not know would blank the page instead of one price.
   assert.equal(formatPaidPromotionMinorAmount(2500, 'US'), 'US 25.00');
   assert.equal(formatPaidPromotionMinorAmount(2500, 'usdollar'), 'USDOLLAR 25.00');
 });

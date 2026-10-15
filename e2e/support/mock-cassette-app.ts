@@ -1,5 +1,3 @@
-/** Emulates Bridge and platform routes so end-to-end tests can assert stateful UI workflows. */
-
 import type { Page, Request, Route } from '@playwright/test';
 import { z } from 'zod';
 import type {
@@ -10,8 +8,8 @@ import type {
 import type { CuratorProStatus } from '../../src/services/curator-pro';
 import type { CuratorEarnings } from '../../src/services/curator-earnings';
 import {
-  parsePricingAssignmentRequest,
-  parsePricingPolicyRequest,
+  pricingAssignmentRequestSchema,
+  pricingPolicyRequestSchema,
   type InternalCurator,
   type PricingAssignment,
   type PricingAssignmentRequest,
@@ -63,6 +61,7 @@ const elementTypeForFixtureId = (
 };
 
 type MockCassetteOptions = {
+  reducedMotion?: 'reduce' | 'no-preference';
   analyticsCaptures?: Array<Record<string, unknown>>;
   exploreRequests?: string[];
   currentUser?: FixtureUser | null;
@@ -70,7 +69,6 @@ type MockCassetteOptions = {
   internalPricingPolicies?: PricingPolicy[];
   internalPricingAssignments?: PricingAssignment[];
   curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'balances' | 'items'>;
-  /** Counts for every requested window; the daily series is built per request. */
   curatorMemberCounts?: FixtureCuratorMemberCounts;
   curatorMemberStatsStatus?: number;
   curatorPage?: CuratorPage;
@@ -78,7 +76,6 @@ type MockCassetteOptions = {
   curatorPayoutRefreshAccount?: CuratorPayoutAccount;
   curatorPayoutOnboardingUrl?: string;
   curatorPlans?: CuratorPlan[];
-  /** Bridge's member-post authoring decision; defaults to an active curator with an active member-posts plan. */
   memberPostAuthoring?: boolean;
   curatorPlanToolsStatus?: number;
   curatorFeatures?: CuratorFeature[];
@@ -105,10 +102,8 @@ type MockCassetteOptions = {
   emailPreferencesByUserId?: Record<string, boolean>;
   defaultEnrolledUserIds?: string[];
   emailPreferenceUpdateFailures?: number;
-  // Users who turned the curator digest on in settings; it is off for everyone else.
   curatorDigestEnabledUserIds?: string[];
   curatorDigestUpdateFailures?: number;
-  // The preferences read answers 503 this many times.
   emailPreferenceLoadFailures?: number;
   profileUpdateFailures?: number;
   issueReportFailures?: number;
@@ -142,15 +137,10 @@ type MockCassetteOptions = {
   accountDeleteFailures?: number;
   exploreResponse?: unknown;
   exploreCurators?: ExploreCurator[];
-  /** Answers each Feed page; the default is an empty page that reports the session's two counts. */
   curatorFeed?: (query: { cursor: string | null; membersOnly: boolean }) => { status?: number; body?: unknown };
-  /** Curator profile IDs the current user explicitly follows. */
   curatorFollows?: string[];
-  /** Relationship reads that answer 503 before the stateful answer. */
   curatorFollowReadFailures?: number;
-  /** Follow and Unfollow writes that answer 503, changing nothing, before the stateful answer. */
   curatorFollowWriteFailures?: number;
-  /** The owner's current audience; defaults to zero for both counts. */
   curatorAudience?: { audienceCount: number; activeMemberCount: number };
   curatorAudienceStatus?: number;
 };
@@ -375,6 +365,9 @@ const defaultMembershipStatus = (
           serviceFeeMinor: page.membership?.serviceFeeMinor ?? 50,
           totalAmountMinor: (page.membership?.amountMinor ?? 500) + (page.membership?.serviceFeeMinor ?? 50),
           currency: page.membership?.currency ?? 'USD',
+          endReason: null,
+          accessEndsAtUtc: null,
+          refundStatus: null,
         }
       : null,
   };
@@ -403,7 +396,6 @@ const toProfileBio = (user: FixtureUser, state: MockState) => ({
   isOwnProfile: state.currentUser?.id === user.id,
   likedPostsPrivacy: user.likedPostsPrivacy || 'public',
   likedPostsVisibility: user.likedPostsPrivacy || 'public',
-  showLikedPosts: (user.likedPostsPrivacy || 'public') === 'public',
   totalLikesReceived: Array.from(state.postsById.values())
     .filter((post) => post.ownerId === user.id)
     .reduce((sum, post) => sum + (post.likeCount || 0), 0),
@@ -858,9 +850,6 @@ const buildState = (options: MockCassetteOptions): MockState => {
       updatedAtUtc: FIXTURE_TIMESTAMP,
     });
   }
-  // Default enrollment (CAS-386): signup and backfill give every user an
-  // enabled row with lastChangedSource 'account_default' and no affirmative
-  // consent. Seed those rows here; a genuinely missing row stays fail-closed.
   for (const userId of options.defaultEnrolledUserIds || []) {
     if (!state.emailPreferencesByUserId.has(userId)) {
       state.emailPreferencesByUserId.set(userId, {
@@ -928,7 +917,6 @@ const toInternalPaidPromotionAction = (campaign: FixtureInternalPaidPromotionCam
   updatedAtUtc: campaign.updatedAtUtc,
 });
 
-// The body of a preference PUT, or null when Bridge would reject it.
 function readEmailPreferenceUpdate(request: Request): { enabled: boolean; source: 'settings' } | null {
   const payload = request.postDataJSON() as { enabled?: unknown; source?: unknown };
   return typeof payload.enabled === 'boolean' && payload.source === 'settings'
@@ -955,7 +943,7 @@ function emailPreferencesBody(state: MockState, userId: string) {
 export async function mockCassetteApp(page: Page, options: MockCassetteOptions = {}) {
   const state = buildState(options);
 
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.emulateMedia({ reducedMotion: options.reducedMotion ?? 'reduce' });
 
   await page.route(
     /^https:\/\/fonts\.googleapis\.com\/icon\?family=Material\+Icons$/,
@@ -1058,8 +1046,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       return json(route, { curators: options.exploreCurators ?? [] });
     }
 
-    // Both of these clear the session so a follow-up /session call reflects the
-    // teardown — otherwise a reload would appear to restore a signed-out user.
     if (pathname === '/api/auth/signout' && method === 'POST') {
       state.currentUser = null;
       return json(route, { success: true });
@@ -1197,7 +1183,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
     if (pathname === '/api/v1/curators/me/member-stats' && method === 'GET') {
       getCurrentUserOrThrow(state);
-      // Logged first, so a request the gate should have stopped still shows.
       const days = Number(url.searchParams.get('days'));
       state.curatorMemberStatsRequests.push(days);
       if (!state.curatorProfile) {
@@ -1206,7 +1191,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (state.curatorMemberStatsStatus !== 200) {
         return json(route, { message: 'Member counts are unavailable.' }, state.curatorMemberStatsStatus);
       }
-      // A straight ramp from the count at the window start to the count now.
       const counts = state.curatorMemberCounts;
       const now = new Date();
       const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -1312,8 +1296,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (plan.status === 'draft') {
         return json(route, { message: 'Draft plans cannot be archived.' }, 409);
       }
-      // Ending memberships is curator-wide: the live offer stops selling too,
-      // and every active member stops renewing.
       const stopping = action === 'archive' ? [plan] : state.curatorPlans;
       if (action === 'end-memberships') {
         state.curatorMemberCounts.notRenewingMembers = state.curatorMemberCounts.activeMembers;
@@ -1350,7 +1332,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
             ? 'This plan already has immutable annual pricing.'
             : null;
       if (conflict) return json(route, { errorCode: 'curator_profile_state_invalid', message: conflict }, 409);
-      // An identical retry returns the plan unchanged.
       if (plan.annualAmountMinor === null) {
         Object.assign(plan, {
           annualAmountMinor,
@@ -1637,6 +1618,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           serviceFeeMinor,
           totalAmountMinor: faceAmountMinor + serviceFeeMinor,
           currency: plan.currency,
+          endReason: null,
+          accessEndsAtUtc: null,
+          refundStatus: null,
         },
       };
       state.membershipPollSequenceActive = true;
@@ -1978,7 +1962,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         ));
       }
       if (method === 'POST') {
-        const payload = parsePricingAssignmentRequest(request.postDataJSON());
+        const payload = pricingAssignmentRequestSchema.parse(request.postDataJSON());
         state.internalPricingAssignmentRequests.push(clone(payload));
         const { curatorProfileId, policyId } = payload;
         const policy = state.internalPricingPolicies.find((candidate) => candidate.id === policyId);
@@ -2035,7 +2019,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       getCurrentUserOrThrow(state);
       if (method === 'GET') return json(route, state.internalPricingPolicies);
       if (method === 'POST') {
-        const payload = parsePricingPolicyRequest(request.postDataJSON());
+        const payload = pricingPolicyRequestSchema.parse(request.postDataJSON());
         state.internalPricingPolicyCreateRequests.push(clone(payload));
         const { policyKey } = payload;
         const version = Math.max(
@@ -2657,19 +2641,26 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       const requestedPrivacy = url.searchParams.get('privacy');
       const pageSize = Number(url.searchParams.get('pageSize') || 20);
       const page = Math.max(1, Number(url.searchParams.get('page') || 1));
+      const cursor = url.searchParams.get('cursor');
       const items = Array.from(state.postsById.values()).filter((post) => {
         if (post.ownerId !== user.id) return false;
         if (requestedPrivacy && (post.privacy || 'public') !== requestedPrivacy) return false;
         if (!requestedElementType) return true;
         return normalizeUsername(post.elementType) === normalizeUsername(requestedElementType);
       });
+      const start = cursor === null ? (page - 1) * pageSize : items.findIndex((post) => post.postId === cursor) + 1;
+      if (start === 0 && cursor !== null) {
+        return json(route, { message: 'Invalid cursor.' }, 400);
+      }
+      const pageItems = items.slice(start, start + pageSize);
 
       // Bridge sends no page count; the client derives the next page from the total.
       return json(route, {
-        items: items.slice((page - 1) * pageSize, page * pageSize).map((post) => toActivityItem(post, state)),
+        items: pageItems.map((post) => toActivityItem(post, state)),
         page,
         pageSize,
         totalItems: items.length,
+        nextCursor: start + pageSize < items.length ? pageItems.at(-1)!.postId : null,
       });
     }
 

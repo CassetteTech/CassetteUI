@@ -1,7 +1,5 @@
 'use client';
 
-/** Session states that are neither signed in nor signed out: still checking, or the check failed. */
-
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
@@ -17,11 +15,9 @@ export function AccountCheckStatus() {
   );
 }
 
-/** A failed session read. Retrying reads the session again; it never signs the viewer out. */
 export function AccountCheckError({
   onRetry = () => void authService.refreshSession(),
 }: {
-  /** A page that must act on the answer, such as a sign-in callback, retries its own way. */
   onRetry?: () => void;
 }) {
   const isRefreshingSession = useAuthStore((state) => state.isRefreshingSession);

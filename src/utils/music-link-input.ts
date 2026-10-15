@@ -69,7 +69,6 @@ export function normalizeMusicLinkInput(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return '';
 
-  // Support pasted share text that includes a URL in the middle of a sentence.
   const urlMatch = trimmed.match(/https?:\/\/[^\s]+/i);
   return (urlMatch ? urlMatch[0] : trimmed).trim();
 }
@@ -150,7 +149,6 @@ export function validateMusicLink(raw: string): string | null {
 
   const platform = getPlatformDefinitionForHostname(hostname);
   if (platform) {
-    // Bridge resolves approved redirect links before extracting the provider ID.
     if (getMusicRedirectPlatform(parsedUrl)) {
       return null;
     }

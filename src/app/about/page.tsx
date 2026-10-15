@@ -1,6 +1,9 @@
 "use client";
 
-import { PixelHero } from "./_components/PixelHero";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { PIXEL_HERO_PRIMARY_ACTION_CLASS, PixelHero } from "@/components/features/marketing/pixel-hero";
+import { useAuthState } from "@/hooks/use-auth";
 import { CurtainSheet } from "@/components/features/marketing/curtain-sheet";
 import { StatStrip } from "@/components/features/marketing/stat-strip";
 import { DitherEdge } from "@/components/features/marketing/dither-edge";
@@ -14,14 +17,24 @@ import { FinalCTA } from "./_components/FinalCTA";
 import { MarketingFooter } from "@/components/features/marketing/marketing-footer";
 import { linerNotes } from "./_data";
 
-/**
- * A pinned pixel hero, then a curtain content sheet that scrolls up over it.
- */
 export default function AboutPage() {
+  const { isAuthenticated } = useAuthState();
   return (
     <div className="relative">
-      {/* Pinned image hero — the sheet below scrolls up and over it */}
-      <PixelHero />
+      <PixelHero
+        label="About Cassette"
+        eyebrow="About · Cassette Technologies"
+        title={["Your Music,", "Everywhere"]}
+        lead="Cassette turns any track, album, artist, or playlist into one smart link that opens in your listener's preferred app—"
+        emphasis="no dead ends, no friction"
+        primaryAction={
+          <Link href={isAuthenticated ? "/" : "/auth/signup"} className={PIXEL_HERO_PRIMARY_ACTION_CLASS}>
+            <span>Create Your Universal Link</span>
+            <ArrowRight size={16} />
+          </Link>
+        }
+        secondaryLink={{ href: "/team", label: "Meet the Team" }}
+      />
 
       <CurtainSheet tab="The Story">
         {/* Liner notes — quiet stat strip. Bottom padding must clear the
@@ -30,10 +43,8 @@ export default function AboutPage() {
           <StatStrip items={linerNotes} />
         </section>
 
-        {/* The Problem — charcoal statement band */}
         <ProblemSection />
 
-        {/* Live smart-link demo — the answer, straight after the problem */}
         <div className="relative">
           <DitherEdge color="hsl(var(--background))" side="top" />
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,24 +52,18 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* The Profile — cream band: interactive demo + a real profile card */}
         <MusicIdentitySection />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Spool-line timeline */}
           <JourneyTimeline />
         </div>
 
-        {/* Vision — dark statement band */}
         <VisionSection />
 
-        {/* Supporters — light band to blend with the Ko-fi widget */}
         <SupportersShowcase />
 
-        {/* Closing CTA — wine band, bookended with the hero halftone */}
         <FinalCTA />
 
-        {/* Print-sheet footer — paper dithers up into the wine band */}
         <MarketingFooter />
       </CurtainSheet>
     </div>

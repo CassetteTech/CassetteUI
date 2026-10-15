@@ -12,7 +12,6 @@ interface FloatingElement {
   size: number;
   opacitySeed: number;
   rotation: number;
-  // CSS drift parameters (transform-only, compositor-driven)
   driftX: number;
   driftY: number;
   driftRotate: number;
@@ -27,7 +26,6 @@ interface AnimatedBackgroundProps {
   enableAnimation?: boolean;
 }
 
-// Animation elements from Flutter - moved outside component to avoid recreation
 const animationImages = [
   '/images/animation_elements/circle_blue.png',
   '/images/animation_elements/arrows_left.png',
@@ -39,9 +37,6 @@ const animationImages = [
   '/images/animation_elements/zigzag_red_2.png',
 ];
 
-// Always generate the full desktop set. The CSS module hides the tail of the
-// list and scales sizes down on smaller viewports, so responsiveness never
-// depends on a window measurement taken at mount.
 const DESKTOP_COUNT = 25;
 const TABLET_COUNT = 20;
 const MOBILE_COUNT = 15;
@@ -59,16 +54,11 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
     setIsClient(true);
   }, []);
 
-  // Generate the elements exactly once per mount. No per-frame React state:
-  // drift runs as a pure CSS keyframe animation on the compositor.
   const elements = useMemo<FloatingElement[]>(() => {
     if (!isClient) return [];
 
     const count = itemsCount ?? DESKTOP_COUNT;
 
-    // Jittered grid in viewport percentages: one element per shuffled cell
-    // keeps coverage even (no clumps, no bare patches), and %-based positions
-    // track the viewport through resizes without any pixel math.
     const cols = Math.ceil(Math.sqrt(count * 1.6));
     const rows = Math.ceil(count / cols);
     const cells = Array.from({ length: cols * rows }, (_, i) => i);
@@ -82,17 +72,15 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
       image: animationImages[Math.floor(Math.random() * animationImages.length)],
       xPct: (((cell % cols) + 0.1 + Math.random() * 0.8) / cols) * 100,
       yPct: ((Math.floor(cell / cols) + 0.1 + Math.random() * 0.8) / rows) * 100,
-      size: 45 + Math.random() * 35, // desktop px; CSS scales down per breakpoint
+      size: 45 + Math.random() * 35,
       opacitySeed: Math.random(),
       rotation: Math.random() * 360,
-      // Gentle transform-only drift, randomized per element. A minimum
-      // amplitude per axis keeps every element visibly in motion.
-      driftX: (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60), // 30..90px either way
-      driftY: (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60), // 30..90px either way
-      driftRotate: (Math.random() < 0.5 ? -1 : 1) * (15 + Math.random() * 30), // 15..45deg either way
-      driftDuration: 14 + Math.random() * 12, // 14..26s
-      driftDelay: Math.random() * -20, // negative → desynchronized start
-      enterDelay: Math.random() * 0.4, // staggered fade-in
+      driftX: (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60),
+      driftY: (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60),
+      driftRotate: (Math.random() < 0.5 ? -1 : 1) * (15 + Math.random() * 30),
+      driftDuration: 14 + Math.random() * 12,
+      driftDelay: Math.random() * -20,
+      enterDelay: Math.random() * 0.4,
     }));
     // Regenerate only across mounts / prop change, never per frame.
   }, [isClient, itemsCount]);
@@ -107,8 +95,6 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
       className={`${styles.container} fixed inset-0 pointer-events-none overflow-hidden ${className}`}
     >
       {elements.map((element, i) => {
-        // With an explicit itemsCount the caller owns the count; otherwise
-        // the tail elements only appear on wider viewports.
         const tierClass =
           itemsCount !== undefined
             ? ''
@@ -134,8 +120,6 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                 '--drift-duration': `${element.driftDuration}s`,
                 '--drift-delay': `${element.driftDelay}s`,
                 '--enter-delay': `${element.enterDelay}s`,
-                // Allow callers/tests to opt out; drift keyframe still parked
-                // at frame 0 so the element renders in place.
                 animationPlayState: enableAnimation ? undefined : 'paused',
               } as React.CSSProperties
             }
@@ -147,7 +131,7 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
               height={Math.round(element.size)}
               className="w-full h-full object-contain"
               loading="lazy"
-              unoptimized // For better performance with small animated images
+              unoptimized
             />
           </div>
         );

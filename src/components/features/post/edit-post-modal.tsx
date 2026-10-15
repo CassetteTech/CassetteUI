@@ -1,7 +1,5 @@
 'use client';
 
-/** Lets a post owner update its caption, visibility, comment setting, and a playlist's own links. */
-
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -53,10 +51,8 @@ interface EditPostModalProps {
   currentCommentsEnabled?: boolean;
   /** The post is the owner's own playlist post, which takes the owner's link for each service. */
   playlistLinksEditable?: boolean;
-  /** Runs after a save with only the fields that changed. */
   onSuccess?: (changes: PostChanges) => void;
-  /** Without a sheet trigger, Radix focuses nothing on close; a caller can focus its real opener here. */
-  onCloseAutoFocus?: (event: Event) => void;
+  returnFocusTo?: () => HTMLElement | null | undefined;
 }
 
 export function EditPostModal({
@@ -68,7 +64,7 @@ export function EditPostModal({
   currentCommentsEnabled = true,
   playlistLinksEditable = false,
   onSuccess,
-  onCloseAutoFocus,
+  returnFocusTo,
 }: EditPostModalProps) {
   const [description, setDescription] = useState(currentDescription);
   const [privacy, setPrivacy] = useState<PostPrivacy>(currentPrivacy);
@@ -100,7 +96,6 @@ export function EditPostModal({
     onOpenChange(next);
   };
 
-  // Reset description when modal opens with new data
   useEffect(() => {
     if (open) {
       setDescription(currentDescription);
@@ -181,7 +176,7 @@ export function EditPostModal({
 
   return (
     <Sheet open={open} onOpenChange={changeOpen}>
-      <SheetContent side="right" className="w-full max-w-md overflow-y-auto" onCloseAutoFocus={onCloseAutoFocus}>
+      <SheetContent side="right" className="w-full max-w-md overflow-y-auto" returnFocusTo={returnFocusTo}>
         <SheetHeader>
           <SheetTitle className="text-foreground">Edit Post</SheetTitle>
           <SheetDescription className="text-muted-foreground">

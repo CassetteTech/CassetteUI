@@ -27,13 +27,12 @@ const HOST_PLATFORMS: Record<string, string> = {
 
 export interface ParsedProfileLink {
   href: string;
-  /** Display name for known platforms, bare hostname otherwise. */
   platform: string;
-  /** "@handle" when derivable from the URL path, else the platform name. */
   label: string;
-  /** 24x24 currentColor SVG path; undefined falls back to a globe icon. */
   iconPath?: string;
 }
+
+const CONTAINER_PATH_SEGMENTS = ['user', 'channel', 'c', 'u'];
 
 export function parseProfileLink(url: string): ParsedProfileLink | null {
   let parsed: URL;
@@ -47,8 +46,7 @@ export function parseProfileLink(url: string): ParsedProfileLink | null {
   const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
   const platform = HOST_PLATFORMS[host] ?? host;
   const segments = parsed.pathname.split('/').filter(Boolean);
-  // Skip container segments (youtube.com/c/x, spotify.com/user/x, reddit.com/user/x).
-  const rawHandle = ['user', 'channel', 'c', 'u'].includes(segments[0] ?? '')
+  const rawHandle = CONTAINER_PATH_SEGMENTS.includes(segments[0] ?? '')
     ? segments[1]
     : segments[0];
   const handle = rawHandle ? `@${decodeURIComponent(rawHandle).replace(/^@/, '')}` : undefined;

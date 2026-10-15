@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 
 interface VerificationBadgeProps {
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   showTooltip?: boolean;
@@ -22,32 +22,6 @@ const sizeMap = {
   lg: { width: 28, height: 28, className: 'w-7 h-7' },
 };
 
-// Normalize account type from various formats (int, string) to our enum
-function normalizeAccountType(value: AccountType | number | string | undefined): AccountType | null {
-  if (value === undefined || value === null) return null;
-
-  // Handle integer values from API
-  if (typeof value === 'number') {
-    switch (value) {
-      case 0: return AccountType.REGULAR;
-      case 1: return AccountType.VERIFIED;
-      case 2: return AccountType.CASSETTE_TEAM;
-      default: return null;
-    }
-  }
-
-  // Handle string values (enum or raw string)
-  if (typeof value === 'string') {
-    const lower = value.toLowerCase();
-    if (lower === 'regular' || value === AccountType.REGULAR) return AccountType.REGULAR;
-    if (lower === 'verified' || value === AccountType.VERIFIED) return AccountType.VERIFIED;
-    if (lower === 'cassetteteam' || lower === 'cassette_team' || value === AccountType.CASSETTE_TEAM) return AccountType.CASSETTE_TEAM;
-  }
-
-  return null;
-}
-
-// Checkmark SVG for verified users - uses currentColor to adapt to theme
 function VerifiedCheckmark({ size }: { size: 'sm' | 'md' | 'lg' }) {
   const { width, height } = sizeMap[size];
   return (
@@ -68,15 +42,11 @@ function VerifiedCheckmark({ size }: { size: 'sm' | 'md' | 'lg' }) {
 }
 
 export function VerificationBadge({
-  accountType: rawAccountType,
+  accountType,
   size = 'md',
   className,
   showTooltip = true,
 }: VerificationBadgeProps) {
-  // Normalize the account type to handle int/string from API
-  const accountType = normalizeAccountType(rawAccountType);
-
-  // Don't render anything for regular accounts or undefined
   if (!accountType || accountType === AccountType.REGULAR) {
     return null;
   }

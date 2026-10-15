@@ -1,22 +1,14 @@
 import { appLogger } from '@/lib/observability/logger';
 
 export interface ColorPalette {
-  dominant: string;      // Most prominent color (weighted by frequency + position)
-  vibrant: string;       // Most saturated color (accent)
-  muted: string;         // Lower saturation (backgrounds)
-  dark: string;          // Dark shade (text/shadows)
-  light: string;         // Light shade (highlights)
-  complementary: string; // Opposite on color wheel
-  analogous: [string, string]; // Adjacent colors for harmony
-  confidence: number;    // 0-1 extraction quality
-}
-
-// Legacy interface for backwards compatibility
-export interface ColorExtractionResult {
-  dominantColor: string;
-  vibrantColor?: string;
-  darkColor?: string;
-  lightColor?: string;
+  dominant: string;
+  vibrant: string;
+  muted: string;
+  dark: string;
+  light: string;
+  complementary: string;
+  analogous: [string, string];
+  confidence: number;
 }
 
 interface WeightedPixel {
@@ -49,7 +41,6 @@ export class ColorExtractor {
     minSaturationVibrant: 0.25,
   };
 
-  // Brand colors from theme.ts for fallback
   private static readonly BRAND_COLORS = {
     red: '#ED2748',
     black: '#1F2327',
@@ -58,23 +49,17 @@ export class ColorExtractor {
     blue: '#3B82F6',
   };
 
-  // Palettes already extracted in this tab, so the next view of the same artwork starts in its colors.
   private static readonly extractedPalettes = new Map<string, ColorPalette>();
 
-  /** The palette already extracted for this artwork in this tab, if any. */
   static cachedPalette(imageUrl: string): ColorPalette | undefined {
     return this.extractedPalettes.get(imageUrl);
   }
 
-  /**
-   * Extract a full color palette from an image
-   */
   static async extractPalette(
     imageUrl: string,
     config: Partial<ExtractionConfig> = {}
   ): Promise<ColorPalette> {
     const cfg = { ...this.DEFAULT_CONFIG, ...config };
-    // Only the default extraction is remembered; a custom config gets a fresh palette.
     const remembered = Object.keys(config).length === 0;
     const cached = remembered ? this.extractedPalettes.get(imageUrl) : undefined;
     if (cached) return cached;
@@ -103,22 +88,6 @@ export class ColorExtractor {
     }
   }
 
-  /**
-   * Legacy method for backwards compatibility
-   */
-  static async extractDominantColor(imageUrl: string): Promise<ColorExtractionResult> {
-    const palette = await this.extractPalette(imageUrl);
-    return {
-      dominantColor: palette.dominant,
-      vibrantColor: palette.vibrant,
-      darkColor: palette.dark,
-      lightColor: palette.light,
-    };
-  }
-
-  /**
-   * Get fallback palette using brand colors
-   */
   static getBrandPalette(): ColorPalette {
     return {
       dominant: this.BRAND_COLORS.red,
@@ -132,20 +101,11 @@ export class ColorExtractor {
     };
   }
 
-  /**
-   * Check if a hex color is considered "light" (for contrast decisions)
-   * Returns true if the color has high luminance (> 0.5)
-   */
   static isLightColor(hex: string): boolean {
     const { r, g, b } = this.hexToRgb(hex);
-    // Relative luminance formula (perceived brightness)
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return luminance > 0.5;
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // Image Loading
-  // ─────────────────────────────────────────────────────────────
 
   private static async loadImage(imageUrl: string, size: number): Promise<ImageData> {
     const canvas = document.createElement('canvas');
@@ -167,10 +127,6 @@ export class ColorExtractor {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Pixel Extraction with Spatial Weighting
-  // ─────────────────────────────────────────────────────────────
-
   private static extractWeightedPixels(
     imageData: ImageData,
     centerBias: number
@@ -181,7 +137,6 @@ export class ColorExtractor {
     const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
     const pixels: WeightedPixel[] = [];
 
-    // Sample every 2nd pixel for balance of accuracy and performance
     for (let y = 0; y < height; y += 2) {
       for (let x = 0; x < width; x += 2) {
         const i = (y * width + x) * 4;
@@ -190,14 +145,11 @@ export class ColorExtractor {
         const b = data[i + 2];
         const a = data[i + 3];
 
-        // Skip transparent pixels
         if (a < 128) continue;
 
-        // Skip near-white and near-black (often background noise)
         const brightness = (r + g + b) / 3;
         if (brightness > 250 || brightness < 5) continue;
 
-        // Calculate spatial weight (gaussian falloff from center)
         const dx = x - centerX;
         const dy = y - centerY;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -210,16 +162,11 @@ export class ColorExtractor {
     return pixels;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Median Cut Algorithm
-  // ─────────────────────────────────────────────────────────────
-
   private static medianCut(pixels: WeightedPixel[], depth: number): ColorCluster[] {
     if (depth === 0 || pixels.length < 2) {
       return pixels.length > 0 ? [this.createCluster(pixels)] : [];
     }
 
-    // Find dimension with largest range
     const ranges = {
       r: this.getRange(pixels, 'r'),
       g: this.getRange(pixels, 'g'),
@@ -229,10 +176,8 @@ export class ColorExtractor {
     const maxDim = (Object.entries(ranges) as [keyof typeof ranges, number][])
       .sort((a, b) => b[1] - a[1])[0][0];
 
-    // Sort by largest dimension
     const sorted = [...pixels].sort((a, b) => a[maxDim] - b[maxDim]);
 
-    // Find weighted median
     const totalWeight = sorted.reduce((sum, p) => sum + p.weight, 0);
     let accWeight = 0;
     let medianIndex = Math.floor(sorted.length / 2);
@@ -280,43 +225,33 @@ export class ColorExtractor {
     };
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Palette Role Assignment
-  // ─────────────────────────────────────────────────────────────
-
   private static assignPaletteRoles(
     clusters: ColorCluster[],
     config: ExtractionConfig
   ): Omit<ColorPalette, 'complementary' | 'analogous'> {
-    // Sort by population for dominant
     const byPopulation = [...clusters].sort((a, b) => b.population - a.population);
     const dominant = byPopulation[0];
 
-    // Find most vibrant (highest saturation with reasonable lightness)
     const vibrantCandidates = clusters
       .filter(c => c.hsl.l > 0.15 && c.hsl.l < 0.85 && c.hsl.s >= config.minSaturationVibrant)
       .sort((a, b) => b.hsl.s - a.hsl.s);
     const vibrant = vibrantCandidates[0] || dominant;
 
-    // Find muted (moderate saturation, good for backgrounds)
     const mutedCandidates = clusters
       .filter(c => c.hsl.s < 0.5 && c.hsl.l > 0.25 && c.hsl.l < 0.75)
       .sort((a, b) => b.population - a.population);
     const muted = mutedCandidates[0] || this.desaturate(dominant);
 
-    // Find darkest usable color
     const darkCandidates = clusters
       .filter(c => c.hsl.l < 0.4)
       .sort((a, b) => a.hsl.l - b.hsl.l);
     const dark = darkCandidates[0] || this.darken(dominant);
 
-    // Find lightest usable color
     const lightCandidates = clusters
       .filter(c => c.hsl.l > 0.6)
       .sort((a, b) => b.hsl.l - a.hsl.l);
     const light = lightCandidates[0] || this.lighten(dominant);
 
-    // Calculate confidence based on cluster diversity and population spread
     const confidence = this.calculateConfidence(clusters);
 
     return {
@@ -333,11 +268,9 @@ export class ColorExtractor {
     if (clusters.length === 0) return 0;
     if (clusters.length === 1) return 0.3;
 
-    // Higher confidence with more diverse, well-distributed clusters
     const totalPop = clusters.reduce((sum, c) => sum + c.population, 0);
     const normalized = clusters.map(c => c.population / totalPop);
 
-    // Entropy-based measure
     const entropy = -normalized.reduce((sum, p) => {
       return p > 0 ? sum + p * Math.log2(p) : sum;
     }, 0);
@@ -346,23 +279,17 @@ export class ColorExtractor {
     return Math.min(1, entropy / maxEntropy);
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Color Harmony Generation
-  // ─────────────────────────────────────────────────────────────
-
   private static generateHarmony(
     basePalette: Omit<ColorPalette, 'complementary' | 'analogous'>
   ): ColorPalette {
     const dominantHsl = this.hexToHsl(basePalette.dominant);
 
-    // Complementary: 180 degrees opposite on color wheel
     const complementary = this.hslToHex({
       h: (dominantHsl.h + 0.5) % 1,
       s: Math.min(dominantHsl.s * 0.9, 0.7),
       l: Math.max(0.35, Math.min(0.65, dominantHsl.l)),
     });
 
-    // Analogous: 30 degrees on either side
     const analogous: [string, string] = [
       this.hslToHex({
         h: (dominantHsl.h - 0.083 + 1) % 1,
@@ -378,10 +305,6 @@ export class ColorExtractor {
 
     return { ...basePalette, complementary, analogous };
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // Color Manipulation Helpers
-  // ─────────────────────────────────────────────────────────────
 
   private static desaturate(cluster: ColorCluster): ColorCluster {
     const newHsl = { ...cluster.hsl, s: cluster.hsl.s * 0.3 };
@@ -421,10 +344,6 @@ export class ColorExtractor {
       population: cluster.population * 0.5,
     };
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // Color Space Conversions
-  // ─────────────────────────────────────────────────────────────
 
   private static rgbToHex(r: number, g: number, b: number): string {
     return '#' + [r, g, b]
@@ -498,7 +417,6 @@ export class ColorExtractor {
   }
 
   private static rgbToLab(r: number, g: number, b: number): { l: number; a: number; b: number } {
-    // RGB to XYZ
     let rr = r / 255;
     let gg = g / 255;
     let bb = b / 255;
@@ -515,7 +433,6 @@ export class ColorExtractor {
     const y = rr * 0.2126729 + gg * 0.7151522 + bb * 0.0721750;
     const z = rr * 0.0193339 + gg * 0.1191920 + bb * 0.9503041;
 
-    // XYZ to LAB (D65 illuminant)
     const xn = 95.047;
     const yn = 100.000;
     const zn = 108.883;

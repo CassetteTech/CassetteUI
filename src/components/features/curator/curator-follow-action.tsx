@@ -1,9 +1,5 @@
 'use client';
 
-/** The quiet Follow control for the viewed curator. The profile route owns one
-    relationship and shares it here, so the phone header and the desktop pass
-    show the same state; only one of them is visible at a time. */
-
 import { createContext, useContext } from 'react';
 import { Check, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,8 +10,6 @@ import { cn } from '@/lib/utils';
 
 export const CuratorFollowContext = createContext<CuratorFollow | null>(null);
 
-/** Renders nothing outside a curator profile, for its owner, for an active member, or while the relationship is unknown.
-    `compact` sizes it like the small header actions instead of filling a pass. */
 export function CuratorFollowAction({ className, compact = false }: { className?: string; compact?: boolean }) {
   const follow = useContext(CuratorFollowContext);
   if (!follow || follow.state === 'loading' || follow.state === 'member') return null;
@@ -31,7 +25,6 @@ export function CuratorFollowAction({ className, compact = false }: { className?
     );
   } else {
     const following = follow.state === 'following';
-    // One button in one place for both states, so keyboard focus stays on it after the change.
     control = (
       <div className={cn('flex items-center gap-3', !compact && 'justify-between')}>
         {following && (
@@ -43,10 +36,9 @@ export function CuratorFollowAction({ className, compact = false }: { className?
         <Button
           variant="outline"
           size={following || compact ? 'sm' : 'default'}
-          // aria-disabled, not disabled: a disabled button drops keyboard focus while the write runs.
-          className={cn('aria-disabled:pointer-events-none aria-disabled:opacity-50', !following && !compact && 'w-full')}
+          className={cn(!following && !compact && 'w-full')}
           onClick={following ? follow.unfollow : follow.follow}
-          aria-disabled={follow.pending}
+          busy={follow.pending}
         >
           {follow.pending ? <Spinner size="sm" aria-hidden /> : !following && <UserPlus aria-hidden />}
           {following ? 'Unfollow' : 'Follow'}
@@ -64,7 +56,6 @@ export function CuratorFollowAction({ className, compact = false }: { className?
   );
 }
 
-/** Asks the signed-in viewer to confirm a Follow that arrived in the URL. Render it once per profile. */
 export function CuratorFollowConfirmation() {
   const follow = useContext(CuratorFollowContext);
   if (!follow) return null;

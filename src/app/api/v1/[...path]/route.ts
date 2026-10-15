@@ -13,7 +13,6 @@ type RouteContext = {
 };
 
 async function handleRequest(request: NextRequest, context: RouteContext) {
-  // Any path spelling can land here, including ones a scoped route does not match.
   const rejected = requireSameOrigin(request);
   if (rejected) return rejected;
 

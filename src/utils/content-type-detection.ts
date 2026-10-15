@@ -1,4 +1,3 @@
-import type { ContentType } from '../hooks/use-simulated-progress';
 import {
   type PlatformAnalyticsKey,
   getPlatformDefinition,
@@ -13,6 +12,7 @@ export interface ContentInfo {
 }
 
 const CONTENT_TYPES = ['track', 'album', 'artist', 'playlist'] as const;
+type ContentType = (typeof CONTENT_TYPES)[number];
 
 function getUrl(raw: string): URL | null {
   try {
@@ -105,12 +105,10 @@ export const detectContentType = (url: string, metadata?: Record<string, unknown
     id = parsed.id;
   }
 
-  // Use metadata if available to override or supplement URL detection
   if (metadata?.type && typeof metadata.type === 'string') {
     type = metadata.type.toLowerCase() as ContentType;
   }
 
-  // Estimate content count based on type
   estimatedCount = getEstimatedCount(type, metadata);
 
   return {
@@ -126,16 +124,15 @@ export const getEstimatedCount = (type: ContentType, metadata?: Record<string, u
     return metadata.trackCount;
   }
 
-  // Default estimates based on content type
   switch (type) {
     case 'track':
       return 1;
     case 'album':
-      return Math.floor(Math.random() * 8) + 8; // 8-15 tracks typical
+      return Math.floor(Math.random() * 8) + 8;
     case 'artist':
-      return Math.floor(Math.random() * 20) + 10; // 10-30 top tracks
+      return Math.floor(Math.random() * 20) + 10;
     case 'playlist':
-      return Math.floor(Math.random() * 40) + 20; // 20-60 tracks typical
+      return Math.floor(Math.random() * 40) + 20;
     default:
       return 1;
   }

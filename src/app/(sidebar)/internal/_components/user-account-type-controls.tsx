@@ -94,7 +94,6 @@ export function UserAccountTypeControls({
         {hasChanges && <StatusPill tone="warning" label="Unsaved" />}
       </div>
 
-      {/* Target account type */}
       <div className="space-y-1">
         <label htmlFor="internal-target-account-type" className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           Account type
@@ -115,7 +114,6 @@ export function UserAccountTypeControls({
         </Select>
       </div>
 
-      {/* Can assign verified — only meaningful for CassetteTeam */}
       <div className={cn('flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-1.5', permissionToggleDisabled && 'opacity-50')}>
         <div className="min-w-0">
           <p className="text-xs font-medium text-foreground">Can assign verified</p>
@@ -129,7 +127,6 @@ export function UserAccountTypeControls({
         />
       </div>
 
-      {/* Pending-change preview */}
       {hasChanges && (
         <div className="space-y-1.5 rounded-md bg-muted/40 px-2.5 py-2">
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Pending change</p>
@@ -151,7 +148,6 @@ export function UserAccountTypeControls({
         </div>
       )}
 
-      {/* Reason */}
       <Textarea
         placeholder="Reason for this change (required)"
         value={accountTypeReason}
@@ -160,7 +156,6 @@ export function UserAccountTypeControls({
         className="resize-none text-xs"
       />
 
-      {/* Apply */}
       <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AlertDialogTrigger asChild>
           <Button size="sm" className="h-8 w-full" disabled={!canSubmit}>

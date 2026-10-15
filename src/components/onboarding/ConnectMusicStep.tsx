@@ -65,7 +65,6 @@ export function ConnectMusicStep({
   const [platformStates, setPlatformStates] = useState<Record<ServiceId, PlatformState>>(createEmptyPlatformStates);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
-  // Fetch existing preferences and auth status on mount
   useEffect(() => {
     async function fetchPreferences() {
       try {
@@ -99,7 +98,6 @@ export function ConnectMusicStep({
     fetchPreferences();
   }, []);
 
-  // Check URL params for connection success (after OAuth redirect)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const spotifyConnected = params.get('spotify_connected');
@@ -141,7 +139,6 @@ export function ConnectMusicStep({
     const currentState = platformStates[serviceId];
     const newIsSelected = !currentState.isSelected;
 
-    // If turning on and requires auth, trigger the provider flow.
     if (newIsSelected && service.requiresAuth) {
       setPlatformStates(prev => ({
         ...prev,
@@ -158,7 +155,6 @@ export function ConnectMusicStep({
         const success = await platformConnectService.connectAppleMusic(returnUrl);
 
         if (success) {
-          // Save preference after successful auth
           await apiService.setPlatformPreferences([
             ...Object.entries(platformStates)
               .filter(([id, state]) => state.isSelected && id !== serviceId)
@@ -198,7 +194,6 @@ export function ConnectMusicStep({
       return;
     }
 
-    // Spotify does not need user OAuth when Cassette's provider account is enabled.
     setPlatformStates(prev => ({
       ...prev,
       [serviceId]: { ...prev[serviceId], isLoading: true },
@@ -280,7 +275,6 @@ export function ConnectMusicStep({
                 <Card className={`p-4 transition-colors duration-200 ${state.isSelected ? 'border-success/50 bg-success/5' : ''}`}>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {/* Service Icon */}
                       <div className={`w-12 h-12 rounded-lg ${service.bgColor} flex items-center justify-center text-white flex-shrink-0 overflow-hidden p-2`}>
                         <Image
                           src={service.iconSrc}
@@ -291,14 +285,12 @@ export function ConnectMusicStep({
                         />
                       </div>
 
-                      {/* Service Info */}
                       <div className="min-w-0">
                         <h3 className="font-medium text-foreground truncate">{service.name}</h3>
                         <p className="text-sm text-muted-foreground truncate">{service.description}</p>
                       </div>
                     </div>
 
-                    {/* Toggle/Status */}
                     <div className="flex-shrink-0 flex items-center gap-2">
                       {state.isLoading ? (
                         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -325,7 +317,6 @@ export function ConnectMusicStep({
         </div>
       )}
 
-      {/* Success Message */}
       <AnimatePresence>
         {selectedCount > 0 && (
           <motion.div
@@ -348,7 +339,6 @@ export function ConnectMusicStep({
         )}
       </AnimatePresence>
 
-      {/* Navigation */}
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onBack}>
           Back

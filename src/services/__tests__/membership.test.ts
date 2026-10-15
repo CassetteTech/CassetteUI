@@ -1,5 +1,3 @@
-/** Covers strict fan membership status and secure Stripe handoff contracts. */
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -9,10 +7,10 @@ import {
   hasMembershipAccess,
   membershipDateLabel,
   membershipPhase,
-  parseMembershipCheckout,
-  parseMembershipPortal,
-  parseMembershipStatus,
-  parseMyMemberships,
+  membershipCheckoutSchema,
+  membershipPortalSchema,
+  membershipStatusViewSchema,
+  myMembershipsSchema,
 } from '../membership';
 
 const subscription = {
@@ -27,9 +25,11 @@ const subscription = {
   serviceFeeMinor: 50,
   totalAmountMinor: 550,
   currency: 'USD',
+  endReason: null,
+  accessEndsAtUtc: null,
+  refundStatus: null,
 } as const;
 
-// The fixtures renew on Sep 1, 2026; this clock sits before that date.
 const now = Date.parse('2026-08-24T12:00:00Z');
 
 const statusView = {
@@ -39,22 +39,22 @@ const statusView = {
 };
 
 void test('membership parsers accept the public contract and reject provider fields', () => {
-  const parsed = parseMembershipStatus({
+  const parsed = membershipStatusViewSchema.parse({
     ...statusView,
     correlationId: '44444444-4444-4444-8444-444444444444',
   });
   assert.equal(parsed.membership?.status, 'active');
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...statusView.membership, stripeSubscriptionId: 'sub_secret' },
   }));
-  assert.throws(() => parseMembershipStatus({ ...statusView, curatorProfileId: 'curator-1' }));
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({ ...statusView, curatorProfileId: 'curator-1' }));
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...subscription, totalAmountMinor: 551 },
   }));
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...subscription, currency: 'usd' },
   }));
@@ -67,22 +67,21 @@ void test('my memberships parser keeps only the fan contract', () => {
     curatorDisplayName: 'Crate Digger',
     membership: subscription,
   };
-  assert.equal(parseMyMemberships([entry]).length, 1);
-  assert.deepEqual(parseMyMemberships([]), []);
-  assert.throws(() => parseMyMemberships([{ ...entry, fanEmail: 'fan@example.com' }]));
+  assert.equal(myMembershipsSchema.parse([entry]).length, 1);
+  assert.deepEqual(myMembershipsSchema.parse([]), []);
+  assert.throws(() => myMembershipsSchema.parse([{ ...entry, fanEmail: 'fan@example.com' }]));
 });
 
 void test('billing copy comes from the subscription price and paid-through date', () => {
   assert.equal(describeMembershipBilling(subscription, now), '$5.50/month · renews Sep 1, 2026 · tax extra');
   assert.equal(
-    describeMembershipBilling({ ...subscription, cancelAtPeriodEnd: true }, now),
+    describeMembershipBilling({ ...subscription, cancelAtPeriodEnd: true, accessEndsAtUtc: subscription.paidThroughUtc }, now),
     '$5.50/month · ends Sep 1, 2026',
   );
   assert.equal(
     describeMembershipBilling({ ...subscription, billingInterval: 'year', totalAmountMinor: 5500, faceAmountMinor: 5000, serviceFeeMinor: 500, paidThroughUtc: null }),
     '$55.00/year · tax extra',
   );
-  // A stale paid-through date must never read as a promised renewal while payment is failing or paused.
   for (const status of ['past_due', 'unpaid', 'paused', 'incomplete'] as const) {
     const line = describeMembershipBilling({ ...subscription, status });
     assert.doesNotMatch(line, /renews|Sep 1, 2026/);
@@ -91,7 +90,7 @@ void test('billing copy comes from the subscription price and paid-through date'
   assert.match(describeMembershipBilling({ ...subscription, status: 'paused' }), /paused/);
   assert.equal(describeMembershipStanding(subscription), null);
   assert.match(describeMembershipStanding({ ...subscription, status: 'past_due' }) ?? '', /payment method/);
-  assert.match(describeMembershipStanding({ ...subscription, cancelAtPeriodEnd: true }, now) ?? '', /Sep 1, 2026/);
+  assert.match(describeMembershipStanding({ ...subscription, cancelAtPeriodEnd: true, accessEndsAtUtc: subscription.paidThroughUtc }, now) ?? '', /Sep 1, 2026/);
 });
 
 void test('Checkout parser requires a safe exact total and HTTPS handoff', () => {
@@ -107,18 +106,18 @@ void test('Checkout parser requires a safe exact total and HTTPS handoff', () =>
     currency: 'USD',
   };
 
-  const parsed = parseMembershipCheckout({
+  const parsed = membershipCheckoutSchema.parse({
     ...checkout,
     correlationId: '44444444-4444-4444-8444-444444444444',
   });
   assert.equal(parsed.totalAmountMinor, 5500);
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseMembershipCheckout({ ...checkout, totalAmountMinor: 5501 }));
-  assert.throws(() => parseMembershipCheckout({ ...checkout, checkoutUrl: 'http://stripe.test/session' }));
+  assert.throws(() => membershipCheckoutSchema.parse({ ...checkout, totalAmountMinor: 5501 }));
+  assert.throws(() => membershipCheckoutSchema.parse({ ...checkout, checkoutUrl: 'http://stripe.test/session' }));
 });
 
 void test('Portal parser requires HTTPS and standing access follows the backend lifecycle', () => {
-  const parsed = parseMembershipPortal({
+  const parsed = membershipPortalSchema.parse({
     portalUrl: 'https://billing.stripe.test/session',
     correlationId: '44444444-4444-4444-8444-444444444444',
   });
@@ -127,7 +126,7 @@ void test('Portal parser requires HTTPS and standing access follows the backend 
     'https://billing.stripe.test/session',
   );
   assert.equal('correlationId' in parsed, false);
-  assert.throws(() => parseMembershipPortal({ portalUrl: 'javascript:alert(1)' }));
+  assert.throws(() => membershipPortalSchema.parse({ portalUrl: 'javascript:alert(1)' }));
 
   assert.equal(grantsMembershipAccess('trialing'), true);
   assert.equal(grantsMembershipAccess('active'), true);
@@ -136,9 +135,13 @@ void test('Portal parser requires HTTPS and standing access follows the backend 
   assert.equal(grantsMembershipAccess('canceled'), false);
 });
 
-void test('ending fields parse when present or absent and reject unknown refund states', () => {
-  assert.equal(parseMembershipStatus(statusView).membership?.endReason, undefined);
-  const ending = parseMembershipStatus({
+void test('ending fields are required, may be null, and reject unknown refund states', () => {
+  assert.equal(membershipStatusViewSchema.parse(statusView).membership?.endReason, null);
+  for (const field of ['endReason', 'accessEndsAtUtc', 'refundStatus'] as const) {
+    const { [field]: _omitted, ...withoutField } = subscription;
+    assert.throws(() => membershipStatusViewSchema.parse({ ...statusView, membership: withoutField }), field);
+  }
+  const ending = membershipStatusViewSchema.parse({
     ...statusView,
     membership: {
       ...subscription,
@@ -148,7 +151,7 @@ void test('ending fields parse when present or absent and reject unknown refund 
     },
   });
   assert.equal(ending.membership?.refundStatus, 'pending');
-  assert.throws(() => parseMembershipStatus({
+  assert.throws(() => membershipStatusViewSchema.parse({
     ...statusView,
     membership: { ...subscription, refundStatus: 'partial' },
   }));
@@ -178,18 +181,14 @@ void test('curator-side endings explain the access end date and any refund', () 
   assert.match(describeMembershipStanding({ ...immediate, refundStatus: 'pending' }) ?? '', /refund .* on its way/);
   assert.match(describeMembershipStanding({ ...immediate, refundStatus: 'none' }) ?? '', /no unused paid time/);
   assert.doesNotMatch(describeMembershipStanding(immediate) ?? '', /suspend/);
-  // The billing line dates the ending by the cutoff, not the paid-through date.
   assert.equal(describeMembershipBilling(immediate), '$5.50/month · ended Aug 20, 2026');
 
-  // An unknown reason falls back to the ordinary standing copy.
   assert.equal(
     describeMembershipStanding({ ...subscription, status: 'canceled', endReason: 'future_reason' }),
     'Your membership is canceled.',
   );
 });
 
-// Bridge records an ending before Stripe confirms the cancellation, so its ending
-// metadata outranks a provider status that still says active or past due.
 void test('ending metadata outranks a stale provider status in text, pass state, and access', () => {
   const afterCutoff = Date.parse('2026-09-02T00:00:00Z');
   const cases = [
@@ -239,9 +238,6 @@ void test('ending metadata outranks a stale provider status in text, pass state,
   }
 });
 
-// Before a scheduled end, a payment problem or a pause still needs the fan's action. The
-// pass keeps the end date, never calls it a renewal, and promises access only while billing
-// is in good standing. Bridge entitles past due, but not unpaid or paused, memberships.
 void test('a future ending keeps payment and pause guidance and promises no access it cannot give', () => {
   const afterCutoff = Date.parse('2026-09-02T00:00:00Z');
   const endings = {
@@ -278,14 +274,12 @@ void test('a future ending keeps payment and pause guidance and promises no acce
       assert.equal(membershipDateLabel(membership, now), 'Ends', name);
       assert.equal(hasMembershipAccess(membership, now), expected.access, name);
 
-      // The end date still wins once it passes.
       assert.equal(membershipPhase(membership, afterCutoff), 'ended', name);
       assert.equal(membershipDateLabel(membership, afterCutoff), 'Ended', name);
       assert.equal(hasMembershipAccess(membership, afterCutoff), false, name);
     }
   }
 
-  // Good standing keeps the access promise and the end date.
   assert.equal(membershipDateLabel({ ...subscription, ...endings.fan }, now), 'Ends');
   assert.equal(membershipDateLabel(subscription, now), 'Renews');
   assert.match(describeMembershipStanding({ ...subscription, ...endings.curator }, now) ?? '', /keep member access until then/);

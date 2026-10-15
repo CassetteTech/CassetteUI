@@ -31,7 +31,6 @@ test('runs the trimmed promote-intent onboarding and returns to the campaign int
   ).toBeVisible();
 
   await page.getByTestId('onboarding-start').click();
-  // The trimmed flow has no multi-step chrome and only the handle step.
   await expect(page.getByText(/Step 1 of/)).toHaveCount(0);
   await page.getByTestId('onboarding-username').fill('promobuyer');
   await expect(page.getByTestId('onboarding-handle-next')).toBeEnabled();
@@ -57,7 +56,6 @@ test('keeps the membership purchase visible through sign-in and minimal onboardi
   await page.getByTestId('membership-join').click();
   await expect(page).toHaveURL(/\/auth\/signin\?redirect=/);
 
-  // Sign-in: trusted offer, annual total billed annually, no donation ask, Google-only.
   const signInSummary = page.getByTestId('membership-purchase-summary');
   await expect(signInSummary).toContainText(fixtureCuratorPage.curator.displayName!);
   await expect(signInSummary.getByTestId('membership-purchase-total')).toHaveText('$55.00/year');
@@ -66,7 +64,6 @@ test('keeps the membership purchase visible through sign-in and minimal onboardi
   await expect(page.getByText('Google is currently the only sign-in option.')).toBeVisible();
   await expect(kofi).toHaveCount(0);
 
-  // The purchase survives switching to sign-up and back.
   await page.getByRole('link', { name: /Sign Up/ }).click();
   await expect(page).toHaveURL(/\/auth\/signup\?redirect=/);
   await expect(page.getByTestId('membership-purchase-total')).toHaveText('$55.00/year');
@@ -76,7 +73,6 @@ test('keeps the membership purchase visible through sign-in and minimal onboardi
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page).toHaveURL('/onboarding');
 
-  // Onboarding: no welcome interruption, only the handle step, summary still visible.
   await expect(page.getByTestId('onboarding-start')).toHaveCount(0);
   await expect(page.getByText(/Step 1 of/)).toHaveCount(0);
   await expect(page.getByTestId('membership-purchase-total')).toHaveText('$55.00/year');

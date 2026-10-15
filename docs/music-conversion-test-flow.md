@@ -17,19 +17,14 @@
 3. Click on a search result
 4. Verify conversion and navigation to post page
 
-### 3. Collections Page
-1. Navigate to `/collections`
-2. Click on any collection item
-3. Verify that it navigates to the post page with the item details
-
-### 4. Post Page Features
+### 3. Post Page Features
 - Cover art displays correctly with shadow effect
 - Streaming links are shown in a grid
 - Audio preview button appears for tracks (not artists)
 - Responsive layout works on mobile and desktop
 - Back button navigates correctly
 
-### 5. Error Handling
+### 4. Error Handling
 1. Navigate directly to `/post` without data
 2. Verify error state displays properly
 3. Test "Go Back" button functionality

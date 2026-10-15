@@ -1,11 +1,3 @@
-/**
- * A Follow or Join that a fan started in an in-app browser travels to the
- * device browser in the URL (`?intent=`), because per-tab session storage
- * does not move between browsers. The URL is untrusted: it never commits an
- * action by itself. Signed out, it restarts the existing sign-in flow; signed
- * in, the page asks the fan to confirm.
- */
-
 import { normalizeAuthRedirect } from './auth-redirect';
 
 export type ProfileActionIntent =
@@ -20,7 +12,6 @@ const single = (params: URLSearchParams, key: string) => {
   return values.length === 1 ? values[0] : null;
 };
 
-/** Reads `?intent=follow` or `?intent=join&interval=month|year`; anything else is no intent. */
 export function parseProfileActionIntent(params: URLSearchParams): ProfileActionIntent | null {
   const intent = single(params, 'intent');
   if (intent === 'follow') return { action: 'follow' };
@@ -29,12 +20,6 @@ export function parseProfileActionIntent(params: URLSearchParams): ProfileAction
   return interval === 'month' || interval === 'year' ? { action: 'join', interval } : null;
 }
 
-/**
- * The local path to open in the device browser for a sign-in that would
- * return to `returnPath`. A Follow or Join return on a profile becomes the
- * profile with its intent; any other return opens sign-in with the same
- * return. The page paths of the auth flow return nowhere.
- */
 export function browserHandoffPath(returnPath: string | null | undefined): string {
   const normalized = normalizeAuthRedirect(returnPath);
   if (!normalized || normalized === '/' || /^\/(auth|onboarding)($|[/?#])/.test(normalized)) return '/auth/signin';

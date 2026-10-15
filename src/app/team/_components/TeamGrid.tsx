@@ -14,11 +14,6 @@ interface TeamGridProps {
   onSelectMember: (name: string) => void;
 }
 
-/**
- * The roster. Filters are quiet mono tabs on a ruled strip (a pixel square
- * marks the active one) instead of filled color chips; the people cards are
- * the focal elements of the page.
- */
 export function TeamGrid({ onSelectMember }: TeamGridProps) {
   const [activeCategory, setActiveCategory] = useState<TeamCategory>("all");
   const filteredMembers = getFilteredMembers(activeCategory);
@@ -38,7 +33,6 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
         className="mb-10"
       />
 
-      {/* Category filter — ruled mono strip */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y-2 border-foreground/15 py-3 mb-10">
         {categoryDefs.map((category) => {
           const isActive = activeCategory === category.id;
@@ -67,7 +61,6 @@ export function TeamGrid({ onSelectMember }: TeamGridProps) {
         })}
       </div>
 
-      {/* Team Grid */}
       <AnimatePresence>
         <motion.div
           key={activeCategory}

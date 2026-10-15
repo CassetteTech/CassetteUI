@@ -1,9 +1,5 @@
 'use client';
 
-/** Mobile/tablet profile identity card: a quiet panel with the warm wash
-    behind the avatar, bio, genres, and links. On desktop the rail pass carries the identity. The
-    owner sees it as visitors do: the owner tools live in Curator Studio. */
-
 import { useId } from 'react';
 import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -19,7 +15,6 @@ import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platfo
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
 import { useShowMore } from '@/components/ui/interior/show-more';
 
-/** Organic blob silhouette for the avatar; overrides the primitive's circle. */
 const avatarBlob = { borderRadius: '60% 40% 55% 45% / 55% 45% 55% 45%' } as const;
 
 const iconControl =
@@ -44,9 +39,7 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
       })}
       className="px-3 pt-3 sm:px-4 sm:pt-4"
     >
-    {/* The identity card keeps the warm wash; the page around it stays plain. */}
     <CoralGlow vivid className="card-quiet flex flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5">
-      {/* Identity row: avatar, name and handle, then the page controls at the end. */}
       <div className="flex items-start gap-4">
         <AvatarPreviewDialog
           avatarUrl={userBio.avatarUrl}
@@ -80,7 +73,6 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
               </div>
               <span className="block truncate font-mono text-xs text-muted-foreground">@{userBio.username}</span>
             </div>
-            {/* 40px targets with a visible focus ring; the icons stay 20px. */}
             <div className="-mr-2 -mt-1 flex shrink-0 items-center">
               <button type="button" onClick={onShare} aria-label="Share profile" className={iconControl}>
                 {shareCopied ? (
@@ -112,7 +104,6 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
         platformPreferences={userBio.platformPreferences}
       />
 
-      {/* Long bios clamp at about four lines behind a show-more toggle. */}
       {userBio.bio && <ProfileBio bio={userBio.bio} />}
 
       <ProfileLinksRow links={userBio.profileLinks} />
@@ -123,8 +114,6 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
   );
 }
 
-/* Long bios collapse to ~4 lines; the interior hook measures line height and
-   only surfaces the toggle when the text actually overflows. */
 function ProfileBio({ bio }: { bio: string }) {
   const reduced = useReducedMotion();
   const regionId = useId();
@@ -159,7 +148,6 @@ function ProfileBio({ bio }: { bio: string }) {
   );
 }
 
-/** Connected platforms as live-state chips: platform mark, name, and a signal dot. */
 export function ConnectedServices({
   services,
   platformPreferences,

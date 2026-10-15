@@ -45,14 +45,12 @@ const Tick = (
 export function TaskSteps({ steps, label = 'Progress', onSelect, className }: {
   steps: TaskStep[];
   label?: string;
-  /** Makes each row a button; receives the step id. */
   onSelect?: (id: string) => void;
   className?: string;
 }) {
   const { rows, complete, sentence } = useTaskSteps(steps);
   const reduced = useReducedMotion() === true;
 
-  // Debounced so a burst of state changes announces once.
   const [spoken, setSpoken] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setSpoken(sentence), 500);

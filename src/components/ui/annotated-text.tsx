@@ -1,11 +1,8 @@
-/** Hand-drawn inline annotation for empty states and marketing copy. Not for forms or data. */
-
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 const filterId = 'annotated-text-rough';
 
-/** Fractal-noise displacement that roughens the strokes; rendered once per annotation. */
 function RoughFilter() {
   return (
     <svg className="absolute h-0 w-0" aria-hidden="true">
@@ -51,7 +48,6 @@ export function AnnotatedText({
 }: {
   children: ReactNode;
   variant?: keyof typeof decorations;
-  /** Sets the decoration color, e.g. `text-primary/60`. */
   className?: string;
 }) {
   const decoration = decorations[variant];

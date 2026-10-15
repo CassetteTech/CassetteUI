@@ -2,10 +2,9 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { KOFI_ICON_SRC } from '@/lib/ko-fi';
 
-// The Ko-fi logomark asset is 161x130, not square. Size props must follow
-// that ratio — and both dimensions must be pinned in styles — or next/image
-// warns in dev that one dimension was CSS-modified (Tailwind preflight sets
-// img { height: auto }).
+// Size props must follow the intrinsic ratio, and both dimensions must be
+// pinned in styles, or next/image warns in dev that one dimension was
+// CSS-modified (Tailwind preflight sets img { height: auto }).
 const INTRINSIC_WIDTH = 161;
 const INTRINSIC_HEIGHT = 130;
 

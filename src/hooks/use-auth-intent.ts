@@ -35,8 +35,6 @@ export function useAuthIntent(redirect: string | null, route: string): AuthInten
   const membershipIntent = parseMembershipIntentRedirect(effectiveRedirect);
   const purchaseContext = useMembershipPurchaseContext(membershipIntent);
 
-  // One membership_auth_started per auth page visit, sent once the trusted
-  // offer has resolved so the opaque curator/plan ids ride along when known.
   const started = useRef(false);
   const settled = membershipIntent !== null && !purchaseContext.isPending;
   useEffect(() => {

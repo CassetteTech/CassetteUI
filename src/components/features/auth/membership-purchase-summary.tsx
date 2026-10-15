@@ -1,9 +1,5 @@
 'use client';
 
-// Keeps the fan's selected membership purchase visible across sign-in, sign-up,
-// and onboarding. The offer is always the curator's current public plan;
-// nothing about price is trusted from the redirect URL.
-
 import Link from 'next/link';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { CuratorPageError, fetchCuratorPage, formatCuratorPlanPrice, type CuratorPage } from '@/services/curator';
@@ -23,8 +19,6 @@ export function useMembershipPurchaseContext(intent: MembershipIntent | null): M
 
 type PublicPlan = NonNullable<CuratorPage['membership']>;
 
-// Total the fan is charged per period (plan price plus Cassette service fee)
-// for the requested interval; null when that interval is not offered.
 function planTotal(plan: PublicPlan, interval: MembershipIntent['interval']) {
   if (interval === 'year') {
     return plan.annualAmountMinor != null && plan.annualServiceFeeMinor != null
@@ -63,8 +57,6 @@ export function MembershipPurchaseSummary({
       </p>
     );
   } else if (!total) {
-    // The selected interval is no longer offered: say so and send the fan back
-    // to pick a real option rather than presenting another price as chosen.
     body = (
       <p className="text-sm text-muted-foreground">
         Annual billing is no longer offered for {plan.name}.{' '}

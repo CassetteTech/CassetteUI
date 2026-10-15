@@ -7,10 +7,10 @@ import { Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { externalBrowserUrl, inAppBrowserHint, type InAppBrowser } from '@/utils/in-app-browser';
 import { browserHandoffPath } from '@/utils/profile-action-intent';
 
-// The flat, bordered look of the Google button that this step replaces.
 const primaryActionClassName =
   'w-full h-11 rounded-none border-2 border-foreground bg-[hsl(var(--cassette-white))] dark:bg-background text-foreground font-bold text-sm shadow-flat-3 hover:bg-[hsl(var(--cassette-white))] hover:-translate-y-0.5 hover:shadow-flat-5 transition-[transform,box-shadow]';
 
@@ -20,12 +20,12 @@ export function InAppBrowserSignIn({
   className,
 }: {
   browser: InAppBrowser;
-  /** The local path to open in the device browser. By default, sign-in that returns to this page. */
   handoffPath?: string;
   className?: string;
 }) {
   const [copyFailed, setCopyFailed] = useState(false);
-  // Rendered only in the browser: the server render never detects an in-app browser.
+  const hydrated = useHydrated();
+  if (!hydrated) return null;
   const { origin, pathname, search } = window.location;
   const url = new URL(handoffPath ?? browserHandoffPath(`${pathname}${search}`), origin).toString();
   const openUrl = externalBrowserUrl(url, browser);

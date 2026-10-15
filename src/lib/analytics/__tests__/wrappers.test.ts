@@ -1,10 +1,9 @@
-// Verifies client analytics wrappers, route surfaces, and internal-account suppression.
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { captureClientEvent, identifyClientUser, resetAnalyticsContextForTests, surfaceFromRoute, trackBrowserPageview } from '../client';
-import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalOrDemoRoute } from '../internal-suppression';
+import { shouldSuppressClientCapture, isCassetteInternalAccount, isInternalRoute } from '../internal-suppression';
 import type { AnalyticsBaseProps } from '../events';
+import { ignoreFailure } from '../../best-effort';
 
 type MemoryStorage = {
   getItem(key: string): string | null;
@@ -23,8 +22,8 @@ test('maps curator routes to their analytics surface', () => {
 });
 
 test('suppresses every internal paid-promotion console route', () => {
-  assert.equal(isInternalOrDemoRoute('/internal/paid-promotions'), true);
-  assert.equal(isInternalOrDemoRoute('/internal/paid-promotions/pmc_0123AbCd?tab=payment'), true);
+  assert.equal(isInternalRoute('/internal/paid-promotions'), true);
+  assert.equal(isInternalRoute('/internal/paid-promotions/pmc_0123AbCd?tab=payment'), true);
   assert.equal(shouldSuppressClientCapture({
     route: '/internal/paid-promotions/pmc_0123AbCd',
     allowInDev: true,
@@ -87,14 +86,12 @@ function setupBrowserMocks(pathname = '/auth/signup', search = '') {
   }) as typeof fetch;
 
   if (previousNavigator && typeof previousNavigator === 'object') {
-    try {
+    ignoreFailure(() => {
       previousNavigator.sendBeacon = (_url: string, data: Blob) => {
         beaconPayloads.push(data);
         return true;
       };
-    } catch {
-      // ignore navigator mutation failures
-    }
+    });
   }
 
   return {
@@ -105,11 +102,9 @@ function setupBrowserMocks(pathname = '/auth/signup', search = '') {
       (globalThis as { window?: unknown }).window = previousWindow;
       globalThis.fetch = previousFetch;
       if (previousNavigator && typeof previousNavigator === 'object') {
-        try {
+        ignoreFailure(() => {
           previousNavigator.sendBeacon = previousSendBeacon;
-        } catch {
-          // ignore navigator mutation failures
-        }
+        });
       }
     },
   };
@@ -122,13 +117,9 @@ async function collectCapturedPayloads(
   const captured = [...fetchPayloads];
 
   for (const blob of beaconPayloads) {
-    try {
-      const text = await blob.text();
-      if (!text) continue;
-      captured.push(JSON.parse(text));
-    } catch {
-      // ignore parse failures
-    }
+    const text = await ignoreFailure(blob.text());
+    const payload = text ? ignoreFailure(() => JSON.parse(text)) : undefined;
+    if (payload !== undefined) captured.push(payload);
   }
 
   return captured;
@@ -298,14 +289,14 @@ test('identifyClientUser alias merge is idempotent for same anon-user pair', { c
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
 
-test('identifyClientUser respects internal/demo suppression', { concurrency: false }, async () => {
+test('identifyClientUser respects internal route suppression', { concurrency: false }, async () => {
   const previousKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const previousDevFlag = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV;
   process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test_key';
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = 'true';
   resetAnalyticsContextForTests();
 
-  const mocks = setupBrowserMocks('/debug');
+  const mocks = setupBrowserMocks('/internal/users');
   mocks.localStorage.setItem('cassette_posthog_distinct_id', 'anon:suppressed');
 
   const result = await identifyClientUser({
@@ -554,10 +545,10 @@ test('trackBrowserPageview stores safe Reddit attribution for later events', { c
   process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_IN_DEV = previousDevFlag;
 });
 
-test('suppression logic blocks internal/demo routes but not cassette team actors', () => {
-  assert.equal(isInternalOrDemoRoute('/debug'), true);
-  assert.equal(isInternalOrDemoRoute('/demo/profile'), true);
-  assert.equal(isInternalOrDemoRoute('/post/abc'), false);
+test('suppression logic blocks internal routes but not cassette team actors', () => {
+  assert.equal(isInternalRoute('/internal'), true);
+  assert.equal(isInternalRoute('/internal-notes'), false);
+  assert.equal(isInternalRoute('/post/abc'), false);
 
   assert.equal(shouldSuppressClientCapture({ route: '/profile/test', accountType: 'CassetteTeam', allowInDev: true }), false);
   assert.equal(shouldSuppressClientCapture({ route: '/post/abc', accountType: 'Regular', allowInDev: true }), false);

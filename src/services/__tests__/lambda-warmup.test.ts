@@ -47,7 +47,6 @@ test('requestLambdaWarmup swallows a rejected warmup request', async () => {
   const tab = createTab();
 
   assert.equal(tab.warm(1_700_000_000_000, true, () => Promise.reject(new Error('Bridge unavailable'))), true);
-  // Let the rejection settle; an unhandled rejection fails the test run.
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(tab.sends(), 1);
 });

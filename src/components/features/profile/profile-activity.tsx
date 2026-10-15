@@ -1,12 +1,7 @@
 'use client';
 
-/** The profile's music rows: one hairline row for every type of music, on the Music and Liked
-    tabs, plus the locked row a visitor sees for a members-only post. The row is the Studio Music
-    row without the owner tools, for the owner too: the public page is what visitors see, and the
-    owner edits, deletes, and sets who can open a post in Studio Music. The artwork carries the
-    radius, the title carries the link. */
-
 import Link from 'next/link';
+import { PostLink } from '@/components/features/post/post-link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { ActivityPost, AccountType } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -29,7 +24,7 @@ interface ProfileActivityProps {
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
-  ownerAccountType?: AccountType | number | string;
+  ownerAccountType?: AccountType;
   ownerUsername?: string;
   /** The owner's own view: changes only the empty copy, never the rows. */
   isCurrentUser?: boolean;
@@ -83,7 +78,6 @@ export function ProfileActivity({
   return (
     <div>
       <div>
-        {/* The list mounts after the skeleton, so it reveals in place. */}
         <div className="divide-y divide-border motion-safe:animate-reveal">
           {posts.map((post) => (
             <MusicPostCard
@@ -112,7 +106,6 @@ const rowArtwork = 'size-16 shrink-0 rounded-md outline outline-1 -outline-offse
 /** The small label after a title: who can open the post. The red tint is the brand label. */
 const titleLabel = 'ml-2 inline-flex rounded-sm px-1.5 py-0.5 align-[0.125em] text-[11px] font-medium leading-none';
 
-/** The fields a music card reads; profile activity and curator page posts both carry them. */
 export type MusicCardPost = Pick<
   ActivityPost,
   | 'postId'
@@ -139,7 +132,7 @@ export function MusicPostCard({
   ownerUsername,
 }: {
   post: MusicCardPost;
-  ownerAccountType?: AccountType | number | string;
+  ownerAccountType?: AccountType;
   ownerUsername?: string;
 }) {
   const pathname = usePathname();
@@ -222,12 +215,8 @@ export function MusicPostCard({
       isOwner={false}
     >
       <div className="group relative">
-        {/* prefetch={false}: viewport prefetch runs /post/[id] generateMetadata on the
-            server, bursting one Bridge GetPost per visible row (see 2026-07-08 prod
-            latency investigation). Rows navigate fine without route prefetch. */}
-        <Link
+        <PostLink
           href={getNavigationPath(post)}
-          prefetch={false}
           className="flex items-start gap-4 rounded-md py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ArtworkImage
@@ -246,7 +235,6 @@ export function MusicPostCard({
             <div className="flex items-start justify-between gap-3">
               <h3 className="line-clamp-2 min-w-0 text-[0.9375rem] font-medium leading-snug [text-wrap:pretty]">
                 <span className="underline-offset-2 group-hover:underline">{post.title}</span>
-                {/* Only members and the owner receive a members-only post in full. */}
                 {post.privacy === 'subscriber' && (
                   <span className={cn(titleLabel, 'bg-primary/10 text-primary')}>Members only</span>
                 )}
@@ -283,13 +271,12 @@ export function MusicPostCard({
               <p className="mt-1 line-clamp-2 text-sm text-foreground/85 [text-wrap:pretty]">{note}</p>
             )}
           </div>
-        </Link>
+        </PostLink>
       </div>
     </PostQuickActions>
   );
 }
 
-/** A members-only post a visitor cannot open: its date, and the way to the membership. */
 export function LockedMusicCard({
   createdAt,
   displayName,

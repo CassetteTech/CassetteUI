@@ -5,7 +5,6 @@ import { appLogger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   try {
-    // Validate server configuration on API startup
     if (!validateServerConfig()) {
       return NextResponse.json(
         { error: 'Server configuration error. Check environment variables.' },

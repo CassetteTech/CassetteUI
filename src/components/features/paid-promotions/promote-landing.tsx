@@ -9,17 +9,6 @@ import {
   TapeDeckBand,
 } from '@/components/features/paid-promotions/promote-tape-deck';
 
-// Package copy below is deliberately draft: final pricing, refund-policy
-// language, and legal disclosure text are pending product/legal sign-off.
-// Server rate cards remain the only source of real checkout pricing.
-//
-// Availability is per package, never per line: a package either ships whole or
-// is not sold. Boost is everything Cassette can deliver today; Spotlight and
-// Headline are shown to say where this is going, priced nowhere and buyable
-// nowhere until their deliverables actually exist.
-//
-// Sold for tracks and albums. Artist and playlist campaigns resolve but have
-// no rate card yet; when they do, they become server rate-card rows.
 const DRAFT_PACKAGES = [
   {
     name: 'Boost',
@@ -86,7 +75,6 @@ const HOW_IT_WORKS = [
   },
 ] as const;
 
-// The trust position, stated as a design feature rather than fine print.
 const NOT_THIS = [
   {
     label: 'No bot networks',
@@ -157,7 +145,6 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         </div>
       </TapeDeckBand>
 
-      {/* What this is not — the trust position, stated up front. */}
       <section aria-labelledby="promote-not-this-heading" className="pt-14 sm:pt-16">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
           <h2 id="promote-not-this-heading" className="sr-only">
@@ -179,8 +166,6 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         </div>
       </section>
 
-      {/* The review promise — the differentiator against submission tools,
-          where paying buys a queue position and silence is a common outcome. */}
       <section aria-labelledby="promote-review-heading" className="pt-14 sm:pt-16">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
           <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-12">
@@ -207,7 +192,6 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         </div>
       </section>
 
-      {/* How it works — a numbered signal chain, not a feature grid. */}
       <section aria-labelledby="promote-how-heading" className="pt-14 sm:pt-16">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
           <Eyebrow className="text-foreground">The tape path</Eyebrow>
@@ -232,7 +216,6 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         </div>
       </section>
 
-      {/* Packages — J-card style rate cards. */}
       <section aria-labelledby="promote-packages-heading" className="pt-14 sm:pt-16">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
           <Eyebrow className="text-foreground">Rate card</Eyebrow>
@@ -367,8 +350,6 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         </div>
       </section>
 
-      {/* No guaranteed outcomes — a statement band, echoing the hero so the
-          trust position carries the same weight as the pitch. */}
       <section aria-labelledby="promote-terms-heading" className="relative mt-16 sm:mt-20">
         <h2 id="promote-terms-heading" className="sr-only">
           What paid promotion does and does not include
@@ -392,15 +373,10 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         <DitherEdge color="hsl(var(--section-dark))" side="bottom" />
       </section>
 
-      {/* What a week buys, then refunds — the two halves of the same promise:
-          a week is refundable only because it is countable. Supporting policy,
-          deliberately quiet chrome. */}
-      {/* Linked from checkout as /promote#refund-policy — scroll margin keeps
-          the heading clear of the sticky navbar. */}
       <section
         id="refund-policy"
         aria-labelledby="promote-refunds-heading"
-        className="scroll-mt-24 pt-16 sm:pt-20"
+        className="scroll-mt-[calc(var(--navbar-height)+2rem)] pt-16 sm:pt-20"
       >
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
           <div className="space-y-8 border-l-2 border-foreground pl-5 sm:pl-6">
@@ -437,7 +413,6 @@ export function PromoteLanding({ signedIn = false, salesEnabled = false }: {
         </div>
       </section>
 
-      {/* Closing CTA */}
       <section className="pt-14 sm:pt-16">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-10">
           <div className="flex flex-col gap-6 border-t-2 border-foreground pt-8 sm:flex-row sm:items-end sm:justify-between">

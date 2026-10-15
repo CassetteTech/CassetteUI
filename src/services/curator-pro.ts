@@ -1,5 +1,3 @@
-/** Defines strict Curator Pro lifecycle and Stripe handoff response contracts. */
-
 import { z } from 'zod';
 import {
   correlationIdSchema,
@@ -10,7 +8,7 @@ import {
 
 const timestampSchema = z.string().datetime({ offset: true });
 
-const curatorProStatusSchema = z.object({
+export const curatorProStatusSchema = z.object({
   hasAccess: z.boolean(),
   canSubscribe: z.boolean(),
   status: membershipStatusSchema.nullable(),
@@ -29,7 +27,7 @@ const curatorProStatusSchema = z.object({
   { message: 'Curator Pro discount state is inconsistent' },
 ).transform(({ correlationId: _correlationId, ...status }) => status);
 
-const curatorProCheckoutSchema = z.object({
+export const curatorProCheckoutSchema = z.object({
   checkoutUrl: httpsUrlSchema,
   status: membershipStatusSchema,
   monthlyPriceMinor: moneyMinorSchema,
@@ -37,7 +35,7 @@ const curatorProCheckoutSchema = z.object({
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...checkout }) => checkout);
 
-const curatorProPortalSchema = z.object({
+export const curatorProPortalSchema = z.object({
   portalUrl: httpsUrlSchema,
   correlationId: correlationIdSchema,
 }).strict().transform(({ correlationId: _correlationId, ...portal }) => portal);
@@ -45,15 +43,3 @@ const curatorProPortalSchema = z.object({
 export type CuratorProStatus = z.infer<typeof curatorProStatusSchema>;
 export type CuratorProCheckout = z.infer<typeof curatorProCheckoutSchema>;
 export type CuratorProPortal = z.infer<typeof curatorProPortalSchema>;
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorProStatus = (value: unknown): CuratorProStatus =>
-  curatorProStatusSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorProCheckout = (value: unknown): CuratorProCheckout =>
-  curatorProCheckoutSchema.parse(value);
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
-export const parseCuratorProPortal = (value: unknown): CuratorProPortal =>
-  curatorProPortalSchema.parse(value);

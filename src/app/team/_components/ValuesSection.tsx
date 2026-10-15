@@ -23,10 +23,6 @@ const values = [
   },
 ];
 
-/**
- * Dark statement band. Three flat ruled credo columns; no cards, no tape,
- * no icon chips.
- */
 export function ValuesSection() {
   return (
     <section className="section-dark relative">
@@ -55,7 +51,7 @@ export function ValuesSection() {
               <h3 className="font-teko text-2xl sm:text-3xl uppercase tracking-tight leading-none mb-3">
                 {value.title}
               </h3>
-              <p className="font-roboto text-sm leading-relaxed italic opacity-75">
+              <p className="font-roboto-flex text-sm leading-relaxed italic opacity-75">
                 {value.description}
               </p>
             </motion.div>

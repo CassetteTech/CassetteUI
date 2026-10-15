@@ -2,16 +2,12 @@ import { cn } from '@/lib/utils';
 import { CuratorPhoneDemo } from './curator-phone-demo';
 import { StartPageLink } from './home-brand';
 
-// The three things a membership does, in the curator's words. Parallel, not a sequence.
 const points = [
   { title: 'Set your price', body: 'Choose what fans pay each month, and add a yearly price if you like. Cassette handles the billing.' },
   { title: 'Keep some for members', body: 'Mark any post Members only. Everything else stays public, so new fans can find you.' },
   { title: 'Get paid monthly', body: 'Cassette sends your earnings to your bank every month.' },
 ];
 
-/** The curator pitch: any curator's free page can become a membership that
-    fans pay for. Curator Pro shows only as later, optional tools; it is never
-    the way to earn. The phone beside the copy is a page template. */
 export function CuratorMembershipSection({ isAuthenticated, className }: { isAuthenticated: boolean; className?: string }) {
   return (
     <section

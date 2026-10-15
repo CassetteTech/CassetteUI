@@ -24,6 +24,7 @@ import { useAuthState } from '@/hooks/use-auth';
 import { NotificationItem } from '@/types';
 import { formatRelativeTime } from '@/lib/utils/format-date';
 import { cn } from '@/lib/utils';
+import { keepSecondPressOnTrigger } from '@/lib/utils/menu-trigger';
 
 const getNotificationText = (item: NotificationItem) => {
   const actor = item.actor.displayName || item.actor.username || 'Someone';
@@ -91,20 +92,11 @@ export function NotificationMenu({ className }: { className?: string }) {
   const unreadIds = notifications.filter((item) => !item.isRead).map((item) => item.id);
 
   return (
-    // Non-modal: a modal menu removes pointer events from the page, so the second press of a
-    // double click lands on nothing and the browser selects the nearest word, such as a nav label.
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          onMouseDown={(event) => {
-            // A repeated press must start no text selection; it still takes focus, so the
-            // trigger remains the focus target when the menu closes.
-            if (event.detail > 1) {
-              event.preventDefault();
-              event.currentTarget.focus({ preventScroll: true });
-            }
-          }}
+          onMouseDown={keepSecondPressOnTrigger}
           className={cn(
             'relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/30 bg-background text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
             className

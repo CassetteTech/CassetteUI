@@ -9,11 +9,6 @@ interface ConversionStageLabelProps {
   className?: string;
 }
 
-/**
- * Live Bridge stage readout shown while a conversion runs. Each stage
- * change crossfades with a small vertical drift so the label reads as a
- * ticker rather than flickering text.
- */
 export const ConversionStageLabel: React.FC<ConversionStageLabelProps> = ({ label, className }) => (
   <AnimatePresence mode="wait">
     <motion.span

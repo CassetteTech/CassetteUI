@@ -7,11 +7,6 @@ import Image from "next/image";
 import { DITHER_BAND_MASK_TOP } from "@/components/features/marketing/dither-edge";
 import heroHalftone from "@/assets/images/hero-halftone.webp";
 
-/**
- * Closing CTA — navy band bookended with the hero halftone (framed on the
- * pink sky this time), with a quiet link back to /about. The band itself is
- * dither-masked at the top so the dissolving pixels carry the image texture.
- */
 export function JoinCTA() {
   return (
     <section className="relative">
@@ -19,7 +14,6 @@ export function JoinCTA() {
         className="section-navy relative overflow-hidden -mt-6"
         style={DITHER_BAND_MASK_TOP}
       >
-        {/* Bookend: same halftone as the hero, dimmed under the navy band */}
         <div className="absolute inset-0 opacity-[0.12] pointer-events-none select-none">
           <Image
             src={heroHalftone}
@@ -49,7 +43,7 @@ export function JoinCTA() {
                 />
               </span>
             </h2>
-            <p className="font-roboto text-base sm:text-lg opacity-80 italic max-w-xl mx-auto leading-relaxed">
+            <p className="font-roboto-flex text-base sm:text-lg opacity-80 italic max-w-xl mx-auto leading-relaxed">
               Developers, designers, music nerds—if our mission resonates,
               we&apos;d love to hear from you.
             </p>

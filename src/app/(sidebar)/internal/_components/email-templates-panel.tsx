@@ -33,14 +33,13 @@ import { ErrorState } from './error-state';
 import { formatDate } from './internal-utils';
 import { Panel, StatusPill, DataTable, Field, Mono, RefreshButton, type Column, type Tone } from './kit';
 
-// Bridge retries failed rows with backoff until they go dead, so failed is not terminal.
 const TERMINAL_OUTBOX_STATUSES: Record<string, true> = {
   sent: true,
   skipped: true,
   dead: true,
 };
 const OUTBOX_POLL_INTERVAL_MS = 3000;
-const OUTBOX_POLL_MAX_ATTEMPTS = 40; // ~2 minutes at 3s intervals
+const OUTBOX_POLL_MAX_ATTEMPTS = 40;
 
 function emailOutboxStatusTone(status: string): Tone {
   const normalized = status.toLowerCase();
@@ -77,19 +76,16 @@ export function EmailTemplatesPanel({ config }: { config: InternalEmailOperation
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
 
-  // Preview dialog
   const [previewEventId, setPreviewEventId] = useState<string | null>(null);
   const [preview, setPreview] = useState<InternalEmailTemplatePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<'html' | 'text'>('html');
 
-  // Test send
   const [testSendEventId, setTestSendEventId] = useState<string | null>(null);
   const [testSendReason, setTestSendReason] = useState('');
   const [testSending, setTestSending] = useState(false);
 
-  // Outbox follow
   const [followedOutboxId, setFollowedOutboxId] = useState<string | null>(null);
   const [outboxStatus, setOutboxStatus] = useState<InternalEmailOutboxFollowStatus | null>(null);
   const [outboxLoading, setOutboxLoading] = useState(false);
@@ -112,7 +108,6 @@ export function EmailTemplatesPanel({ config }: { config: InternalEmailOperation
 
   useEffect(() => { void loadTemplates(); }, [loadTemplates]);
 
-  // ─── Preview ──────────────────────────────────────────────────────
   const openPreview = async (eventId: string) => {
     setPreviewEventId(eventId);
     setPreview(null);
@@ -128,7 +123,6 @@ export function EmailTemplatesPanel({ config }: { config: InternalEmailOperation
     }
   };
 
-  // ─── Outbox follow ────────────────────────────────────────────────
   const refreshOutboxStatus = useCallback(async (outboxId: string, options?: { silent?: boolean }) => {
     setOutboxLoading(true);
     try {
@@ -172,7 +166,6 @@ export function EmailTemplatesPanel({ config }: { config: InternalEmailOperation
     };
   }, [followedOutboxId, refreshOutboxStatus]);
 
-  // ─── Test send ────────────────────────────────────────────────────
   const handleConfirmTestSend = async () => {
     if (!testSendEventId || !testSendReason.trim()) return;
     setTestSending(true);
@@ -290,7 +283,6 @@ export function EmailTemplatesPanel({ config }: { config: InternalEmailOperation
         )}
       </Panel>
 
-      {/* ── Followed test send ── */}
       {followedOutboxId && (
         <Panel
           title="Test Send Status"
@@ -320,7 +312,6 @@ export function EmailTemplatesPanel({ config }: { config: InternalEmailOperation
         </Panel>
       )}
 
-      {/* ── Preview dialog ── */}
       <Dialog open={previewEventId != null} onOpenChange={(open) => { if (!open) setPreviewEventId(null); }}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
@@ -377,7 +368,6 @@ export function EmailTemplatesPanel({ config }: { config: InternalEmailOperation
         </DialogContent>
       </Dialog>
 
-      {/* ── Test-send confirmation ── */}
       <AlertDialog
         open={testSendEventId != null}
         onOpenChange={(open) => { if (!open) setTestSendEventId(null); }}

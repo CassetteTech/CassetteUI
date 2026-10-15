@@ -194,7 +194,6 @@ export function ReportIssueModal({
         ) : (
           <>
             <div className="space-y-4 px-4">
-              {/* Report Type Selection */}
               <div className="space-y-2">
                 <Label>Issue Type</Label>
                 <div className="grid gap-2">
@@ -217,7 +216,6 @@ export function ReportIssueModal({
                 </div>
               </div>
 
-              {/* Description */}
               <div className="space-y-2">
                 <div className="flex items-baseline justify-between gap-3">
                   <Label htmlFor="description">
@@ -238,7 +236,6 @@ export function ReportIssueModal({
                 />
               </div>
 
-              {/* Source Link Display (if provided) */}
               {sourceLink && (
                 <div className="text-xs text-muted-foreground bg-muted rounded-lg p-3">
                   <span className="font-medium">Link: </span>
@@ -246,7 +243,6 @@ export function ReportIssueModal({
                 </div>
               )}
 
-              {/* Error Message */}
               {errorMessage && (
                 <div
                   className="flex items-center gap-2 text-sm text-destructive"

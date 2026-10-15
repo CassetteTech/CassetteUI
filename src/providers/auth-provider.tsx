@@ -31,12 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () =>
       useAuthStore.subscribe((state, previous) => {
         if (previous.user && state.user?.id !== previous.user.id) {
-          // Another account, or none, must never see the previous account's data.
-          // Clearing also cancels every pending read.
           queryClient.clear();
         } else if (state.isRefreshingSession && !previous.isRefreshingSession) {
-          // Feed pages are only as current as the session read before them: drop
-          // them, with any pending page read, and restart once the new answer lands.
           queryClient.removeQueries({ queryKey: profileQueryKeys.allCuratorFeeds() });
         }
       }),

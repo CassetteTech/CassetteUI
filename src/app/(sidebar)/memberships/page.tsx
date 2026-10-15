@@ -1,13 +1,12 @@
 'use client';
 
-/** The fan's memberships as wallet passes: a hub for reaching their curators, with billing tucked behind a disclosure. */
-
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { WalletPass } from '@/components/features/curator/wallet-pass';
+import { membershipPassPositionKey } from '@/components/features/curator/curator-membership-card';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,7 +29,6 @@ import {
 import { formatPaidPromotionMinorAmount } from '@/services/paid-promotion-lifecycle';
 import { cn } from '@/lib/utils';
 
-/** Short state printed on the pass head. */
 const tier = {
   ended: 'Ended',
   ending: 'Ending',
@@ -51,9 +49,8 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
   const money = (minor: number) => formatPaidPromotionMinorAmount(minor, membership.currency);
   const endUtc = membershipEndOrRenewalUtc(membership);
   const end = endUtc ? formatMembershipDate(endUtc) : null;
-  // The same key on the curator's profile pass lets this card slide into the rail on navigation, and back.
   const passRef = useRef<HTMLDivElement>(null);
-  useSharedPosition(passRef, `membership-pass:${entry.curatorUsername}`);
+  useSharedPosition(passRef, membershipPassPositionKey(entry.curatorUsername));
 
   async function manage() {
     setPortalPending(true);
@@ -78,12 +75,10 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
       holderName={curatorName}
       holderHandle={entry.curatorUsername}
       holderHref={`/profile/${encodeURIComponent(entry.curatorUsername)}`}
-      // Ended passes lose the brand head; every other state is still a live pass.
       active={phase !== 'ended'}
       validityLabel={end ? membershipDateLabel(membership) : 'Status'}
       validityValue={end ?? tier[phase]}
     >
-      {/* Standing is status, not money: a scheduled end or a failed payment reads without opening anything. */}
       {standing && (
         <p
           className={cn('text-sm', paymentProblem ? 'font-medium text-destructive' : 'text-muted-foreground')}
@@ -92,7 +87,6 @@ function MembershipPass({ entry }: { entry: MyMembership }) {
           {standing}
         </p>
       )}
-      {/* Billing stays folded so the pass reads as the curator, not the charge; a payment problem unfolds it. */}
       <details className={cn('group relative z-20', standing && 'mt-3')} open={paymentProblem || undefined}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 text-sm text-muted-foreground [&::-webkit-details-marker]:hidden">
           Billing
@@ -147,8 +141,7 @@ function MyMemberships() {
   const empty = query.data?.length === 0;
 
   return (
-    // At least one screen tall (under the 4rem phone navbar), so an empty list can center in the free height.
-    <div className="mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:min-h-full lg:py-10">
+    <div className="mx-auto flex min-h-[calc(100svh-var(--navbar-height))] w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:min-h-full lg:py-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-teko text-4xl font-bold uppercase leading-none tracking-tight sm:text-5xl">
@@ -179,7 +172,6 @@ function MyMemberships() {
             <Button onClick={() => void query.refetch()} className="mt-3">Try again</Button>
           </Empty>
         ) : query.data.length === 0 ? (
-          // No box: the empty state sits in the middle of the free space, lifted a little toward the header.
           <Empty className="border-none pb-24 sm:col-span-2 sm:self-stretch" data-testid="my-memberships-empty">
             <EmptyTitle>No memberships yet</EmptyTitle>
             <EmptyDescription>

@@ -1,5 +1,3 @@
-// Verifies that analytics sanitization keeps allowlisted dimensions and rejects sensitive data.
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sanitizeAnalyticsProps } from '../sanitize';

@@ -2,17 +2,11 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ScrollFade } from '@/components/ui/scroll-fade';
 import { Spinner } from '@/components/ui/spinner';
 import { appLogger } from '@/lib/observability/logger';
 
-// Keep in sync with the row's min-h-[52px].
 const ROW_HEIGHT_PX = 52;
-// Collapsed preview ends on a half-visible row so the cutoff reads as
-// "there's more" instead of accidental clipping.
 const COLLAPSED_MAX_HEIGHT_PX = ROW_HEIGHT_PX * 6.5;
-// Below this the collapsed preview would hide less than two rows — not worth a toggle. Lists
-// this long are also the ones the post page's running head counts through.
 export const EXPANDABLE_MIN_TRACKS = 9;
 
 const parseDurationSeconds = (duration?: string): number | null => {
@@ -22,7 +16,6 @@ const parseDurationSeconds = (duration?: string): number | null => {
   return parts.reduce((total, part) => total * 60 + part, 0);
 };
 
-/** Total running time of a track list, e.g. "6 hr 24 min"; null unless every track reports a duration. */
 export const formatTrackListDuration = (items: TrackListItem[]): string | null => {
   if (items.length === 0) return null;
   const seconds = items.map((item) => parseDurationSeconds(item.duration));
@@ -33,7 +26,6 @@ export const formatTrackListDuration = (items: TrackListItem[]): string | null =
   return hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
 };
 
-/** Header stat line for a track list, e.g. "117 tracks, 6 hr 24 min". */
 export const formatTrackListStats = (items: TrackListItem[]): string => {
   const label = `${items.length} ${items.length === 1 ? 'track' : 'tracks'}`;
   const duration = formatTrackListDuration(items);
@@ -53,59 +45,28 @@ export interface TrackListItem {
 
 interface TrackListProps {
   items: TrackListItem[];
-  artwork?: string;
   albumArtist?: string;
-  variant?: 'album' | 'playlist';
   className?: string;
   compact?: boolean;
-  /**
-   * When true, the list renders its own scroll container with edge fades.
-   * Set to false when the parent already provides a scrollable area
-   * to avoid nested scrollbars.
-   */
-  scrollable?: boolean;
-  /**
-   * With `scrollable`, stretches the scroll area to fill the parent's
-   * (flex-constrained) height instead of capping at a fixed max height.
-   */
-  scrollFill?: boolean;
-  /**
-   * Collapsed-preview mode for page-flow layouts: shows the first rows with a
-   * fade into a "Show all" toggle instead of a nested scroll region.
-   * Takes precedence over `scrollable`.
-   */
-  expandable?: boolean;
-  /**
-   * The source platform of the playlist/album (e.g., 'applemusic', 'spotify').
-   * Used to determine which service to use for fetching preview URLs.
-   */
   sourcePlatform?: string;
 }
 
 export const TrackList: React.FC<TrackListProps> = ({
   items,
-  artwork, // eslint-disable-line @typescript-eslint/no-unused-vars
   albumArtist,
-  variant = 'album', // eslint-disable-line @typescript-eslint/no-unused-vars
   className,
   compact = false,
-  scrollable = true,
-  scrollFill = false,
-  expandable = false,
   sourcePlatform,
 }) => {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
-  // Cache fetched preview URLs so we don't refetch
   const [fetchedPreviewUrls, setFetchedPreviewUrls] = useState<Record<number, string | null>>({});
   const [unavailablePreviews, setUnavailablePreviews] = useState<Record<number, true>>({});
   const audioRefs = useRef<Record<number, HTMLAudioElement>>({});
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const isScrollMode = scrollable && !expandable;
-  const isCollapsible = expandable && items.length >= EXPANDABLE_MIN_TRACKS;
+  const isCollapsible = items.length >= EXPANDABLE_MIN_TRACKS;
   const trackNumberPad = Math.max(2, String(items.length).length);
 
   useEffect(() => () => {
@@ -118,15 +79,12 @@ export const TrackList: React.FC<TrackListProps> = ({
     audioRefs.current = {};
   }, []);
 
-  // Fetch preview URL from the appropriate music service based on source platform
   const fetchPreviewUrl = useCallback(async (track: TrackListItem): Promise<string | null> => {
     try {
       const params = new URLSearchParams();
-      // Include source platform to route to correct service
       if (sourcePlatform) {
         params.set('sourcePlatform', sourcePlatform);
       }
-      // Include platform-specific track IDs
       if (track.appleMusicTrackId) {
         params.set('appleMusicTrackId', track.appleMusicTrackId);
       }
@@ -162,7 +120,6 @@ export const TrackList: React.FC<TrackListProps> = ({
     if (unavailablePreviews[index]) return;
 
     try {
-      // Stop any currently playing track
       if (playingIndex !== null && playingIndex !== index) {
         const currentAudio = audioRefs.current[playingIndex];
         if (currentAudio) {
@@ -171,7 +128,6 @@ export const TrackList: React.FC<TrackListProps> = ({
         }
       }
 
-      // If already playing this track, pause it
       if (playingIndex === index) {
         const audio = audioRefs.current[index];
         if (audio) {
@@ -183,18 +139,14 @@ export const TrackList: React.FC<TrackListProps> = ({
 
       setIsLoading(index);
 
-      // Get preview URL - check cache first, then existing prop, then fetch
       let previewUrl = fetchedPreviewUrls[index];
       if (previewUrl === undefined) {
-        // Not in cache - check if track has it
         previewUrl = track.previewUrl || null;
 
-        // If no preview URL, try to fetch one
         if (!previewUrl) {
           appLogger.debug('track_preview_url_fetch_started', { source_platform: sourcePlatform });
           previewUrl = await fetchPreviewUrl(track);
 
-          // Cache the result (even if null, to avoid refetching)
           setFetchedPreviewUrls(prev => ({ ...prev, [index]: previewUrl }));
         }
       }
@@ -206,7 +158,6 @@ export const TrackList: React.FC<TrackListProps> = ({
         return;
       }
 
-      // Create audio element if needed
       if (!audioRefs.current[index]) {
         const newAudio = new Audio();
         audioRefs.current[index] = newAudio;
@@ -256,9 +207,6 @@ export const TrackList: React.FC<TrackListProps> = ({
             const isPreviewUnavailable = Boolean(unavailablePreviews[index]);
             const displayArtist = track.artists?.join(', ') || albumArtist || '';
             const showIcon = isPlaying || isLoadingTrack;
-            // Only offer a play affordance when the track carries something a
-            // preview can be resolved from; some source platforms provide
-            // bare titles only, and a button that can never work reads as broken.
             const canPreview = Boolean(
               track.previewUrl || track.isrc || track.spotifyTrackId || track.appleMusicTrackId
             );
@@ -268,15 +216,14 @@ export const TrackList: React.FC<TrackListProps> = ({
               <li
                 key={`${track.title}-${index}`}
                 data-track-row
+                style={{ minHeight: ROW_HEIGHT_PX }}
                 className={cn(
-                  'group grid items-center gap-3 px-3 sm:px-4 transition-colors duration-200 grid-cols-[auto_1fr_auto] border-b border-border/40 last:border-b-0 min-h-[52px]',
+                  'group grid items-center gap-3 px-3 sm:px-4 transition-colors duration-200 grid-cols-[auto_1fr_auto] border-b border-border/40 last:border-b-0',
                   compact ? 'py-2' : 'py-2.5',
                   'hover:bg-muted/40',
-                  isScrollMode && 'snap-start',
                   isPlaying && 'bg-primary/10 shadow-[inset_2px_0_0_hsl(var(--primary))]'
                 )}
               >
-                {/* Track number / play button */}
                 <div className="relative flex items-center justify-end w-7 pr-1">
                   {canPreview ? (
                     <button
@@ -322,7 +269,6 @@ export const TrackList: React.FC<TrackListProps> = ({
                   )}
                 </div>
 
-                {/* Title/Artist */}
                 <div className="min-w-0 pl-1">
                   <div className={cn(
                     'font-medium truncate text-sm',
@@ -337,7 +283,6 @@ export const TrackList: React.FC<TrackListProps> = ({
                   )}
                 </div>
 
-                {/* Duration */}
                 <div className="hidden sm:block font-mono text-[11px] text-muted-foreground tabular-nums text-right">
                   {track.duration || ''}
                 </div>
@@ -353,22 +298,10 @@ export const TrackList: React.FC<TrackListProps> = ({
       className={cn(
         'card-quiet overflow-hidden',
         'relative',
-        isScrollMode && scrollFill && 'flex flex-col',
         className
       )}
     >
-      {isScrollMode ? (
-        <ScrollFade
-          className={cn('z-10', scrollFill && 'flex-1')}
-          scrollClassName={cn(
-            'snap-y snap-proximity [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full',
-            scrollFill ? 'h-full' : 'max-h-[400px]'
-          )}
-          scrollRef={scrollContainerRef}
-        >
-          {trackRows}
-        </ScrollFade>
-      ) : isCollapsible ? (
+      {isCollapsible ? (
         <>
           <motion.div
             initial={false}

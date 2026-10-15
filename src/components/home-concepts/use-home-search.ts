@@ -27,31 +27,21 @@ export interface ConvertingMeta {
   headline: string;
 }
 
-/**
- * The home search and convert flow, lifted out of the home page so every
- * hero layout shares one behaviour: type to search the catalog, paste a
- * Spotify, Apple Music, or Deezer link or pick a result to convert it.
- * The bar lights up, then hands the conversion to /post?url=, where the bar
- * grows into the post and the post builds as Bridge reports results.
- * `/?url=` still starts a conversion directly.
- */
 export function useHomeSearch() {
   const router = useRouter();
   const pathname = usePathname() ?? '/';
   const [musicUrl, setMusicUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
-  // Set while the bar hands a conversion to /post; doubles as the converting flag.
   const [conversionKey, setConversionKey] = useState<string | null>(null);
   const [convertingMeta, setConvertingMeta] = useState<ConvertingMeta | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  // The URL bar box: /post grows the post out of it.
   const barRef = useRef<HTMLDivElement>(null);
   const handoffTimerRef = useRef<number | undefined>(undefined);
   const lastTrackedSearchRef = useRef('');
-  const debouncedSearchTerm = useDebounce(musicUrl, 300);
+  const debouncedSearchTerm = useDebounce(musicUrl);
 
   const { isAuthenticated, isLoading: isAuthLoading } = useAuthState();
   const isConverting = conversionKey != null;
@@ -75,8 +65,6 @@ export function useHomeSearch() {
     };
   }, [pathname, isAuthenticated]);
 
-  // The conversion page loads before the bar's beat ends. A visitor who leaves
-  // during the beat does not get sent to /post afterwards.
   useEffect(() => {
     router.prefetch('/post');
     return () => window.clearTimeout(handoffTimerRef.current);
@@ -84,9 +72,6 @@ export function useHomeSearch() {
 
   const convertLink = useCallback((url: string, item?: { title: string; type: string }) => {
     const trimmed = normalizeMusicLinkInput(url);
-    // Until the auth store settles, a signed-in user would convert anonymously:
-    // the post would not attach to their profile, and stage polling would use the
-    // wrong scope. A paste in that first moment does nothing; a /?url= link waits.
     if (!trimmed || conversionKey || isAuthLoading) return;
 
     const detected = detectContentType(trimmed);
@@ -96,7 +81,6 @@ export function useHomeSearch() {
     const typeLabel = item?.type ?? (detected.id ? detected.type : null);
     setConvertingMeta({
       title: item?.title,
-      // Search picks hide the catalog source; pasted links name their platform.
       kicker: item
         ? ['Converting', typeLabel].filter(Boolean).join(' ')
         : ['Converting', platformLabel, typeLabel].filter(Boolean).join(' '),
@@ -110,9 +94,7 @@ export function useHomeSearch() {
     setIsSearchActive(false);
     inputRef.current?.blur();
 
-    // /post runs the conversion, shows its errors, and lands on the finished post.
     handoffTimerRef.current = window.setTimeout(() => {
-      // Measured now: the converting heading moves the bar during the beat.
       const bar = barRef.current?.getBoundingClientRect();
       handOffConversion({
         url: trimmed,
@@ -123,8 +105,6 @@ export function useHomeSearch() {
     }, HANDOFF_BEAT_MS);
   }, [conversionKey, isAuthenticated, isAuthLoading, router, analyticsBase]);
 
-  // A pasted value either converts (supported link), errors (unsupported), or
-  // is left alone (plain text). Returns true when it was handled as a paste.
   const acceptPaste = useCallback((value: string) => {
     const validationError = validateMusicLink(value);
     setMusicUrl(value);
@@ -168,7 +148,6 @@ export function useHomeSearch() {
     inputRef.current?.blur();
   }, []);
 
-  // Hides the results without clearing the text (for dropdown layouts).
   const dismiss = useCallback(() => setIsSearchActive(false), []);
 
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -193,10 +172,6 @@ export function useHomeSearch() {
     convertLink(url, { title, type: type.toLowerCase() });
   }, [analyticsBase, convertLink]);
 
-  // /?url=<music link> starts the conversion directly, once auth has settled.
-  // Each link in the query runs once; a query without one re-arms it, so a
-  // later /?url= link still works after an earlier conversion failed. A link
-  // that arrives during a conversion stays in the query until that one ends.
   const searchParams = useSearchParams();
   const handledUrl = useRef<string | null>(null);
   useEffect(() => {

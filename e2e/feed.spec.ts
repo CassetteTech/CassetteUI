@@ -1,6 +1,4 @@
-/** Verifies the curator Feed: session-gated states, filter, paging, retries, freshness resets, and navigation. */
-
-import { expect, type Page, type Route, test } from '@playwright/test';
+import { expect, type Page, type Request, type Route, test } from '@playwright/test';
 
 import {
   fixtureCuratorPage,
@@ -8,9 +6,9 @@ import {
   fixtureNoMembershipStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { fulfillUnlessAborted, holdRoute, trackRequests } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
-/** A full Feed row: the post the viewer may open. */
 const feedPost = (index: number, privacy: 'public' | 'subscriber', username: string) => ({
   kind: 'post',
   post: {
@@ -48,7 +46,6 @@ const memberFeed = ({ cursor, membersOnly }: { cursor: string | null; membersOnl
     : { body: feedPage([feedPost(3, 'public', 'night-curator')], null) };
 };
 
-/** A followed curator's members-only post the viewer has not joined for: the curator and the time only. */
 const lockedPost = (index: number, curatorId: string, username: string, displayName: string | null = null) => ({
   kind: 'locked',
   postId: `p_20261001110000_0000000000000${index}`,
@@ -58,7 +55,6 @@ const lockedPost = (index: number, curatorId: string, username: string, displayN
 
 const CRATE = { id: fixtureCuratorPage.curator.id, username: fixtureCuratorPage.curator.username };
 const QUIET = { id: 'cpr_QuietCurator01', username: 'quiet-curator' };
-/** Follows two curators and joined none. */
 const follower = { ...fixtureUsers.viewer, activeMembershipCount: 0, feedCuratorCount: 2 };
 
 const featuredCurator = (name: string, index: number, hasActiveMembershipPlan = true) => ({
@@ -72,37 +68,23 @@ const featuredCurator = (name: string, index: number, hasActiveMembershipPlan = 
 
 const postLinks = (page: Page) => page.getByRole('link', { name: /Feed track/ });
 const lockedCards = (page: Page) => page.getByTestId('feed-locked-post');
-/** Full and locked rows in page order: a post title, or `locked:` and the curator handle. */
 const rowOrder = (page: Page) => page.locator('a[href^="/post/"], [data-testid="feed-locked-post"]').evaluateAll(
   (rows) => rows.map((row) => row.tagName === 'ARTICLE'
     ? `locked:${row.querySelector('a[href^="/profile/"]')?.textContent?.replace(/^[^@]*/, '')}`
     : row.querySelector('h3')?.textContent?.trim()),
 );
 const skeleton = (page: Page) => page.getByTestId('post-grid-skeleton');
-const cursors = (requests: string[]) => requests.map((url) => new URL(url).searchParams.get('cursor'));
+const cursors = (requests: Request[]) => requests.map((request) => new URL(request.url()).searchParams.get('cursor'));
 
 const FEED_PATH = '/api/v1/social/feed/posts';
 const SESSION_PATH = '/api/auth/session';
 
-/** Every browser request to `pathname`, including requests a test holds or the app aborts. */
-function trackRequests(page: Page, pathname: string) {
-  const urls: string[] = [];
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname === pathname) urls.push(request.url());
-  });
-  return urls;
-}
-
-/** Holds matching requests while `hold()` is true at arrival, until `release` is called. */
-async function holdRoute(page: Page, matches: (url: URL) => boolean, hold: () => boolean) {
-  let release = () => {};
-  const released = new Promise<void>((resolve) => { release = resolve; });
-  await page.route(matches, async (route) => {
-    if (hold()) await released;
-    // A request the app aborted while held can no longer be answered.
-    await route.fallback().catch(() => {});
-  });
-  return () => release();
+async function recordTextAppearance(page: Page, text: string) {
+  await page.evaluate((watched) => {
+    new MutationObserver(() => {
+      if (document.body.textContent?.includes(watched)) document.body.dataset.recordedTextShown = 'true';
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  }, text);
 }
 
 const isFeed = (url: URL) => url.pathname === FEED_PATH;
@@ -145,7 +127,7 @@ test('the Members only filter asks the server for member posts and keeps its URL
   await expect(page).toHaveURL('/feed?filter=members');
   await expect(page.getByRole('heading', { name: 'From your curators', level: 1 })).toBeVisible();
   await expect(postLinks(page)).toHaveText([/Feed track 1/]);
-  expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
+  expect(new URL(curatorFeedRequests.at(-1)!.url()).searchParams.get('membersOnly')).toBe('true');
 
   await page.reload();
   await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
@@ -283,7 +265,6 @@ test('a failed first page offers a retry', async ({ page }) => {
   });
 
   await page.goto('/feed');
-  // The app retries a failed read with backoff before it shows the error.
   await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('No posts yet')).toHaveCount(0);
   available = true;
@@ -357,7 +338,6 @@ test.describe('freshness', () => {
     await expect(postLinks(page)).toContainText(['@night-curator']);
     const sessionsBefore = sessionRequests.length;
 
-    // One membership ended and another began: the count is still one.
     curator = 'day-curator';
     await page.clock.fastForward('01:01');
 
@@ -418,7 +398,6 @@ test.describe('freshness', () => {
     await page.getByRole('button', { name: 'Load more' }).click();
     await expect.poll(() => cursors(curatorFeedRequests)).toEqual([null, 'cursor-page-2']);
 
-    // The boundary read keeps the same count, yet the pending page belongs to the earlier set.
     await page.clock.fastForward('01:01');
     await expect.poll(() => cursors(curatorFeedRequests)).toEqual([null, 'cursor-page-2', null]);
     await expect(postLinks(page)).toHaveCount(2);
@@ -437,7 +416,6 @@ test.describe('freshness', () => {
     let holdSession = false;
     await page.route('**/api/auth/session', async (route: Route) => {
       if (!holdSession) return route.fallback();
-      // Bridge answered for the signed-in member before the sign-out.
       const stale = {
         success: true,
         authenticated: true,
@@ -446,7 +424,7 @@ test.describe('freshness', () => {
         feedCuratorCount: 2,
       };
       await released;
-      await route.fulfill({ json: stale }).catch(() => {});
+      await fulfillUnlessAborted(route, { json: stale });
     });
 
     await page.goto('/feed');
@@ -568,19 +546,13 @@ test.describe('freshness', () => {
     await expect(page.getByRole('heading', { name: 'Memberships', level: 1 })).toBeVisible();
     const readsBefore = sessionRequests.length;
 
-    // No focus or visibility event: only the age of the last read changes.
     await page.clock.fastForward('01:30');
     posts = [feedPost(5, 'public', 'day-curator')];
-    // Records any DOM change that puts an earlier row on the page, even for one frame.
-    await page.evaluate(() => {
-      new MutationObserver(() => {
-        if (document.body.textContent?.includes('Feed track 1')) document.body.dataset.earlierRowShown = 'true';
-      }).observe(document.body, { childList: true, subtree: true, characterData: true });
-    });
+    await recordTextAppearance(page, 'Feed track 1');
     await page.getByRole('link', { name: 'Feed', exact: true }).click();
 
     await expect(postLinks(page)).toHaveText([/Feed track 5/]);
-    await expect(page.locator('body')).not.toHaveAttribute('data-earlier-row-shown');
+    await expect(page.locator('body')).not.toHaveAttribute('data-recorded-text-shown');
     expect(sessionRequests.length).toBe(readsBefore + 1);
   });
 
@@ -631,16 +603,12 @@ test.describe('navigation', () => {
     await page.goto('/feed');
     const sidebar = page.locator('[data-slot="sidebar"]');
     const sidebarLinks = page.locator('[data-sidebar="menu"]').getByRole('link');
-    // Add music is an action above the menu, not one of its page rows. It returns the finished
-    // post to the page that opened it.
     await expect(sidebarLinks).toHaveText(['Curator Studio', 'Feed', 'Memberships', 'Explore']);
     await expect(sidebar.getByRole('link', { name: 'Add music', exact: true }))
       .toHaveAttribute('href', `/studio/music/new?from=${encodeURIComponent('/feed')}`);
     await expect(page.locator('[data-sidebar="menu"]').getByRole('link', { name: 'Feed' })).toHaveAttribute('data-active', 'true');
     await expect(sidebar.getByRole('link', { name: 'Support Us' })).toHaveCount(0);
 
-    // The account row also opens Curator Studio, the curator's home, but the Studio page row is
-    // the one that marks it as the open page; the public page is a preview reached from Studio.
     const accountRow = sidebar.locator('a[href="/studio"]', { hasText: `@${fixtureUsers.member.username}` });
     await expect(accountRow).toHaveCount(1);
     await accountRow.click();
@@ -665,7 +633,6 @@ test.describe('navigation', () => {
     // One Studio entry: the account pill, not a second text link.
     await expect(navbar.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
 
-    // A visitor has no Studio to go back to.
     await page.goto('/feed');
     await page.getByRole('button', { name: 'Sign Out' }).click();
     await page.goto('/explore');
@@ -767,7 +734,7 @@ test.describe('followed curators', () => {
     await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
   });
 
-  test('a paid count above the source count during a change shows the join state, not an error or a request', async ({ page }) => {
+  test('a paid count above the source count is a session error, not the join state or a request', async ({ page }) => {
     const curatorFeedRequests = trackRequests(page, FEED_PATH);
     await mockCassetteApp(page, {
       currentUser: { ...fixtureUsers.viewer, activeMembershipCount: 1, feedCuratorCount: 0 },
@@ -776,8 +743,8 @@ test.describe('followed curators', () => {
 
     await page.goto('/feed');
 
-    await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
-    await expect(page.getByText('Could not check your account')).toHaveCount(0);
+    await expect(page.getByText('Could not check your account')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
     await expect(page.getByRole('radio', { name: 'Members only' })).toHaveCount(0);
     await expect(skeleton(page)).toHaveCount(0);
     await page.waitForTimeout(300);
@@ -787,7 +754,6 @@ test.describe('followed curators', () => {
   test('locked rows show the curator, the time, and availability, but nothing from the post', async ({ page }) => {
     const { state } = await mockCassetteApp(page, {
       currentUser: follower,
-      // The viewer could join Crate Keeper now; the quiet curator takes no new members.
       membershipStatus: fixtureNoMembershipStatus,
       curatorFeed: () => ({
         body: feedPage([
@@ -822,11 +788,9 @@ test.describe('followed curators', () => {
     await expect(quiet.getByRole('link', { name: `View profile ${QUIET.username}` })).toHaveAttribute('href', `/profile/${QUIET.username}`);
     await expect(quiet.getByRole('link', { name: /Join/ })).toHaveCount(0);
 
-    // No post page, artwork, or engagement comes from a locked row.
     await expect(lockedCards(page).locator('a[href^="/post/"]')).toHaveCount(0);
     await expect(lockedCards(page).locator('img')).toHaveCount(0);
     await expect(lockedCards(page).getByRole('button')).toHaveCount(0);
-    // One membership read per curator, however many locked rows it has; none starts Checkout.
     expect([...state.membershipStatusRequests].sort()).toEqual([CRATE.id, QUIET.id].sort());
     expect(state.membershipCheckoutRequests).toEqual([]);
   });
@@ -888,7 +852,7 @@ test.describe('followed curators', () => {
     await page.getByRole('radio', { name: 'Members only' }).click();
     await expect.poll(() => rowOrder(page)).toEqual(['Feed track 5']);
     await expect(lockedCards(page)).toHaveCount(0);
-    expect(new URL(curatorFeedRequests.at(-1)!).searchParams.get('membersOnly')).toBe('true');
+    expect(new URL(curatorFeedRequests.at(-1)!.url()).searchParams.get('membersOnly')).toBe('true');
   });
 
   test('a Follow restarts both Feed filters even when the counts stay the same', async ({ page }) => {
@@ -902,7 +866,6 @@ test.describe('followed curators', () => {
         body: feedPage([feedPost(version, 'public', 'night-curator'), lockedPost(9, CRATE.id, CRATE.username)], null, 0, 1),
       }),
     });
-    // Another source ended as this one began: Bridge reports the same counts after the Follow.
     await page.route('**/api/auth/session', (route) => route.fulfill({
       json: {
         success: true,
@@ -925,14 +888,10 @@ test.describe('followed curators', () => {
     expect(state.curatorFollowRequests.filter(({ method }) => method === 'PUT')).toHaveLength(1);
     await expect.poll(() => sessionRequests.length).toBe(readsBefore + 1);
 
-    await page.evaluate(() => {
-      new MutationObserver(() => {
-        if (document.body.textContent?.includes('Feed track 1')) document.body.dataset.earlierRowShown = 'true';
-      }).observe(document.body, { childList: true, subtree: true, characterData: true });
-    });
+    await recordTextAppearance(page, 'Feed track 1');
     await page.goBack();
     await expect(postLinks(page)).toHaveText([/Feed track 2/]);
-    await expect(page.locator('body')).not.toHaveAttribute('data-earlier-row-shown');
+    await expect(page.locator('body')).not.toHaveAttribute('data-recorded-text-shown');
     expect(curatorFeedRequests).toHaveLength(2);
   });
 
@@ -978,7 +937,6 @@ test.describe('followed curators', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
     test('Join on a locked row brings the offer below the posts into view', async ({ page }) => {
-      // Enough posts that the offer, which phones show after them, starts below the screen.
       const [publicItem] = fixtureFreeCuratorPage.posts.items;
       const items = Array.from({ length: 6 }, (_, index) => (publicItem.kind === 'post'
         ? { kind: 'post' as const, post: { ...publicItem.post, postId: `post-public-${index}`, redirectPostId: `post-public-${index}` } }

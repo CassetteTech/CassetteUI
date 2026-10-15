@@ -2,7 +2,6 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-/** `quiet` swaps the ink outline and offset shadow for a hairline dashboard panel. */
 function Card({
   className,
   quiet = false,

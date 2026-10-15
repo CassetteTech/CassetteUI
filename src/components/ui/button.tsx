@@ -42,15 +42,19 @@ const buttonVariants = cva(
   }
 )
 
+/** `busy` blocks clicks with `aria-disabled` instead of `disabled`: a disabled button loses keyboard focus. */
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  busy = false,
+  onClick,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
+    busy?: boolean
   }) {
   const Comp = asChild ? Slot : "button"
 
@@ -59,7 +63,9 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      aria-disabled={busy || undefined}
+      className={cn(buttonVariants({ variant, size }), busy && "pointer-events-none opacity-50", className)}
+      onClick={busy ? (event: React.MouseEvent<HTMLButtonElement>) => event.preventDefault() : onClick}
       {...props}
     />
   )

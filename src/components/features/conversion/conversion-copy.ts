@@ -1,17 +1,9 @@
-/**
- * Shared copy for the inline conversion takeover (home + add-music).
- */
-
 export const PLATFORM_LABELS: Record<string, string> = {
   spotify: 'Spotify',
   apple: 'Apple Music',
   deezer: 'Deezer',
 };
 
-// One is picked at random for each conversion's headline.
-// Keep claims soft: no "every platform/service/app" — we support a few
-// services today, so the copy sells the idea (universal link, sharing
-// across apps), not exhaustive coverage.
 export const CONVERTING_HEADLINES = [
   'Building your universal link',
   'Your music, universal',

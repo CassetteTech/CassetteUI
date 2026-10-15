@@ -3,13 +3,6 @@ import type {
   PaidPromotionSubject,
 } from '@/types';
 
-/**
- * Boundary mapping for the promoter subjects catalog. Verifies only the shape
- * the UI renders; unknown status keys and additive fields pass through so
- * backend changes never brick the promote pages. Rollup arithmetic is audited
- * server-side, not here.
- */
-
 type JsonRecord = Record<string, unknown>;
 
 function invalid(path: string): never {
@@ -30,7 +23,6 @@ function nullableHttpUrl(value: unknown, path: string): string | null {
   if (value === null || value === undefined) return null;
   const result = string(value, path);
 
-  // Rendered into an image src; refuse non-http(s) schemes at the boundary.
   try {
     const url = new URL(result);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') invalid(path);

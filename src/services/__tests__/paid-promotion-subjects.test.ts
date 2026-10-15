@@ -39,8 +39,6 @@ void test('parses the shared owner and team subject contract', () => {
 });
 
 void test('tolerates additive backend changes in rollups', () => {
-  // New status keys and rollups that don't sum to campaignCount pass through;
-  // auditing rollup arithmetic is a server-side job.
   const evolved = subject();
   evolved.campaignStatusCounts = { in_review: 1, future_state: 5 };
   evolved.campaignCount = 4;
@@ -73,8 +71,6 @@ void test('rejects malformed rendered fields at the boundary', () => {
 });
 
 void test('renders a subject type that carries no secondary names', () => {
-  // Artist and playlist subjects have an empty subtitle list by design; that
-  // is a valid rollup, not a malformed one.
   const parsed = parsePaidPromotionSubject({
     ...subject(),
     elementId: 'r_123456789ABC',
@@ -85,7 +81,6 @@ void test('renders a subject type that carries no secondary names', () => {
   assert.equal(parsed.elementType, 'artist');
   assert.deepEqual(parsed.subtitleNames, []);
 
-  // A missing list is still a boundary failure.
   const missing = { ...subject() } as Record<string, unknown>;
   delete missing.subtitleNames;
   assert.throws(() => parsePaidPromotionSubject(missing), /subtitleNames/);

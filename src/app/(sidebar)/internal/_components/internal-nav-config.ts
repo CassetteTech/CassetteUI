@@ -1,5 +1,3 @@
-// Defines the team-only sidebar destinations for moderation, payments, and curator operations.
-
 import {
   Users,
   AlertCircle,
@@ -20,25 +18,17 @@ export interface ConsoleNavItem {
   label: string;
   href: string;
   icon: LucideIcon;
-  /** Short blurb used on the overview landing cards. */
   blurb: string;
 }
 
 export interface ConsoleNavSection {
   domain: ConsoleDomain;
-  /** Wrapper class that remaps the --domain token for this section. */
   domainClass: 'domain-eng' | 'domain-growth';
   label: string;
   caption: string;
   items: ConsoleNavItem[];
 }
 
-/**
- * Single source of truth for the console's sectioned navigation. The rail, the
- * mobile pill scroller, the overview racks, and per-route domain theming all
- * read from this. Engineering = systems/telemetry; Product & Growth = the
- * operational + marketing surface.
- */
 export const CONSOLE_NAV: ConsoleNavSection[] = [
   {
     domain: 'eng',
@@ -128,5 +118,4 @@ export const CONSOLE_NAV: ConsoleNavSection[] = [
   },
 ];
 
-/** Flattened lookup of every nav item, e.g. for active-route resolution. */
 export const CONSOLE_NAV_ITEMS: ConsoleNavItem[] = CONSOLE_NAV.flatMap((s) => s.items);

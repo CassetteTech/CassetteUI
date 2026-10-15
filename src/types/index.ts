@@ -1,11 +1,9 @@
-// Account type enum for verified/team badges
 export enum AccountType {
   REGULAR = 'Regular',
   VERIFIED = 'Verified',
   CASSETTE_TEAM = 'CassetteTeam',
 }
 
-// User & Profile Types
 export interface UserBio {
   id: string;
   username: string;
@@ -15,8 +13,7 @@ export interface UserBio {
   isOwnProfile: boolean;
   likedPostsPrivacy?: 'public' | 'private';
   likedPostsVisibility?: 'public' | 'private';
-  showLikedPosts?: boolean;
-  accountType?: AccountType | number; // API returns integer, frontend uses enum
+  accountType?: AccountType;
   totalLikesReceived?: number;
   connectedServices: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
@@ -51,7 +48,7 @@ export interface ActivityPost {
   originalPostOwnerUserId?: string | null;
   originalPostOwnerUsername?: string | null;
   originalPostOwnerAvatarUrl?: string | null;
-  originalPostOwnerAccountType?: AccountType | number | string | null;
+  originalPostOwnerAccountType?: AccountType | null;
   elementType: string;
   title: string;
   subtitle?: string;
@@ -65,7 +62,7 @@ export interface ActivityPost {
   likeCount?: number;
   likedByCurrentUser?: boolean;
   commentsEnabled?: boolean;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
 }
 
 export interface PaginatedActivityResponse {
@@ -75,26 +72,19 @@ export interface PaginatedActivityResponse {
   totalPages: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  nextCursor: string | null;
   sponsoredPlacement?: SponsoredExplorePlacement;
 }
 
 /**
- * The viewer's Feed sources, from a session read or a Feed page. Bridge counts
- * them in separate statements, so they can briefly disagree; both are loading
- * hints, never authorization.
+ * The viewer's Feed sources, from a session read or a Feed page. Both are
+ * loading hints, never authorization.
  */
 export interface FeedSourceCounts {
-  /** Curators whose memberships give the viewer access now. */
   activeMembershipCount: number;
-  /** Those curators together with the curators the viewer follows. */
   feedCuratorCount: number;
 }
 
-/**
- * A Feed row: a post the viewer may open, or a members-only post of a followed
- * curator that the viewer has not joined. A locked row carries the curator and
- * the time only, never any of the post's content.
- */
 export type CuratorFeedItem =
   | { kind: 'post'; post: ActivityPost }
   | {
@@ -104,7 +94,6 @@ export type CuratorFeedItem =
       curator: { id: string; username: string; displayName: string | null; avatarUrl: string | null };
     };
 
-/** One page of the viewer's curator Feed; `nextCursor` is null on the last page. */
 export interface CuratorFeedPage extends FeedSourceCounts {
   items: CuratorFeedItem[];
   nextCursor: string | null;
@@ -121,7 +110,7 @@ export interface ExploreUser {
   username: string;
   displayName?: string;
   avatarUrl?: string;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
   latestExplorePostAt?: string;
 }
 
@@ -131,13 +120,12 @@ export interface ExploreCurator {
   displayName?: string;
   avatarUrl?: string;
   bio?: string;
-  accountType?: AccountType | number | string;
+  accountType?: AccountType;
   publicPostCount: number;
   latestPostAt?: string;
   recentArtworkUrls: string[];
   profileLinks?: string[];
   topGenres?: string[];
-  /** The curator has a published plan open to new members. */
   hasActiveMembershipPlan: boolean;
 }
 
@@ -151,7 +139,6 @@ export interface PaginatedExploreUsersResponse {
   hasPrevious: boolean;
 }
 
-// Music Types
 export interface Track {
   id: string;
   title: string;
@@ -211,7 +198,6 @@ export interface Playlist {
   };
 }
 
-// Social Types - Updated to match profile service requirements
 export interface SocialPost {
   id: string;
   userId: string;
@@ -241,7 +227,6 @@ export enum ElementType {
   PLAYLIST = 'playlist',
 }
 
-// API Types
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: {
@@ -261,7 +246,6 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
-// Music Search Types
 export interface MusicSearchResult {
   tracks: Track[];
   albums: Album[];
@@ -284,7 +268,6 @@ export interface MusicLinkConversion {
     album?: string;
     duration?: string;
   };
-  // Additional fields that might be present
   previewUrl?: string;
   description?: string;
   username?: string;
@@ -302,7 +285,6 @@ export interface MediaListTrack {
   artists?: string[];
   previewUrl?: string;
   isrc?: string;
-  // Platform-specific track IDs for fetching preview URLs directly
   spotifyTrackId?: string;
   appleMusicTrackId?: string;
   deezerTrackId?: string;
@@ -310,13 +292,11 @@ export interface MediaListTrack {
 
 export type ConvertStatus = 'ready' | 'processing' | 'failed';
 
-// New backend contract for convert and convert job polling.
 export interface ConvertLifecycleResponse {
   success: boolean;
   status: ConvertStatus;
   /** Coarse live progress stage while status is "processing" (ConvertStage on Bridge). */
   stage?: string;
-  /** Playlist tracks mapped so far and the capped total, while stage is matching_tracks. */
   tracksProcessed?: number;
   tracksTotal?: number;
   postId?: string;
@@ -330,17 +310,14 @@ export interface ConvertLifecycleResponse {
 }
 
 export interface ConvertPartialResult {
-  /** The source element, once Bridge has read the link. */
   source?: {
     elementType?: string;
     title?: string;
     artists?: string[];
     artworkUrl?: string | null;
     platform?: string;
-    /** A playlist's tracks, in playlist order, read from the source before any is matched. */
     tracks?: Array<{ title: string; artists?: string[]; duration?: string | null }> | null;
   } | null;
-  /** Matched target links by Bridge platform key (spotify, applemusic, deezer), added as each lands. */
   platforms?: Record<string, string> | null;
 }
 
@@ -386,8 +363,6 @@ export type PaidPromotionPaymentStatus =
   | 'disputed'
   | 'charged_back';
 
-// Canonical element types a paid-promotion campaign can be bought for. The
-// server derives this from the element-id prefix (t_/a_/r_/l_).
 export type PaidPromotionElementType = 'track' | 'album' | 'artist' | 'playlist';
 
 export interface PaidPromotionRateCard {
@@ -397,8 +372,6 @@ export interface PaidPromotionRateCard {
   version: number;
   displayName: string;
   description: string;
-  // Price per week. The charged total is weekly × chosen weeks less any
-  // duration discount, always computed server-side.
   amountMinor: number;
   currency: string;
   minWeeks: number;
@@ -482,11 +455,7 @@ export interface PaidPromotionSubject {
   elementType: PaidPromotionElementType;
   title: string;
   coverArtUrl: string | null;
-  // Latest owner-submitted URL, used only to revalidate a repeat intake.
-  // Internal/global subject responses intentionally leave it null.
   repeatSourceUrl: string | null;
-  // Secondary display line: artist names for tracks and albums, empty for
-  // artists and playlists.
   subtitleNames: string[];
   campaignCount: number;
   campaignStatusCounts: Partial<Record<PaidPromotionCampaignStatus, number>>;
@@ -533,11 +502,6 @@ export type PaidPromotionExceptionKind =
 
 export type PaidPromotionExceptionStatus = 'open' | 'resolved';
 
-/**
- * Who booked the campaign. Null when the account has been deleted — financial
- * records outlive accounts, so the console renders the campaign either way.
- * Promoter-profile fields are populated on campaign detail only.
- */
 export interface InternalPaidPromotionCustomer {
   userId: string;
   username: string;
@@ -638,10 +602,6 @@ export interface InternalPaidPromotionCampaignDetail {
   durationDiscountBps: number | null;
   weeklyDeliverableMinimum: number | null;
 
-  // Effort-week refund accounting: weeks delivered from published deliverables
-  // against the package's weekly minimum, and the prorated policy suggestion
-  // for the undelivered weeks. Advisory — refunds stay human-issued and
-  // server-bounded by the payment's real remainder.
   weeksDelivered: number | null;
   policyRefundableMinor: number | null;
   status: PaidPromotionCampaignStatus;
@@ -690,7 +650,6 @@ export interface InternalPaidPromotionDeliverableInput {
   notes?: string;
 }
 
-// API Response type for playlist creation (snake_case to match backend JSON)
 export interface CreatePlaylistResponse {
   success: boolean;
   playlist_id?: string;
@@ -719,7 +678,18 @@ export interface FailedTrack {
   ambiguous?: boolean;
 }
 
-// API Response type for fetchPostById
+export interface PostResponseTrack {
+  title?: string;
+  duration?: string;
+  trackNumber?: number;
+  artist?: string;
+  artists?: string[];
+  previewUrl?: string | null;
+  isrc?: string;
+  spotifyTrackId?: string;
+  appleMusicTrackId?: string;
+}
+
 export interface PostByIdResponse {
   success: boolean;
   postId: string;
@@ -730,6 +700,9 @@ export interface PostByIdResponse {
   isRepost?: boolean;
   originalPostId?: string | null;
   repostedByCurrentUser?: boolean;
+  RepostedByCurrentUser?: boolean;
+  isRepostedByCurrentUser?: boolean;
+  IsRepostedByCurrentUser?: boolean;
   elementType: string;
   musicElementId: string;
   userId?: string | null;
@@ -752,7 +725,7 @@ export interface PostByIdResponse {
     previewUrl?: string;
     releaseDate?: string | null;
     trackCount?: number;
-    tracks?: unknown[];
+    tracks?: PostResponseTrack[];
   };
   metadata?: {
     duration?: string;
@@ -776,6 +749,11 @@ export interface PostByIdResponse {
   description?: string;
   username?: string;
   originalLink?: string;
+  sourceUrl?: string;
+  name?: string;
+  imageUrl?: string;
+  numberOfTracks?: number;
+  tracks?: PostResponseTrack[];
   /** Cassette's shared public Spotify copy of a playlist, once a fan has asked for one. */
   cassetteSpotifyCopyUrl?: string | null;
   /** The service a playlist came from. */
@@ -792,8 +770,6 @@ export interface PublicPostPageMetadata {
   elementType: string;
 }
 
-// API Response type for fetchPostViewerState — viewer-specific state only,
-// used to reconcile a server-rendered post without refetching the full payload.
 export interface PostViewerStateResponse {
   success: boolean;
   postId: string;
@@ -902,7 +878,6 @@ export interface NotificationUnreadCountResponse {
   unreadCount: number;
 }
 
-// Form Types
 export interface SignInForm {
   email: string;
   password: string;
@@ -942,7 +917,6 @@ export interface SignupAttribution {
   capturedAt?: string;
 }
 
-// Auth Types
 export interface AuthUser {
   id: string;
   email: string;
@@ -960,12 +934,10 @@ export interface AuthUser {
   signupAttribution?: SignupAttribution;
 }
 
-/** A signed-in web session: the viewer and their current Feed sources. */
 export interface AuthSession extends FeedSourceCounts {
   user: AuthUser;
 }
 
-// Internal dashboard types
 export interface InternalUserSummary {
   userId: string;
   username: string;
@@ -1427,7 +1399,7 @@ export interface StubDuplicateAdjudicationPairOutcome {
   survivorId: string;
   loserId: string;
   survivorReason: string;
-  action: string; // merged | skipped
+  action: 'merged' | 'skipped';
   skipReason?: string | null;
   repointedByTable: Record<string, number>;
   deletedByTable: Record<string, number>;
@@ -1616,7 +1588,6 @@ export interface UpdateInternalSignupLinkTemplateRequest {
   isActive?: boolean;
 }
 
-// ─── Explore snapshot inspection (internal debugging) ───────────────────
 export interface InternalExploreSnapshotSummary {
   snapshotId: string;
   algorithmVersion: string;
@@ -1632,7 +1603,6 @@ export interface InternalExploreSnapshotSummary {
   isLatestSuccessful: boolean;
   validationFatalErrors: string[];
   validationWarnings: string[];
-  // Raw metrics object from ValidationJson (e.g. content_type_distribution); shape is intentionally open.
   validationMetrics?: Record<string, unknown> | null;
 }
 
@@ -1690,7 +1660,6 @@ export interface InternalExploreSnapshotItemsResponse {
   items: InternalExploreSnapshotItem[];
 }
 
-// ─── Internal email operations ──────────────────────────────────────────
 export interface InternalEmailOperationsConfig {
   environment: string;
   isProduction: boolean;

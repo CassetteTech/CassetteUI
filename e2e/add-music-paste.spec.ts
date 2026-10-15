@@ -234,7 +234,6 @@ test('moves to the post skeleton right after Add to profile and follows the same
   await expect(page.locator('p:visible').filter({ hasText: 'Spotify link pasted' })).toBeVisible();
   await page.locator('[data-testid="add-music-submit"]:not([disabled]):visible').click();
 
-  // The skeleton names the music while the conversion is still running.
   await expect(page).toHaveURL(/\/post\?url=/);
   await expect(page.getByRole('heading', { name: title }).filter({ visible: true })).toBeVisible();
   await expect(page.getByText(artist, { exact: true }).filter({ visible: true })).toBeVisible();

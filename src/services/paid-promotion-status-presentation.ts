@@ -1,12 +1,5 @@
 import type { PaidPromotionCampaign, PaidPromotionCampaignStatus } from '@/types';
 
-/**
- * Customer-language presentation for every campaign lifecycle status: what
- * the status means, what happens next, and whose move it is. Unknown status
- * strings (a newer Bridge deploy) degrade to a refresh prompt instead of
- * leaking machine words.
- */
-
 export type PaidPromotionStatusActor = 'you' | 'cassette' | 'none';
 
 export type PaidPromotionStatusPresentation = {
@@ -153,8 +146,6 @@ const ELEMENT_TYPE_LABELS: Record<string, string> = {
   playlist: 'Playlist',
 };
 
-// A campaign subject always has a type, so an unrecognized one (a newer Bridge
-// deploy) still gets a badge rather than an empty slot.
 export function getPaidPromotionElementTypeLabel(elementType: string): string {
   return ELEMENT_TYPE_LABELS[elementType] ?? 'Subject';
 }

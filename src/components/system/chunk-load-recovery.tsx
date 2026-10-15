@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { tryStorage } from '@/lib/best-effort';
 
 const CHUNK_RELOAD_GUARD_KEY = 'cassette.chunk.reload.once';
 
@@ -28,15 +29,8 @@ export function ChunkLoadRecovery() {
     const recoverFromChunkFailure = (message: string) => {
       if (!isChunkLoadMessage(message)) return;
 
-      try {
-        if (sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY) === '1') {
-          return;
-        }
-
-        sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, '1');
-      } catch {
-        // If sessionStorage is unavailable, still attempt one reload.
-      }
+      if (tryStorage(() => sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY) === '1', false)) return;
+      tryStorage(() => sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, '1'), undefined);
 
       window.location.reload();
     };

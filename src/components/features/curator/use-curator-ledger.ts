@@ -1,17 +1,10 @@
 'use client';
 
-/** Loads enough of the curator's earnings ledger to cover the dashboard's
-    trailing window for the Studio's chart figures. The ledger is
-    newest-first: the first request bursts pages until one reaches past the
-    window or comes back short; "load more" then adds one page at a time. */
-
 import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import { fetchCuratorEarnings, monthStart, type CuratorEarningsBalances, type CuratorEarningsHistoryItem } from '@/services/curator-earnings';
 
-/** The API's largest page. */
 const ledgerPageSize = 50;
-/** Bounds the initial burst; beyond this the UI says which window it covers. */
 const ledgerPageCap = 4;
 const ledgerMonths = 12;
 const windowStart = () => monthStart(ledgerMonths - 1);
@@ -27,7 +20,6 @@ export type CuratorLedger = {
   balances: CuratorEarningsBalances;
   items: CuratorEarningsHistoryItem[];
   totalItems: number;
-  /** True when every event in the trailing `ledgerMonths` has been loaded. */
   coversWindow: boolean;
 };
 

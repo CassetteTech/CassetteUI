@@ -1,15 +1,9 @@
 'use client';
 
-/** Compact signed-in identity for the sidebar: avatar, name, and handle. It opens Curator Studio,
-    the curator's home, as the Curator Studio page row does; that row, not this one, marks Studio
-    as the open page. The public page is a preview reached from Studio. The inbox is in the
-    sidebar header. */
-
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { AuthUser } from '@/types';
 
-/** The avatar shares the left edge of the sidebar's page rows. */
 export function SidebarAccountRow({ user }: { user: AuthUser }) {
   const name = user.displayName || user.username;
   return (

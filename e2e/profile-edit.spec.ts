@@ -24,7 +24,6 @@ test('redirects /profile and persists profile edits and music service preference
   const profileMain = page.getByRole('main').last();
   await profileMain.locator('input[name="fullName"]:visible').fill('Mia Afterglow');
   await profileMain.locator('textarea#profile-bio:visible').fill('Documenting the songs that outlast the week.');
-  // A bare domain must pass the browser and reach the server with https:// added.
   await profileMain.getByRole('button', { name: 'Add link' }).click();
   await profileMain.getByLabel('Link 1', { exact: true }).fill('instagram.com/miagroove');
 
@@ -111,7 +110,6 @@ test('persists liked-post privacy changes and hides the liked tab from other vie
 
   await page.goto('/profile/miagroove/edit');
   const profileMain = page.getByRole('main').last();
-  // Privacy is on the Account tab; switching tabs keeps the tab in the URL.
   await profileMain.getByRole('tab', { name: 'Account' }).click();
   await expect(page).toHaveURL(/\/profile\/miagroove\/edit\?tab=account$/);
   await profileMain.locator('label:visible').filter({ hasText: /^Private$/ }).click();
@@ -159,7 +157,6 @@ test('follows URL changes to the settings tab while the form stays mounted', asy
   const accountTab = profileMain.getByRole('tab', { name: 'Account' });
   await expect(profileMain.getByRole('tab', { name: 'Profile' })).toHaveAttribute('data-state', 'active');
 
-  // A client-side URL change, as an in-app link would make.
   await page.evaluate(() => window.history.pushState(null, '', '/profile/miagroove/edit?tab=account'));
   await expect(accountTab).toHaveAttribute('data-state', 'active');
 

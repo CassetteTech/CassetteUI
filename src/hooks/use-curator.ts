@@ -1,16 +1,18 @@
 'use client';
 
-/** Loads public curator pages incrementally while isolating each viewer's cached entitlement data. */
-
+import { useSearchParams } from 'next/navigation';
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
-import { fetchMemberPostAuthoring } from '@/services/curator-plans';
-import { fetchCuratorPage, unfilteredCuratorPage, type CuratorPageFilter } from '@/services/curator';
+import { fetchCuratorPlans, fetchMemberPostAuthoring } from '@/services/curator-plans';
+import {
+  fetchCuratorPage,
+  fetchCuratorPayoutAccount,
+  unfilteredCuratorPage,
+  type CuratorPageFilter,
+} from '@/services/curator';
 
 const PAGE_SIZE = 20;
 
-/** A curator page, narrowed by `filter`. The unfiltered page keeps the short key, so the profile
-    route's own read and the page's All list share one cache entry; a filtered list extends it. */
 export function useCuratorPage(username: string, viewerKey: string | null, filter: CuratorPageFilter = unfilteredCuratorPage) {
   const filtered = filter.elementType !== null || filter.membersOnly;
   return useInfiniteQuery({
@@ -25,8 +27,6 @@ export function useCuratorPage(username: string, viewerKey: string | null, filte
     },
     enabled: viewerKey !== null,
     staleTime: 0,
-    // A filter change keeps the page, its offer, and the last list on screen until the new list
-    // lands; another profile or viewer starts empty.
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[1] === username.toLowerCase() && previousQuery.queryKey[2] === viewerKey
         ? keepPreviousData(previous)
@@ -36,7 +36,6 @@ export function useCuratorPage(username: string, viewerKey: string | null, filte
 
 export type MemberPostAccessState = 'error' | 'loading' | 'needs-plan' | 'ready';
 
-/** Whether the signed-in user may publish members-only posts, as Bridge decides it. */
 export function useMemberPostAccess(enabled = true) {
   const { user } = useAuthState();
   const authoring = useQuery({
@@ -52,6 +51,36 @@ export function useMemberPostAccess(enabled = true) {
   return { state, refetch: () => void authoring.refetch() };
 }
 
+/** Reads the access that Studio Music fetches, without a second request. */
+export function useObservedMemberPostAccess() {
+  return useMemberPostAccess(false);
+}
+
 export function useSubscriberPostEligibility(enabled = true): boolean {
   return useMemberPostAccess(enabled).state === 'ready';
+}
+
+export const curatorPlansKey = (profileId: string | null) => ['curator-plans', profileId ?? 'none'] as const;
+
+export function useCuratorPlans(profileId: string | null) {
+  return useQuery({
+    queryKey: curatorPlansKey(profileId),
+    queryFn: ({ signal }) => fetchCuratorPlans(signal),
+    enabled: profileId !== null,
+    staleTime: 0,
+  });
+}
+
+export const payoutAccountKey = ['curator-payout-account', 'current'] as const;
+
+/** During a payout provider return the payout card refreshes and seeds this key, so this read waits for it. */
+export function usePayoutAccount() {
+  const payoutReturn = useSearchParams().has('payout');
+  const account = useQuery({
+    queryKey: payoutAccountKey,
+    queryFn: ({ signal }) => fetchCuratorPayoutAccount(false, signal),
+    enabled: !payoutReturn,
+    staleTime: 0,
+  });
+  return { account, payoutReturn };
 }

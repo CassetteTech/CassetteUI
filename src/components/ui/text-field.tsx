@@ -68,7 +68,6 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
 
 TextField.displayName = 'TextField';
 
-// Music search bar component
 export const MusicSearchField = React.forwardRef<HTMLInputElement, Omit<TextFieldProps, 'variant'>>((props, ref) => (
   <TextField
     ref={ref}
@@ -80,7 +79,6 @@ export const MusicSearchField = React.forwardRef<HTMLInputElement, Omit<TextFiel
 
 MusicSearchField.displayName = 'MusicSearchField';
 
-// Auth form field component
 export const AuthField: React.FC<Omit<TextFieldProps, 'variant'>> = (props) => (
   <TextField
     {...props}

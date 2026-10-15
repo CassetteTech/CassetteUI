@@ -34,17 +34,11 @@ export function Navbar() {
   const { user, isAuthenticated } = useAuthState();
   const { openReportModal } = useReportIssue();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // Hero routes paint their own backdrop, so the bar goes transparent there:
-  // a veil of blurred paper that fades out under the bar lets content slide
-  // beneath it instead of stopping at a solid band over the backdrop.
   const pathname = usePathname();
   const isHero = isHeroRoute(pathname);
   const visibleCompanyItems = getVisibleNavItems(companyNavItems, user);
   const paidPromotionSalesEnabled = usePaidPromotionSalesEnabled();
 
-  // Lock body scroll while the mobile menu is open so the panel feels modal. The menu exists
-  // only below 1024 px, so a window that grows past that width (a tablet turned to landscape)
-  // closes the menu, which releases the lock.
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     const { overflow } = document.body.style;
@@ -60,7 +54,6 @@ export function Navbar() {
     };
   }, [isMobileMenuOpen]);
 
-  // Close on Escape for keyboard users.
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -84,7 +77,7 @@ export function Navbar() {
         />
       )}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-[var(--navbar-height)]">
           <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center">
               <Image
@@ -98,7 +91,6 @@ export function Navbar() {
               />
             </Link>
             
-            {/* Desktop links start at 1024 px, where the menu ends, so nothing shows twice. */}
             <div className="hidden lg:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -161,7 +153,6 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">
-            {/* Theme Switcher - always visible in navbar */}
             <ThemeSwitcher />
             
             {isAuthenticated ? (
@@ -176,7 +167,6 @@ export function Navbar() {
               </>
             ) : (
               <>
-                {/* Sign In hides on the narrowest phones; the mobile menu keeps it reachable */}
                 <Link
                   href="/auth/signin"
                   className="hidden min-[400px]:inline-block whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-2 sm:px-3 py-2"
@@ -193,7 +183,6 @@ export function Navbar() {
               </>
             )}
 
-            {/* Mobile Hamburger Button — quiet ghost chrome; selection told via muted, not primary */}
             <button
               type="button"
               className={cn(
@@ -232,7 +221,6 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu - Backdrop */}
       <button
         type="button"
         data-testid="mobile-menu-backdrop"
@@ -240,12 +228,11 @@ export function Navbar() {
         tabIndex={-1}
         onClick={() => setIsMobileMenuOpen(false)}
         className={cn(
-          "lg:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-280",
+          "lg:hidden fixed inset-x-0 top-[var(--navbar-height)] bottom-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-280",
           isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />
 
-      {/* Mobile Menu - Panel */}
       <div
         id="mobile-menu-panel"
         role="dialog"
@@ -263,18 +250,14 @@ export function Navbar() {
         )}
       >
         <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain pt-4 pb-8">
-          {/* The bar's container, so the menu lines up with the logo on tablets as on phones. */}
           <div className="container mx-auto px-4 sm:px-6">
-            {/* The account summary opens Curator Studio, as the sidebar's account row does; the
-                Curator Studio page row below marks it as the open page. */}
             {isAuthenticated && user && (
               <Link
                 href="/studio"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="mb-4 flex items-center gap-3 border-b border-border/40 pb-4"
                 data-menu-reveal
-                // SAFETY: CSSProperties has no custom-property keys; the value is a plain index.
-                style={{ '--reveal-index': 1 } as React.CSSProperties}
+                style={{ '--reveal-index': 1 }}
               >
                 <Avatar className="h-10 w-10 ring-2 ring-primary ring-offset-2 ring-offset-card">
                   <AvatarImage src={user.profilePicture} alt={`@${user.username}`} />
@@ -291,7 +274,6 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* Navigation Links */}
             <NavigationLinks onLinkClick={() => setIsMobileMenuOpen(false)} />
           </div>
         </div>

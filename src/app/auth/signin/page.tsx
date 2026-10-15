@@ -63,7 +63,6 @@ export default function SignInPage() {
 
       <div className="relative z-10 flex items-center justify-center min-h-svh px-4 py-8">
         <div className="w-full max-w-md">
-          {/* Logo */}
           <div className="flex justify-center mb-8">
             <Link href="/" className="flex flex-col items-center">
               <Image
@@ -92,7 +91,7 @@ export default function SignInPage() {
               <h1 className="text-2xl font-semibold tracking-tight leading-none">
                 {membershipIntent ? 'Sign in to continue' : 'Welcome back!'}
               </h1>
-              <CardDescription className="font-roboto italic mt-2">
+              <CardDescription className="font-roboto-flex italic mt-2">
                 {membershipIntent
                   ? 'Sign in and you will go straight to secure payment.'
                   : isPromoteIntent
@@ -119,7 +118,6 @@ export default function SignInPage() {
               </p>
             )}
 
-            {/* Google Sign In. Google refuses it in a social app's embedded browser. */}
             {inAppBrowser ? (
               <InAppBrowserSignIn browser={inAppBrowser} handoffPath={browserHandoffPath(redirect)} className="mb-6" />
             ) : (
@@ -147,7 +145,7 @@ export default function SignInPage() {
               </div>
             )}
 
-              <div className="text-center text-sm mt-4 font-roboto text-muted-foreground">
+              <div className="text-center text-sm mt-4 font-roboto-flex text-muted-foreground">
                 Don&apos;t have an account?{' '}
                 <Link
                   href={signUpHref}

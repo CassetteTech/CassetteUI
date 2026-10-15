@@ -1,5 +1,3 @@
-/** Covers the session that a sign-in, a sign-up, or a password update returns, through the real auth service. */
-
 import './browser-service-environment';
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +20,6 @@ const stubFetch: typeof fetch = async (input) => {
 };
 globalThis.fetch = stubFetch;
 
-/** The envelope Bridge returns for a signed-in web session; an undefined count is left out of the JSON. */
 const signedIn = (
   userId: string,
   activeMembershipCount: number | undefined,
@@ -73,7 +70,7 @@ for (const entry of entries) {
   });
 
   void test(`a ${entry.name} without valid counts is a session error, never zero sources`, async () => {
-    const invalid: Array<[number | undefined, number | undefined]> = [[undefined, 2], [-1, 2], [1, undefined], [1, 0.5]];
+    const invalid: Array<[number | undefined, number | undefined]> = [[undefined, 2], [-1, 2], [1, undefined], [1, 0.5], [1, 0]];
     for (const [paid, sources] of invalid) {
       useAuthStore.getState().signOut();
       answer = (path) => (path === entry.path ? { status: 200, body: signedIn('user-mia', paid, sources) } : NOT_FOUND);
@@ -90,17 +87,6 @@ for (const entry of entries) {
     assert.equal(sessionReads(), 0);
   });
 
-  void test(`a ${entry.name} keeps counts that disagree while a source changes`, async () => {
-    answer = (path) => (path === entry.path ? { status: 200, body: signedIn('user-mia', 1, 0) } : NOT_FOUND);
-
-    await entry.start();
-
-    const state = useAuthStore.getState();
-    assert.equal(state.sessionError, false);
-    assert.equal(state.activeMembershipCount, 1);
-    assert.equal(state.feedCuratorCount, 0);
-  });
-
   void test(`a session read that began before a ${entry.name} cannot restore the earlier account`, async () => {
     answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-earlier', 1, 2) } : NOT_FOUND);
     await authService.refreshSession();
@@ -111,7 +97,6 @@ for (const entry of entries) {
     answer = async (path) => {
       if (path === entry.path) return { status: 200, body: signedIn('user-mia', 3, 4) };
       if (path !== SESSION_PATH) return NOT_FOUND;
-      // Bridge answers for the earlier account after the new session began.
       await released;
       return { status: 200, body: signedIn('user-earlier', 1, 2) };
     };
@@ -134,15 +119,17 @@ void test('a session read replaces both counts together, and a malformed source 
   let state = useAuthStore.getState();
   assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount, state.sessionError], [0, 2, false]);
 
-  answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-mia', 1, 0) } : NOT_FOUND);
+  answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-mia', 1, 1) } : NOT_FOUND);
   assert.equal((await authService.refreshSession()).kind, 'authenticated');
   state = useAuthStore.getState();
-  assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount, state.sessionError], [1, 0, false]);
+  assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount, state.sessionError], [1, 1, false]);
 
-  answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-mia', 1, -1) } : NOT_FOUND);
-  assert.deepEqual(await authService.refreshSession(), { kind: 'error' });
-  state = useAuthStore.getState();
-  assert.equal(state.user?.id, 'user-mia');
-  assert.equal(state.sessionError, true);
-  assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount], [1, 0]);
+  for (const sources of [-1, 0]) {
+    answer = (path) => (path === SESSION_PATH ? { status: 200, body: signedIn('user-mia', 1, sources) } : NOT_FOUND);
+    assert.deepEqual(await authService.refreshSession(), { kind: 'error' }, `source count ${sources}`);
+    state = useAuthStore.getState();
+    assert.equal(state.user?.id, 'user-mia');
+    assert.equal(state.sessionError, true);
+    assert.deepEqual([state.activeMembershipCount, state.feedCuratorCount], [1, 1]);
+  }
 });

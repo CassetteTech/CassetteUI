@@ -1,9 +1,5 @@
 'use client';
 
-/** The public page's Music tab: one list for every account, narrowed by list tabs (the same look
-    as Studio Music's type tabs), in the one music card. A visitor sees a members-only post as a
-    locked card that leads to the offer. */
-
 import { useId } from 'react';
 import Link from 'next/link';
 import {
@@ -83,16 +79,12 @@ export function ProfileMusic({
   membershipId,
   showMembership = false,
 }: {
-  /** The section's id, for links that bring the list into view. */
   id?: string;
-  /** The tabs to offer; a single view shows no tabs. */
   views: readonly ProfileMusicView[];
   view: ProfileMusicView;
   onViewChange: (view: ProfileMusicView) => void;
   items: ProfileMusicItem[];
-  /** The first read of this view is in flight. */
   pending: boolean;
-  /** A view change is loading; the last list stays on screen, inert and dimmed. */
   switching?: boolean;
   hasMore: boolean;
   loadingMore: boolean;
@@ -101,8 +93,7 @@ export function ProfileMusic({
   isOwner: boolean;
   displayName: string;
   ownerUsername: string;
-  ownerAccountType?: AccountType | number | string;
-  /** Where a locked card leads: the membership offer in the rail. */
+  ownerAccountType?: AccountType;
   membershipId?: string;
   showMembership?: boolean;
 }) {

@@ -1393,7 +1393,7 @@ export interface StubDuplicateAdjudicationPairOutcome {
   survivorId: string;
   loserId: string;
   survivorReason: string;
-  action: string; // merged | skipped
+  action: 'merged' | 'skipped';
   skipReason?: string | null;
   repointedByTable: Record<string, number>;
   deletedByTable: Record<string, number>;

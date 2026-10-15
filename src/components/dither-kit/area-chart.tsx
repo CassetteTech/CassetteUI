@@ -21,12 +21,6 @@ function layerOf(node: ReactNode): "back" | "dom" | "svg" {
   return (node.type as { chartLayer?: "back" | "dom" }).chartLayer ?? "svg"
 }
 
-/**
- * Owns the measured size, the shared context, and pointer interaction; every
- * visual is composed as children. Back chrome (grid) sits behind the dither
- * canvas; the canvas paints the fill and stars; front chrome (axes) and the DOM
- * tooltip layer on top.
- */
 export function AreaChart<TData extends Row>({
   data,
   config,

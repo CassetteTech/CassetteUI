@@ -31,7 +31,7 @@ export type ChartContextValue = {
   xCenter: (index: number) => number
   indexAtX: (px: number) => number
   y: ScaleLinear<number, number>
-  bands: Record<string, [number, number][]>
+  bands: Record<string, [y0: number, y1: number][]>
 
   hoverIndex: number | null
   setHoverIndex: (index: number | null) => void
@@ -126,8 +126,6 @@ export function useChartController({
     [data, configKeys]
   )
 
-  // The d3 scale factories are memoized so `y` keeps a stable identity: the
-  // canvas `targets` memo deps on ctx.y, and xCenter/indexAtX close over these.
   const xPoint = useMemo(
     () => buildXScale(data.length, plotWidth),
     [data.length, plotWidth]

@@ -35,7 +35,7 @@ const paperMono = localFont({
   src: "./fonts/PaperMono-Variable.woff2",
   weight: "100 800",
   variable: "--font-paper-mono",
-  // The default Arial fallback is proportional; tailwind.config.js falls back to a monospace font instead.
+  // The default Arial fallback is proportional; tailwind.config.ts falls back to a monospace font instead.
   adjustFontFallback: false,
 });
 

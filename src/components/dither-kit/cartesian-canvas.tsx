@@ -64,8 +64,8 @@ function startCartesianLoop({
         const b = cur.floor[x] ?? 0
         paintColumn(octx, x, Math.min(a, b), Math.max(a, b), seed, {
           variant,
-          intensity,
-          sparse,
+          hoverLift: intensity,
+          frontLayerThinning: sparse,
         })
       }
     })
@@ -136,8 +136,6 @@ function startCartesianLoop({
 
     const marker = s.hoverIndex
     const winkDue = !reduce && now - last >= 100
-    // Repaint when a series registers its variant, without resetting the
-    // entrance reveal.
     const paintSig = s.configKeys.map((k) => s.variants[k] ?? "").join(",")
     const sigChanged = paintSig !== lastPaintSig
     if (sigChanged) {

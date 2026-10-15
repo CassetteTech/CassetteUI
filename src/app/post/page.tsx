@@ -43,7 +43,7 @@ function PostPageContent() {
     if (handoff) clearConversionHandoff(handoff);
   }, [handoff]);
   const handedOff = handoff && handoff.url === urlParam ? handoff : null;
-  const currentUrl = handedOff?.url ?? (urlParam ? decodeURIComponent(urlParam) : '');
+  const currentUrl = urlParam ?? '';
   const contentInfo = detectContentType(currentUrl, null);
   const anonymous = handedOff ? handedOff.anonymous : !fromAddMusic;
   // Add music writes the post under the signed-in person, where read lag has been seen.
@@ -183,12 +183,11 @@ function PostPageContent() {
     }
 
     if (urlParam) {
-      const decodedUrl = handedOff?.url ?? decodeURIComponent(urlParam);
-      const detected = detectContentType(decodedUrl);
+      const detected = detectContentType(urlParam);
 
-      if (hasConvertedRef.current && lastUrlRef.current === decodedUrl) return;
+      if (hasConvertedRef.current && lastUrlRef.current === urlParam) return;
       hasConvertedRef.current = true;
-      lastUrlRef.current = decodedUrl;
+      lastUrlRef.current = urlParam;
       convertRetryCountRef.current = 0;
       actionIdempotencyKeyRef.current = null;
 
@@ -198,7 +197,7 @@ function PostPageContent() {
           source_surface: fromAddMusic ? 'add_music' : 'post_direct',
           source_platform: detected.platform,
           element_type_guess: detected.type,
-          source_domain: sanitizeDomain(decodedUrl),
+          source_domain: sanitizeDomain(urlParam),
           is_authenticated: !anonymous,
         });
       }
@@ -237,7 +236,7 @@ function PostPageContent() {
       const attemptConvert = async (): Promise<void> => {
         try {
           const result = await convertLink({
-            url: decodedUrl,
+            url: urlParam,
             description: descriptionParam || undefined,
             idempotencyKey,
             anonymous,

@@ -52,10 +52,6 @@ export function MarketingFooter() {
         />
       </div>
 
-      {/* Content zone. The scrim tracks the content's own height: solid
-          paper behind all of it, fading out in the 6rem below so the art
-          emerges with no seam at any breakpoint. Transparent stop uses the
-          paper color so Safari doesn't fade through gray. */}
       <div className="relative z-10">
         <div
           aria-hidden

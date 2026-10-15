@@ -69,6 +69,21 @@ test.describe('home conversion funnel', () => {
     await expect(page.getByRole('heading', { name: 'Midnight City' })).toBeVisible();
   });
 
+  test('converts a direct link with percent escapes exactly as written', async ({ page }) => {
+    const link = 'https://music.apple.com/us/album/100%25-pure%2Fmix/404040?i=404041';
+    await mockCassetteApp(page, {
+      convertTemplates: [{ ...fixtureConvertTemplates.homeTrack, originalUrl: link }],
+    });
+    const convert = page.waitForRequest(
+      (request) => request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/convert',
+    );
+
+    await page.goto(`/post?url=${encodeURIComponent(link)}`);
+
+    expect((await convert).postDataJSON().sourceLink).toBe(link);
+    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+  });
+
   test('hands a signed-in paste to the conversion page with its session and the link as pasted', async ({ page, context, baseURL }) => {
     const link = 'https://music.apple.com/us/album/caf%C3%A9-nights/303030?i=303031';
     await mockCassetteApp(page, {

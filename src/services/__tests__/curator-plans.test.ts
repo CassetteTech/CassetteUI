@@ -10,11 +10,14 @@ import {
   fetchCuratorPlans,
   fetchCuratorPricing,
   fetchMemberPostAuthoring,
+  MONTHLY_PRICE_MAX_MINOR,
+  MONTHLY_PRICE_MIN_MINOR,
   curatorFeaturesSchema,
   curatorPlanSchema,
   curatorPricingSchema,
   publishCuratorPlan,
   updateCuratorPlan,
+  type CuratorPlanRequest,
   type CuratorPricing,
 } from '../curator-plans';
 import { CuratorPageError } from '../curator';
@@ -293,4 +296,27 @@ void test('a matching monthly fee does not prove the annual fan charge of a plan
   assert.equal(calculateCuratorPlanEconomics(500, today).serviceFeeMinor, 50);
   assert.equal(calculateCuratorPlanEconomics(6000, frozen).fanChargeMinor, 6600);
   assert.equal(calculateCuratorPlanEconomics(6000, today).fanChargeMinor, 6050);
+});
+
+void test('plan requests accept monthly prices from 500 to 10,000 minor units only', async (t) => {
+  let sent = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    sent++;
+    return new Response(JSON.stringify(draft));
+  });
+  const request = (amountMinor: number): CuratorPlanRequest => ({
+    name: 'Selector Club',
+    description: '',
+    amountMinor,
+    annualAmountMinor: null,
+    featureKeys: [],
+  });
+
+  await createCuratorPlan(request(500));
+  await createCuratorPlan(request(10_000));
+  await assert.rejects(createCuratorPlan(request(499)));
+  await assert.rejects(createCuratorPlan(request(10_001)));
+
+  assert.equal(sent, 2);
+  assert.deepEqual([MONTHLY_PRICE_MIN_MINOR, MONTHLY_PRICE_MAX_MINOR], [500, 10_000]);
 });

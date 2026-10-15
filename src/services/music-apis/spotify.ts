@@ -198,11 +198,6 @@ class SpotifyService {
     return null;
   }
 
-  /**
-   * Fetch a track directly by Spotify track ID and return its preview URL.
-   * This uses the direct track endpoint which may still return preview URLs
-   * even though the search endpoint no longer does.
-   */
   async getPreviewByTrackId(trackId: string): Promise<string | null> {
     appLogger.debug('spotify_track_preview_lookup_started');
 

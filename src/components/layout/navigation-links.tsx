@@ -66,7 +66,6 @@ function getItemClassName(variant: NavigationSectionProps['variant'], isActive: 
   );
 }
 
-/** The menu's staggered entrance reads its order from this custom property. */
 function revealIndex(index: number) {
   return { '--reveal-index': index };
 }

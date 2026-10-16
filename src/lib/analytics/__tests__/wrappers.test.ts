@@ -366,6 +366,8 @@ test('fan-action events keep only sanitizer-validated paid-promotion attribution
         (payload.properties as Record<string, unknown> | undefined)?.post_id ===
         'p_OrdinaryPost01'
       );
+      assert.ok(paid, `${event} with paid attribution was captured`);
+      assert.ok(ordinary, `${event} without attribution was captured`);
 
       assert.equal(
         (paid?.properties as Record<string, unknown> | undefined)?.paid_promotion_campaign_id,
@@ -382,6 +384,7 @@ test('fan-action events keep only sanitizer-validated paid-promotion attribution
       (payload.properties as Record<string, unknown> | undefined)?.post_id ===
         'p_InvalidAttribution01'
     );
+    assert.ok(invalid, 'post_viewed with invalid attribution was captured');
     assert.equal(
       (invalid?.properties as Record<string, unknown> | undefined)?.paid_promotion_campaign_id,
       undefined,

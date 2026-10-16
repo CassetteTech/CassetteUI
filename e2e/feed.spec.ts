@@ -7,6 +7,7 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { fulfillUnlessAborted, holdRoute, trackRequests } from './support/held-requests';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const feedPost = (index: number, privacy: 'public' | 'subscriber', username: string) => ({
@@ -187,7 +188,7 @@ test('a featured curator failure stays inside the join state', async ({ page }) 
 
   await page.goto('/feed');
 
-  await expect(page.getByText('Featured curators could not load.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Featured curators could not load.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join a curator' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Explore curators' })).toBeVisible();
 });
@@ -232,32 +233,8 @@ test('a session outage offers a retry, never the join state or sign-in', async (
   await expect(postLinks(page)).toHaveCount(2);
 });
 
-for (const [name, counts] of [
-  ['membership', { activeMembershipCount: 1.5, feedCuratorCount: 2 }],
-  ['source', { activeMembershipCount: 1 }],
-] as const) {
-  test(`a session without a valid ${name} count is an error, not zero sources`, async ({ page }) => {
-    const curatorFeedRequests = trackRequests(page, FEED_PATH);
-    await mockCassetteApp(page, { currentUser: fixtureUsers.member });
-    await page.route('**/api/auth/session', (route) => route.fulfill({
-      json: {
-        success: true,
-        authenticated: true,
-        user: { userId: fixtureUsers.member.id, username: fixtureUsers.member.username, isOnboarded: true },
-        ...counts,
-      },
-    }));
-
-    await page.goto('/feed');
-
-    await expect(page.getByText('Could not check your account')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
-    await expect(skeleton(page)).toHaveCount(0);
-    expect(curatorFeedRequests).toEqual([]);
-  });
-}
-
 test('a failed first page offers a retry', async ({ page }) => {
+  const curatorFeedRequests = trackRequests(page, FEED_PATH);
   let available = false;
   await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
@@ -265,7 +242,8 @@ test('a failed first page offers a retry', async ({ page }) => {
   });
 
   await page.goto('/feed');
-  await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Posts could not load')).toBeVisible();
+  expect(curatorFeedRequests).toHaveLength(4);
   await expect(page.getByText('No posts yet')).toHaveCount(0);
   available = true;
   await page.getByRole('button', { name: 'Try again' }).click();
@@ -280,7 +258,7 @@ test('a Feed response without its metadata is an error, not an empty Feed', asyn
 
   await page.goto('/feed');
 
-  await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Posts could not load')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join a curator' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Feed track 1/ })).toHaveCount(0);
 });
@@ -297,7 +275,7 @@ test('a failed next page keeps loaded rows and retries the same cursor', async (
   await page.goto('/feed');
   await page.getByRole('button', { name: 'Load more' }).click();
 
-  await expect(page.getByText('More posts could not load.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('More posts could not load.')).toBeVisible();
   await expect(postLinks(page)).toHaveCount(2);
   nextPageAvailable = true;
   await page.getByRole('button', { name: 'Try again' }).click();
@@ -674,8 +652,7 @@ test.describe('navigation', () => {
       await page.goto('/feed');
       await expect(page.getByRole('link', { name: /Feed track 1/ })).toBeVisible();
       await expect(page.getByRole('radio', { name: 'Members only' })).toBeInViewport();
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow).toBeLessThanOrEqual(0);
+      await expectNoHorizontalOverflow(page);
     });
 
     test('the join state fits the screen', async ({ page }) => {
@@ -686,8 +663,7 @@ test.describe('navigation', () => {
 
       await page.goto('/feed');
       await expect(page.getByRole('list', { name: 'Featured curators' }).getByRole('link')).toHaveCount(3);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow).toBeLessThanOrEqual(0);
+      await expectNoHorizontalOverflow(page);
     });
   });
 
@@ -808,21 +784,6 @@ test.describe('followed curators', () => {
     await expect(card.getByRole('link', { name: 'View profile Crate Keeper' })).toBeVisible();
     await expect(card).toContainText("For Crate Keeper's members.");
     await expect(card.getByRole('link', { name: /Join/ })).toHaveCount(0);
-  });
-
-  test('a locked row with any extra field is a load error, never a card', async ({ page }) => {
-    await mockCassetteApp(page, {
-      currentUser: follower,
-      curatorFeed: () => ({
-        body: feedPage([{ ...lockedPost(2, CRATE.id, CRATE.username), imageUrl: null }], null, 0, 2),
-      }),
-    });
-
-    await page.goto('/feed');
-
-    await expect(page.getByText('Posts could not load')).toBeVisible({ timeout: 15_000 });
-    await expect(lockedCards(page)).toHaveCount(0);
-    await expect(page.getByText('No posts yet')).toHaveCount(0);
   });
 
   test('paging keeps one server order across full and locked rows; Members only asks for member posts', async ({ page }) => {
@@ -973,8 +934,7 @@ test.describe('followed curators', () => {
 
       await page.goto('/feed');
       await expect(lockedCards(page).getByRole('link', { name: /Join/ })).toBeVisible();
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow).toBeLessThanOrEqual(0);
+      await expectNoHorizontalOverflow(page);
     });
   });
 

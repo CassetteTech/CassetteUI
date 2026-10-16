@@ -55,6 +55,7 @@ test.describe('post engagement', () => {
   });
 
   test('does not poll the full notifications list on idle post pages and updates the badge after marking all read', async ({ page }) => {
+    await page.clock.install();
     const fullListRequests: string[] = [];
     page.on('request', (request) => {
       const url = new URL(request.url());
@@ -106,7 +107,8 @@ test.describe('post engagement', () => {
     const notificationButton = page.locator('button[aria-label="Notifications"]');
     await expect(notificationButton).toContainText('2');
 
-    await page.waitForTimeout(6200);
+    await page.clock.fastForward('02:01');
+    await page.waitForTimeout(300);
     expect(fullListRequests).toHaveLength(0);
 
     await notificationButton.click();

@@ -5,24 +5,22 @@ import {
   normalizeStreamingServiceType,
 } from '../platform-normalization';
 
-test('normalizeStreamingServiceType canonicalizes Apple Music service names from API responses', () => {
-  assert.equal(normalizeStreamingServiceType('applemusic'), 'AppleMusic');
-  assert.equal(normalizeStreamingServiceType('apple_music'), 'AppleMusic');
-  assert.equal(normalizeStreamingServiceType('Apple Music'), 'AppleMusic');
-  assert.equal(normalizeStreamingServiceType('apple'), 'AppleMusic');
-});
-
-test('normalizeStreamingServiceType canonicalizes known enum values', () => {
-  assert.equal(normalizeStreamingServiceType(0), 'Spotify');
-  assert.equal(normalizeStreamingServiceType(1), 'AppleMusic');
-  assert.equal(normalizeStreamingServiceType(2), 'Deezer');
-});
-
-test('normalizeStreamingServiceType preserves unknown service names', () => {
-  assert.equal(normalizeStreamingServiceType('tidal'), 'tidal');
-  assert.equal(normalizeStreamingServiceType(9), '9');
-  assert.equal(normalizeStreamingServiceType(null), '');
-});
+for (const [value, serviceType] of [
+  ['applemusic', 'AppleMusic'],
+  ['apple_music', 'AppleMusic'],
+  ['Apple Music', 'AppleMusic'],
+  ['apple', 'AppleMusic'],
+  [0, 'Spotify'],
+  [1, 'AppleMusic'],
+  [2, 'Deezer'],
+  ['tidal', 'tidal'],
+  [9, '9'],
+  [null, ''],
+] as const) {
+  test(`normalizeStreamingServiceType maps ${JSON.stringify(value)} to ${JSON.stringify(serviceType)}`, () => {
+    assert.equal(normalizeStreamingServiceType(value), serviceType);
+  });
+}
 
 test('normalizeConnectedServicePayload drops invalid or reconnect-required services', () => {
   assert.equal(

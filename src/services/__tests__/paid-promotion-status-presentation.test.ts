@@ -38,19 +38,13 @@ const ALL_PAYMENT_STATUSES: PaidPromotionPaymentStatus[] = [
   'charged_back',
 ];
 
-void test('every campaign status has complete customer-language presentation', () => {
+void test('every campaign status has complete customer-language presentation without internal vocabulary', () => {
   for (const status of ALL_CAMPAIGN_STATUSES) {
     const presentation = getPaidPromotionStatusPresentation({ status, holdKind: null });
     assert.ok(presentation.label.length > 0, `${status} label`);
     assert.ok(presentation.explanation.length > 0, `${status} explanation`);
     assert.ok(presentation.nextAction.length > 0, `${status} next action`);
     assert.ok(['you', 'cassette', 'none'].includes(presentation.actor), `${status} actor`);
-  }
-});
-
-void test('no customer-facing status string contains internal vocabulary', () => {
-  for (const status of ALL_CAMPAIGN_STATUSES) {
-    const presentation = getPaidPromotionStatusPresentation({ status, holdKind: null });
     for (const text of [presentation.label, presentation.explanation, presentation.nextAction]) {
       assert.doesNotMatch(text, /webhook|persisted|_/i, `${status}: ${text}`);
     }

@@ -32,17 +32,13 @@ const SPOTIFY_TRACK_URL = 'https://open.spotify.com/track/4fzsfWzRhPawzqhX8Qt9F3
 const SPOTIFY_PLAYLIST_URL = 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M';
 const APPLE_MUSIC_URL = 'https://music.apple.com/us/album/the-dark-side-of-the-moon/1065973699';
 
-test('plain left-click on a Spotify track link is intercepted for the app attempt', () => {
-  const event = makeClick();
-  handleStreamingLinkClick(event, SPOTIFY_TRACK_URL);
-  assert.equal(event.defaultPrevented, true);
-});
-
-test('plain left-click on a Spotify playlist link is intercepted for the app attempt', () => {
-  const event = makeClick();
-  handleStreamingLinkClick(event, SPOTIFY_PLAYLIST_URL);
-  assert.equal(event.defaultPrevented, true);
-});
+for (const [kind, url] of [['track', SPOTIFY_TRACK_URL], ['playlist', SPOTIFY_PLAYLIST_URL]]) {
+  test(`plain left-click on a Spotify ${kind} link is intercepted for the app attempt`, () => {
+    const event = makeClick();
+    handleStreamingLinkClick(event, url);
+    assert.equal(event.defaultPrevented, true);
+  });
+}
 
 test('Apple Music links keep native anchor behavior (Universal Links open the app)', () => {
   const event = makeClick();

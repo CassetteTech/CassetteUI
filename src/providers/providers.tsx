@@ -9,6 +9,8 @@ import { ReportIssueProvider } from './report-issue-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery';
 
+const E2E_QUERY_RETRY_DELAY_MS = process.env.NEXT_PUBLIC_E2E_QUERY_RETRY_DELAY_MS;
+
 interface ProvidersProps {
   children: React.ReactNode;
 }
@@ -26,6 +28,7 @@ export function Providers({ children }: ProvidersProps) {
               }
               return failureCount < 3;
             },
+            retryDelay: E2E_QUERY_RETRY_DELAY_MS ? Number(E2E_QUERY_RETRY_DELAY_MS) : undefined,
           },
         },
       })

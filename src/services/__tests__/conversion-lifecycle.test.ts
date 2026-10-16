@@ -48,6 +48,15 @@ test('getLifecycleConversionFailureMessage prefers backend message, then error c
     'No match found',
   );
   assert.equal(
+    getLifecycleConversionFailureMessage({
+      success: false,
+      status: 'failed',
+      errorCode: 'UNSUPPORTED_PLATFORM',
+      message: 'Unsupported music service',
+    }),
+    'Unsupported music service',
+  );
+  assert.equal(
     getLifecycleConversionFailureMessage({ success: false, status: 'failed', errorCode: 'UPSTREAM_TIMEOUT' }),
     'UPSTREAM_TIMEOUT',
   );

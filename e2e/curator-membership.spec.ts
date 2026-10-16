@@ -13,10 +13,12 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { pauseAtReturnRead, returnFromProvider } from './support/provider-return';
 
 const CURATOR_PATH = `/profile/${fixtureCuratorPage.curator.username}`;
 const CHECKOUT_URL = 'https://checkout.stripe.test/membership-session';
 const PORTAL_URL = 'https://billing.stripe.test/membership-session';
+const MEMBERSHIP_STATUS_PATH = /^\/api\/v1\/memberships\/status\//;
 
 const joinControl = (page: Page) => page.getByTestId('membership-join');
 
@@ -37,12 +39,13 @@ async function expectRepairedMembership(page: Page, state: { membershipStatusReq
   await expect(page.getByTestId('membership-notice')).toHaveCount(0);
   await expect(page).not.toHaveURL(/membership=/);
   const requests = state.membershipStatusRequests.length;
-  await page.waitForTimeout(2_500);
+  await page.clock.runFor(5_000);
+  await page.waitForTimeout(300);
   expect(state.membershipStatusRequests.length).toBe(requests);
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-08-24T12:00:00Z'));
+  await page.clock.install({ time: new Date('2026-08-24T12:00:00Z') });
 });
 type MembershipAnalyticsProperties = {
   curator_id?: string;
@@ -95,14 +98,6 @@ function trackSessionReads(page: Page) {
     if (new URL(request.url()).pathname === '/api/auth/session') reads.push(request.url());
   });
   return reads;
-}
-
-async function returnFromProvider(page: Page, providerUrl: string, returnPath: string) {
-  const appOrigin = new URL(page.url()).origin;
-  await page.route(providerUrl, (route) => route.fulfill({
-    status: 302,
-    headers: { location: `${appOrigin}${returnPath}` },
-  }));
 }
 
 for (const price of [
@@ -350,12 +345,12 @@ test('a return URL alone does not read the session again', async ({ page }) => {
 
   await page.goto(`${CURATOR_PATH}?membership=return`);
   await expect(joinControl(page)).toBeVisible();
-  await page.waitForTimeout(3_000);
+  await page.clock.runFor(5_000);
+  await page.waitForTimeout(300);
   expect(sessionReads).toHaveLength(1);
 });
 
 test('ends an unchanged Portal return with neutral copy and a way to check again', async ({ page }) => {
-  test.setTimeout(60_000);
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorPage: fixtureMemberCuratorPage,
@@ -364,19 +359,25 @@ test('ends an unchanged Portal return with neutral copy and a way to check again
   });
 
   await page.goto(CURATOR_PATH);
-  await returnFromProvider(page, PORTAL_URL, `${CURATOR_PATH}?membership=portal-return`);
-  await manageControl(page).click();
+  const returnPath = `${CURATOR_PATH}?membership=portal-return`;
+  await returnFromProvider(page, PORTAL_URL, returnPath);
+  await pauseAtReturnRead(page, returnPath, MEMBERSHIP_STATUS_PATH, () => manageControl(page).click());
+  const requestsAtPause = state.membershipStatusRequests.length;
+  await page.clock.runFor(1_000);
+  await expect.poll(() => state.membershipStatusRequests.length).toBe(requestsAtPause + 1);
+  await page.clock.fastForward('00:30');
 
   await expect(page.getByTestId('membership-notice')).toHaveText(
     'No membership change has reached Cassette yet. A change made in Stripe can take a minute to appear.',
-    { timeout: 35_000 },
   );
   await expect(page).not.toHaveURL(/membership=/);
   const requestsAtTimeout = state.membershipStatusRequests.length;
-  await page.waitForTimeout(2_500);
+  await page.clock.runFor(5_000);
+  await page.waitForTimeout(300);
   expect(state.membershipStatusRequests.length).toBe(requestsAtTimeout);
 
   await page.getByRole('button', { name: 'Check again' }).click();
+  await page.clock.runFor(1_000);
   await expect.poll(() => state.membershipStatusRequests.length).toBeGreaterThan(requestsAtTimeout);
   await expect(page.getByText(/up to date/)).toHaveCount(0);
 });
@@ -468,7 +469,8 @@ test('shows a cancellation seen without a Portal baseline but does not attribute
 
   await expect(page.getByTestId('membership-standing')).toContainText('Your membership will end on Sep 16, 2026.');
   await expect(page).not.toHaveURL(/membership=/);
-  await page.waitForTimeout(1_500);
+  await page.clock.runFor(5_000);
+  await page.waitForTimeout(300);
   expect(captures.some((capture) => capture.event === 'membership_canceled')).toBe(false);
 });
 

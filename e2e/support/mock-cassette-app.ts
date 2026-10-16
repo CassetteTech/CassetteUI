@@ -67,7 +67,6 @@ type MockCassetteOptions = {
   currentUser?: FixtureUser | null;
   internalCurators?: InternalCurator[];
   internalPricingPolicies?: PricingPolicy[];
-  internalPricingAssignments?: PricingAssignment[];
   curatorEarnings?: Pick<CuratorEarnings, 'activeMemberCount' | 'balances' | 'items'>;
   curatorMemberCounts?: FixtureCuratorMemberCounts;
   curatorMemberStatsStatus?: number;
@@ -94,11 +93,8 @@ type MockCassetteOptions = {
   posts?: FixturePost[];
   notifications?: MockNotification[];
   convertTemplates?: FixturePost[];
-  topCharts?: FixtureSearchResults;
-  searchResultsByQuery?: Record<string, FixtureSearchResults>;
   usernameAvailability?: Record<string, boolean>;
   musicConnectionsByUserId?: Record<string, string[]>;
-  platformPreferencesByUserId?: Record<string, string[]>;
   emailPreferencesByUserId?: Record<string, boolean>;
   defaultEnrolledUserIds?: string[];
   emailPreferenceUpdateFailures?: number;
@@ -115,7 +111,6 @@ type MockCassetteOptions = {
   paidPromotionCampaigns?: FixturePaidPromotionCampaign[];
   paidPromotionCampaignsResponse?: unknown;
   paidPromotionCampaignsStatus?: number;
-  paidPromotionCampaignsDelayMs?: number;
   paidPromotionPollSequence?: Array<{
     status: string;
     paymentStatus: string | null;
@@ -125,12 +120,10 @@ type MockCassetteOptions = {
     amountRefundedMinor?: number | null;
     refundableRemainderMinor?: number | null;
   }>;
-  paidPromotionCheckoutUrl?: string;
   internalPaidPromotionCampaign?: FixtureInternalPaidPromotionCampaign;
   internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
   paidPromotionSubjects?: unknown;
   paidPromotionSubjectsStatus?: number;
-  paidPromotionSubjectsDelayMs?: number;
   internalPaidPromotionSubjects?: unknown;
   internalPaidPromotionSubjectsStatus?: number;
   internalPaidPromotionSubjectsDelayMs?: number;
@@ -248,7 +241,6 @@ type MockState = {
   paidPromotionCampaignsById: Map<string, FixturePaidPromotionCampaign>;
   paidPromotionCampaignsResponse?: unknown;
   paidPromotionCampaignsStatus: number;
-  paidPromotionCampaignsDelayMs: number;
   paidPromotionPollSequence: Array<{
     status: string;
     paymentStatus: string | null;
@@ -258,12 +250,10 @@ type MockState = {
     amountRefundedMinor?: number | null;
     refundableRemainderMinor?: number | null;
   }>;
-  paidPromotionCheckoutUrl?: string;
   internalPaidPromotionCampaign: FixtureInternalPaidPromotionCampaign;
   internalPaidPromotionRefundRaceStatus?: 'refunded' | 'disputed' | 'charged_back';
   paidPromotionSubjects: unknown;
   paidPromotionSubjectsStatus: number;
-  paidPromotionSubjectsDelayMs: number;
   internalPaidPromotionSubjects: unknown;
   internalPaidPromotionSubjectsStatus: number;
   internalPaidPromotionSubjectsDelayMs: number;
@@ -676,7 +666,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
     currentUser: options.currentUser ? clone(options.currentUser) : null,
     internalCurators: clone(options.internalCurators || []),
     internalPricingPolicies: clone(options.internalPricingPolicies || []),
-    internalPricingAssignments: clone(options.internalPricingAssignments || []),
+    internalPricingAssignments: [],
     internalCuratorSuspendRequests: [],
     internalCuratorReinstateRequests: [],
     internalPricingPolicyCreateRequests: [],
@@ -741,8 +731,8 @@ const buildState = (options: MockCassetteOptions): MockState => {
     postsById: new Map<string, FixturePost>(),
     notificationsById: new Map<string, MockNotification>(),
     convertTemplatesByUrl: new Map<string, FixturePost>(),
-    topCharts: clone(options.topCharts || fixtureTopCharts),
-    searchResultsByQuery: clone(options.searchResultsByQuery || fixtureSearchResultsByQuery),
+    topCharts: clone(fixtureTopCharts),
+    searchResultsByQuery: clone(fixtureSearchResultsByQuery),
     usernameAvailability: {
       ...fixtureUsernameAvailability,
       ...clone(options.usernameAvailability || {}),
@@ -767,9 +757,7 @@ const buildState = (options: MockCassetteOptions): MockState => {
       ? undefined
       : clone(options.paidPromotionCampaignsResponse),
     paidPromotionCampaignsStatus: options.paidPromotionCampaignsStatus ?? 200,
-    paidPromotionCampaignsDelayMs: options.paidPromotionCampaignsDelayMs ?? 0,
     paidPromotionPollSequence: clone(options.paidPromotionPollSequence || []),
-    paidPromotionCheckoutUrl: options.paidPromotionCheckoutUrl,
     internalPaidPromotionCampaign: clone(
       options.internalPaidPromotionCampaign || fixtureInternalPaidPromotionCampaign,
     ),
@@ -780,7 +768,6 @@ const buildState = (options: MockCassetteOptions): MockState => {
         : options.paidPromotionSubjects,
     ),
     paidPromotionSubjectsStatus: options.paidPromotionSubjectsStatus ?? 200,
-    paidPromotionSubjectsDelayMs: options.paidPromotionSubjectsDelayMs ?? 0,
     internalPaidPromotionSubjects: clone(
       options.internalPaidPromotionSubjects === undefined
         ? fixturePaidPromotionSubjects
@@ -826,9 +813,6 @@ const buildState = (options: MockCassetteOptions): MockState => {
 
   for (const [userId, platforms] of Object.entries(options.musicConnectionsByUserId || {})) {
     state.musicConnectionsByUserId.set(userId, clone(platforms).map(normalizeServiceName));
-  }
-  for (const [userId, platforms] of Object.entries(options.platformPreferencesByUserId || {})) {
-    state.platformPreferencesByUserId.set(userId, clone(platforms).map(normalizeServiceName));
   }
   for (const [userId, enabled] of Object.entries(options.emailPreferencesByUserId || {})) {
     state.emailPreferencesByUserId.set(userId, {
@@ -2281,9 +2265,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
     if (pathname === '/api/v1/paid-promotions/subjects' && method === 'GET') {
       getCurrentUserOrThrow(state);
-      if (state.paidPromotionSubjectsDelayMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, state.paidPromotionSubjectsDelayMs));
-      }
       if (state.paidPromotionSubjectsStatus !== 200) {
         return json(route, {
           message: 'Paid-promotion subjects are unavailable to this caller.',
@@ -2294,9 +2275,6 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
 
     if (pathname === '/api/v1/paid-promotions/campaigns' && method === 'GET') {
       getCurrentUserOrThrow(state);
-      if (state.paidPromotionCampaignsDelayMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, state.paidPromotionCampaignsDelayMs));
-      }
       if (state.paidPromotionCampaignsStatus !== 200) {
         return json(route, {
           message: 'Paid-promotion campaigns are unavailable to this caller.',
@@ -2416,9 +2394,7 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       return json(route, {
         campaignId,
         paymentId: 'pmp_FixturePayment01',
-        checkoutUrl:
-          state.paidPromotionCheckoutUrl ||
-          `/promote/${encodeURIComponent(campaignId)}/return?session_id=cs_fixture_return_value`,
+        checkoutUrl: `/promote/${encodeURIComponent(campaignId)}/return?session_id=cs_fixture_return_value`,
         paymentStatus: 'pending',
       });
     }

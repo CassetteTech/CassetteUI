@@ -111,6 +111,7 @@ test.describe('route guards and auth redirects', () => {
     await expect(page.getByTestId('auth-error-message')).toContainText(
       'We could not start Google sign-in. Please try again.',
     );
+    await expect(page.getByTestId('auth-error-message')).not.toContainText('configuration');
 
     await page.getByRole('button', { name: 'Continue with Google' }).click();
     await expect(page).toHaveURL('/studio/music/new');
@@ -124,24 +125,6 @@ test.describe('route guards and auth redirects', () => {
     await page.goto('/auth/signin?redirect=/studio/music/new');
     await page.getByRole('link', { name: /Sign Up/ }).click();
     await expect(page).toHaveURL('/auth/signup?redirect=%2Fstudio%2Fmusic%2Fnew');
-
-    await page.getByRole('button', { name: 'Continue with Google' }).click();
-    await expect(page).toHaveURL('/studio/music/new');
-  });
-
-  test('shows a retryable error when Google sign-in cannot start', async ({ page }) => {
-    await mockCassetteApp(page, {
-      googleAuthUser: fixtureUsers.member,
-      googleAuthInitFailures: 1,
-    });
-
-    await page.goto('/auth/signin?redirect=/studio/music/new');
-    await page.getByRole('button', { name: 'Continue with Google' }).click();
-
-    await expect(page.getByTestId('auth-error-message')).toContainText(
-      'We could not start Google sign-in. Please try again.',
-    );
-    await expect(page.getByTestId('auth-error-message')).not.toContainText('configuration');
 
     await page.getByRole('button', { name: 'Continue with Google' }).click();
     await expect(page).toHaveURL('/studio/music/new');
@@ -167,20 +150,5 @@ test.describe('route guards and auth redirects', () => {
     await expect
       .poll(async () => page.evaluate(() => sessionStorage.getItem('cassette_pending_action')))
       .not.toBeNull();
-  });
-
-  test('returns an onboarded add-music visitor to /add-music after Google auth', async ({
-    page,
-  }) => {
-    await mockCassetteApp(page, {
-      googleAuthUser: fixtureUsers.member,
-    });
-
-    await page.goto('/studio/music/new');
-    await expect(page).toHaveURL('/auth/signin?redirect=%2Fstudio%2Fmusic%2Fnew');
-
-    await page.getByRole('button', { name: 'Continue with Google' }).click();
-    await expect(page).toHaveURL('/studio/music/new');
-    await expect(page.locator('[data-testid="add-music-input"]:visible')).toBeVisible();
   });
 });

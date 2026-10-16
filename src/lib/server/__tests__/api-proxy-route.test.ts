@@ -1,16 +1,15 @@
 import '../../../services/__tests__/browser-service-environment';
-import test, { afterEach, beforeEach } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { APP, STATE, appRequest as request, recordForwardedBridgeRequests } from './bridge-fetch-recorder';
 import * as proxyRoute from '../../../app/api/v1/[...path]/route';
 
 type Handler = (request: NextRequest, context: { params: Promise<{ path: string[] }> }) => Promise<Response>;
 const handlers: Record<string, Handler> = proxyRoute;
 const UNSAFE_METHODS = Object.keys(proxyRoute).filter((method) => !['GET', 'HEAD', 'OPTIONS'].includes(method));
 
-const APP = 'http://localhost:3000';
 const BRIDGE = 'https://api.cassette.test';
-const STATE = { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false };
 
 // The params Next gives this catch-all for Follow spellings that the case-sensitive
 // scoped Follow route does not match. Next decodes an encoded slash inside one
@@ -22,41 +21,9 @@ const FOLLOW_ALIASES = [
 ];
 const WRITE_TARGETS = [{ url: '/api/v1/social/posts', path: ['social', 'posts'] }, ...FOLLOW_ALIASES];
 
-type Forwarded = { url: string; init: RequestInit };
-let forwarded: Forwarded[] = [];
-const previousFetch = globalThis.fetch;
-
-beforeEach(() => {
-  forwarded = [];
-  delete process.env.PLAYWRIGHT_TEST;
-  globalThis.fetch = async (input, init) => {
-    forwarded.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
-    return new Response(JSON.stringify(STATE), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
-        'cache-control': 'private, no-store',
-        vary: 'Authorization, Cookie',
-        'set-cookie': 'bridge_internal=1',
-      },
-    });
-  };
-});
-
-afterEach(() => {
-  globalThis.fetch = previousFetch;
-  delete process.env.PLAYWRIGHT_TEST;
-});
+const forwarded = recordForwardedBridgeRequests();
 
 const context = (path: string[]) => ({ params: Promise.resolve({ path }) });
-
-function request(method: string, url: string, headers: Record<string, string> = {}, init: { body?: string; signal?: AbortSignal } = {}) {
-  return new NextRequest(`${APP}${url}`, {
-    method,
-    headers: { cookie: 'cassette_session=session-123; other=x', ...headers },
-    ...init,
-  });
-}
 
 for (const method of UNSAFE_METHODS) {
   void test(`a ${method} from another origin, or with no origin at all, is refused before forwarding under every path spelling`, async () => {
@@ -106,7 +73,7 @@ for (const method of UNSAFE_METHODS) {
 void test('a same-origin referer lets a Follow or Unfollow through under any path spelling, to the path it decoded to', async () => {
   for (const alias of FOLLOW_ALIASES) {
     for (const method of ['PUT', 'DELETE'] as const) {
-      forwarded = [];
+      forwarded.length = 0;
       const response = await handlers[method](request(method, alias.url, { referer: `${APP}/profile/night-curator?tab=posts` }), context(alias.path));
 
       assert.equal(response.status, 200, `${method} ${alias.url}`);
@@ -122,7 +89,7 @@ void test('reads and preflights need no origin', async () => {
   // Next answers HEAD with the GET handler when a route defines no HEAD.
   for (const [method, handler] of [['GET', proxyRoute.GET], ['HEAD', proxyRoute.GET], ['OPTIONS', proxyRoute.OPTIONS]] as const) {
     for (const headers of origins) {
-      forwarded = [];
+      forwarded.length = 0;
       const response = await handler(request(method, '/api/v1/curators/night-curator/page?tab=posts', headers), context(['curators', 'night-curator', 'page']));
 
       assert.equal(response.status, 200, method);

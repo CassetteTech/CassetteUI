@@ -15,16 +15,6 @@ test.describe('home conversion funnel', () => {
     await expect(page.getByRole('link', { name: 'Apple Music' })).toBeVisible();
   });
 
-  test('shows validation for unsupported pasted links', async ({ page }) => {
-    await mockCassetteApp(page);
-
-    await page.goto('/');
-    await dispatchPaste(page, 'home-search-input', 'https://www.youtube.com/watch?v=not-supported');
-
-    await expect(page).toHaveURL('/');
-    await expect(page.getByText("This music service isn't supported yet.")).toBeVisible();
-  });
-
   for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
     test(`shows keyboard focus and an announced, linked error at ${viewport.width}px`, async ({ page }) => {
       await page.setViewportSize(viewport);
@@ -42,18 +32,9 @@ test.describe('home conversion funnel', () => {
       await expect(error).toBeVisible();
       await expect(input).toHaveAttribute('aria-invalid', 'true');
       await expect(input).toHaveAttribute('aria-describedby', (await error.getAttribute('id'))!);
+      await expect(page).toHaveURL('/');
     });
   }
-
-  test('shows validation for unknown http music links', async ({ page }) => {
-    await mockCassetteApp(page);
-
-    await page.goto('/');
-    await dispatchPaste(page, 'home-search-input', 'https://example.com/music/not-supported');
-
-    await expect(page).toHaveURL('/');
-    await expect(page.getByText("This music service isn't supported yet.")).toBeVisible();
-  });
 
   test('preserves the source route when landing on a converted post', async ({ page }) => {
     await mockCassetteApp(page);

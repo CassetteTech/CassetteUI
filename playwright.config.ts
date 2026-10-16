@@ -40,6 +40,8 @@ export default defineConfig({
       NEXT_PUBLIC_APP_DOMAIN: baseURL,
       NEXT_PUBLIC_API_URL_LOCAL: baseURL,
       NEXT_PUBLIC_ENABLE_LAMBDA_WARMUP: 'false',
+      // Keeps the production retry count but not its seconds of backoff before an error state.
+      NEXT_PUBLIC_E2E_QUERY_RETRY_DELAY_MS: '10',
       // Production sends Spotify copies of playlists to Cassette's own account.
       NEXT_PUBLIC_USE_CASSETTE_SPOTIFY_ACCOUNT: 'true',
       NEXT_PUBLIC_POSTHOG_KEY: 'phc_e2e_test',

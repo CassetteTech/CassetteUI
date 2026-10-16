@@ -75,7 +75,7 @@ function withBrowserStorage(run: (storage: Storage) => void) {
   }
 }
 
-test('saved redirects survive a fresh tab and are consumed once', () => {
+test('a saved redirect is consumed once', () => {
   withBrowserStorage(() => {
     authRedirectService.save('/promote/new');
     assert.equal(authRedirectService.consume(), '/promote/new');

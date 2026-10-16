@@ -279,7 +279,7 @@ test('after a failed profile read, Set up memberships moves focus to the profile
     route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
 
   await page.goto('/studio/music');
-  await expect(page.getByText('Could not load your curator profile.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Could not load your curator profile.')).toBeVisible();
   await rowOf(page, 'Gate Track').getByRole('button', { name: 'Who can open Gate Track: Public' }).click();
   await page.getByRole('menuitem', { name: 'Set up memberships' }).click();
 
@@ -480,7 +480,7 @@ test('shows the next posts after a removal without skipping one, even when a ref
   await page.getByRole('menuitem', { name: 'Delete post' }).click();
   await page.getByRole('button', { name: 'Delete Post' }).click();
   await expect(rowsOf(page)).toHaveCount(19);
-  await expect(library(page).getByRole('alert')).toHaveText('Could not refresh your music.', { timeout: 15_000 });
+  await expect(library(page).getByRole('alert')).toHaveText('Could not refresh your music.');
 
   failing = false;
   await page.getByRole('button', { name: 'Show more' }).click();
@@ -498,7 +498,7 @@ test('retries a failed first read', async ({ page }) => {
     : route.fallback()));
 
   await page.goto('/studio/music');
-  await expect(library(page).getByRole('alert')).toHaveText('Could not load your music.', { timeout: 15_000 });
+  await expect(library(page).getByRole('alert')).toHaveText('Could not load your music.');
 
   failing = false;
   await library(page).getByRole('button', { name: 'Try again' }).click();

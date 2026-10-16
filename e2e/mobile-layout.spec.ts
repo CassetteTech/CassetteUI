@@ -1,19 +1,10 @@
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
 
 import { fixturePosts, fixtureUsers } from './support/cassette-fixtures';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const MOBILE_VIEWPORT = { width: 390, height: 667 };
-
-async function expectNoHorizontalOverflow(page: Page) {
-  await expect.poll(() => page.evaluate(() => {
-    const documentWidth = Math.max(
-      document.documentElement.scrollWidth,
-      document.body.scrollWidth,
-    );
-    return documentWidth - window.innerWidth;
-  })).toBeLessThanOrEqual(1);
-}
 
 async function expectControlWithinViewport(locator: Locator) {
   await expect(locator).toBeVisible();

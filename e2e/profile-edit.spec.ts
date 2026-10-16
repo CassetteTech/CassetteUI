@@ -117,6 +117,12 @@ test('persists liked-post privacy changes and hides the liked tab from other vie
 
   await expect(page).toHaveURL(/\/profile\/miagroove(?:\?tab=playlists)?$/);
   await expect(page.getByRole('tab', { name: /Liked/ })).toBeVisible();
+  await page.goto('/profile/miagroove?tab=liked');
+  await expect(
+    page.getByRole('main').last().getByText('Posts you like will appear here.', { exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/profile\/miagroove\?tab=liked$/);
+  await expect(page.getByRole('tab', { name: /Liked/ })).toBeVisible();
 
   const viewerPage = await browser.newPage();
   await mockCassetteApp(viewerPage, {

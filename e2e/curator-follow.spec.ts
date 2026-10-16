@@ -10,8 +10,11 @@ import {
   fixtureNoMembershipStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { followButton, followWrites as writes } from './support/curator-follow-controls';
 import { fulfillUnlessAborted, holdRoute, trackRequests } from './support/held-requests';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { returnFromProvider } from './support/provider-return';
 
 const CURATOR_ID = fixtureCuratorPage.curator.id;
 const FOLLOW_ROUTE = `**/api/v1/curators/${CURATOR_ID}/follow`;
@@ -21,22 +24,9 @@ const INTENT_KEY = `cassette:follow-intent:${CURATOR_ID}`;
 const CHECKOUT_URL = 'https://checkout.stripe.test/membership-session';
 const PORTAL_URL = 'https://billing.stripe.test/membership-session';
 
-// Exact names: "Follow Crate Keeper" is also a substring of "Unfollow Crate Keeper".
-const followButton = (page: Page) => page.getByRole('button', { name: `Follow ${NAME}`, exact: true }).filter({ visible: true });
 const unfollowButton = (page: Page) => page.getByRole('button', { name: `Unfollow ${NAME}`, exact: true }).filter({ visible: true });
 const following = (page: Page) => page.getByText('Following', { exact: true }).filter({ visible: true });
 const anyFollowControl = (page: Page) => page.getByTestId('curator-follow');
-
-async function returnFromProvider(page: Page, providerUrl: string, returnPath: string) {
-  const appOrigin = new URL(page.url()).origin;
-  await page.route(providerUrl, (route) => route.fulfill({
-    status: 302,
-    headers: { location: `${appOrigin}${returnPath}` },
-  }));
-}
-
-const writes = (state: { curatorFollowRequests: Array<{ method: string }> }) =>
-  state.curatorFollowRequests.filter(({ method }) => method !== 'GET').map(({ method }) => method);
 
 test('Follow sits quietly under Join, takes one action each way, and refreshes the session', async ({ page }) => {
   const sessionReads = trackRequests(page, '/api/auth/session');
@@ -108,7 +98,7 @@ test('a relationship read failure offers a retry, never a guessed button', async
   await page.goto(CURATOR_PATH);
 
   const control = anyFollowControl(page).filter({ visible: true });
-  await expect(control).toContainText('Follow status is unavailable.', { timeout: 15_000 });
+  await expect(control).toContainText('Follow status is unavailable.');
   await expect(followButton(page)).toHaveCount(0);
   await control.getByRole('button', { name: 'Try again' }).click();
   await expect(followButton(page)).toBeVisible();
@@ -181,7 +171,7 @@ test.describe('on a phone', () => {
     await expect(page.locator('[data-testid="curator-membership-card"]:visible')).toBeVisible();
     await expect(followButton(page)).toHaveCount(1);
     await expect(page.locator('header').filter({ has: followButton(page) })).toHaveCount(1);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    await expectNoHorizontalOverflow(page);
 
     await page.getByRole('tab', { name: /Liked/ }).click();
     await expect(followButton(page)).toHaveCount(1);
@@ -189,7 +179,7 @@ test.describe('on a phone', () => {
     await expect(following(page)).toHaveCount(1);
     await expect(unfollowButton(page)).toHaveCount(1);
     expect(writes(state)).toEqual(['PUT']);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    await expectNoHorizontalOverflow(page);
   });
 });
 

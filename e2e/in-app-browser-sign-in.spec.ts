@@ -6,6 +6,7 @@ import {
   fixturePosts,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { followButton, followWrites as writes } from './support/curator-follow-controls';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const CURATOR_ID = fixtureCuratorPage.curator.id;
@@ -23,7 +24,6 @@ const SAFARI_IOS =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 const PHONE = { width: 390, height: 844 };
 
-const followButton = (page: Page) => page.getByRole('button', { name: `Follow ${NAME}`, exact: true }).filter({ visible: true });
 const googleButton = (page: Page) => page.getByRole('button', { name: 'Continue with Google' });
 const inAppStep = (page: Page) => page.getByTestId('in-app-browser-sign-in').filter({ visible: true });
 const confirmation = (page: Page) => page.getByTestId('carried-action-confirmation');
@@ -37,9 +37,6 @@ async function recordClipboard(page: Page) {
   });
   return () => page.locator('html').getAttribute('data-copied');
 }
-
-const writes = (state: { curatorFollowRequests: Array<{ method: string }> }) =>
-  state.curatorFollowRequests.filter(({ method }) => method !== 'GET').map(({ method }) => method);
 
 test.describe('inside the Instagram browser on iPhone', () => {
   test.use({ userAgent: INSTAGRAM_IOS, viewport: PHONE });

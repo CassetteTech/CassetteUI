@@ -96,10 +96,12 @@ test('paid-promotion attribution stays optional and is validated by the analytic
     paidPromotionCampaignId: 'campaign-from-route',
   });
 
+  assert.ok(ordinaryPayload);
+  assert.ok(invalidPayload);
   assert.equal(paidPayload?.paid_promotion_campaign_id, 'pmc_0123AbCd');
-  assert.equal(ordinaryPayload?.paid_promotion_campaign_id, undefined);
+  assert.equal(ordinaryPayload.paid_promotion_campaign_id, undefined);
   assert.equal(
-    sanitizeAnalyticsProps(invalidPayload ?? {}).paid_promotion_campaign_id,
+    sanitizeAnalyticsProps(invalidPayload).paid_promotion_campaign_id,
     undefined,
   );
 });

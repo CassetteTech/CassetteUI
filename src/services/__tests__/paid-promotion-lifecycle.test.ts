@@ -43,29 +43,24 @@ function campaign(paymentStatus: PaidPromotionPaymentStatus | null): PaidPromoti
   };
 }
 
-void test('maps persisted payment statuses to return-page states', () => {
-  assert.equal(getPaidPromotionReturnState(campaign('created')), 'pending');
-  assert.equal(getPaidPromotionReturnState(campaign('pending')), 'pending');
-  assert.equal(getPaidPromotionReturnState(campaign('processing')), 'processing');
-  assert.equal(getPaidPromotionReturnState(campaign('paid')), 'paid');
-  assert.equal(getPaidPromotionReturnState(campaign('failed')), 'failed');
-  assert.equal(getPaidPromotionReturnState(campaign('expired')), 'expired');
-});
-
-void test('maps a campaign with no payment attempt to not_started', () => {
-  assert.equal(getPaidPromotionReturnState(campaign(null)), 'not_started');
-});
-
-void test('maps the refund family to refunded, not an error state', () => {
-  assert.equal(getPaidPromotionReturnState(campaign('refund_pending')), 'refunded');
-  assert.equal(getPaidPromotionReturnState(campaign('partially_refunded')), 'refunded');
-  assert.equal(getPaidPromotionReturnState(campaign('refunded')), 'refunded');
-});
-
-void test('keeps disputes distinct from clean refunds', () => {
-  assert.equal(getPaidPromotionReturnState(campaign('disputed')), 'disputed');
-  assert.equal(getPaidPromotionReturnState(campaign('charged_back')), 'disputed');
-});
+for (const [paymentStatus, returnState] of [
+  ['created', 'pending'],
+  ['pending', 'pending'],
+  ['processing', 'processing'],
+  ['paid', 'paid'],
+  ['failed', 'failed'],
+  ['expired', 'expired'],
+  [null, 'not_started'],
+  ['refund_pending', 'refunded'],
+  ['partially_refunded', 'refunded'],
+  ['refunded', 'refunded'],
+  ['disputed', 'disputed'],
+  ['charged_back', 'disputed'],
+] as const) {
+  void test(`maps payment status ${paymentStatus} to the return-page state ${returnState}`, () => {
+    assert.equal(getPaidPromotionReturnState(campaign(paymentStatus)), returnState);
+  });
+}
 
 void test('does not infer payment truth from unknown states or unknown totals', () => {
   const unknownStatus = campaign('paid');

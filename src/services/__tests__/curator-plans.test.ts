@@ -137,6 +137,13 @@ void test('economics mirrors separate half-up fees and never subtracts Curator P
     platformFeeBps: 10_000,
     payoutOpsFeeBps: 10_000,
   }).curatorAccrualMinor, 0);
+
+  const percentageFee = { ...pricing, serviceFeeBps: 1000, serviceFeeFixedMinor: 0 };
+  const fixedFee = { ...pricing, serviceFeeBps: 0, serviceFeeFixedMinor: 50 };
+  assert.equal(calculateCuratorPlanEconomics(500, percentageFee).serviceFeeMinor, 50);
+  assert.equal(calculateCuratorPlanEconomics(500, fixedFee).serviceFeeMinor, 50);
+  assert.equal(calculateCuratorPlanEconomics(6000, percentageFee).fanChargeMinor, 6600);
+  assert.equal(calculateCuratorPlanEconomics(6000, fixedFee).fanChargeMinor, 6050);
 });
 
 void test('plan client uses only the authenticated public lifecycle routes', async (t) => {
@@ -287,15 +294,6 @@ void test('annual price client posts once, parses the plan strictly, and keeps B
   await assert.rejects(addCuratorPlanAnnualPrice(draft.id, 0));
   await assert.rejects(addCuratorPlanAnnualPrice('not-a-plan', 7000));
   assert.equal(calls.length, 4);
-});
-
-void test('a matching monthly fee does not prove the annual fan charge of a plan\'s frozen fees', () => {
-  const frozen = { ...pricing, serviceFeeBps: 1000, serviceFeeFixedMinor: 0 };
-  const today = { ...pricing, serviceFeeBps: 0, serviceFeeFixedMinor: 50 };
-  assert.equal(calculateCuratorPlanEconomics(500, frozen).serviceFeeMinor, 50);
-  assert.equal(calculateCuratorPlanEconomics(500, today).serviceFeeMinor, 50);
-  assert.equal(calculateCuratorPlanEconomics(6000, frozen).fanChargeMinor, 6600);
-  assert.equal(calculateCuratorPlanEconomics(6000, today).fanChargeMinor, 6050);
 });
 
 void test('plan requests accept monthly prices from 500 to 10,000 minor units only', async (t) => {

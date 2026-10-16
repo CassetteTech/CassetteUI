@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import type { CuratorProStatus } from '../src/services/curator-pro';
 import {
@@ -7,26 +7,21 @@ import {
   fixtureCuratorProDefaultStatus,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
+import { pauseAtReturnRead, returnFromProvider } from './support/provider-return';
 import { openStudioStep } from './support/studio-steps';
 
 const STUDIO_PATH = '/studio';
 const STUDIO_PAYOUTS_PATH = '/studio/payouts';
 const CHECKOUT_URL = 'https://checkout.stripe.test/curator-pro-session';
 const PORTAL_URL = 'https://billing.stripe.test/curator-pro-session';
+const PRO_STATUS_PATH = /^\/api\/v1\/curators\/pro\/status$/;
 
 const proStatus = (overrides: Partial<CuratorProStatus>): CuratorProStatus => ({
   ...fixtureCuratorProAvailableStatus,
   ...overrides,
 });
-
-async function returnFromProvider(page: Page, providerUrl: string, returnPath: string) {
-  const appOrigin = new URL(page.url()).origin;
-  await page.route(providerUrl, (route) => route.fulfill({
-    status: 302,
-    headers: { location: `${appOrigin}${returnPath}` },
-  }));
-}
 
 test('shows default economics without taking away Studio Music', async ({ page }) => {
   await mockCassetteApp(page, {
@@ -48,11 +43,7 @@ test('shows default economics without taking away Studio Music', async ({ page }
   await expect(card).toBeVisible();
   await openStudioStep(page, 'studio-music');
   await expect(page.getByRole('heading', { name: 'Music', exact: true })).toBeVisible();
-  const pageWidths = await page.evaluate(() => [
-    document.documentElement.scrollWidth,
-    document.body.scrollWidth,
-  ]);
-  expect(Math.max(...pageWidths)).toBeLessThanOrEqual(375);
+  await expectNoHorizontalOverflow(page);
 });
 
 test('renders policy pricing and each valid launch discount', async ({ page }) => {
@@ -197,29 +188,35 @@ test('reflects cancellation and reactivation only after Billing Portal mirror ch
 });
 
 test('ends an unchanged Billing Portal return with neutral copy and a way to check again', async ({ page }) => {
-  test.setTimeout(60_000);
+  await page.clock.install();
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,
     curatorProStatus: fixtureCuratorProActiveStatus,
   });
 
   await page.goto(STUDIO_PATH);
-  await returnFromProvider(page, PORTAL_URL, `${STUDIO_PAYOUTS_PATH}?pro=portal-return`);
+  const returnPath = `${STUDIO_PAYOUTS_PATH}?pro=portal-return`;
+  await returnFromProvider(page, PORTAL_URL, returnPath);
   await openStudioStep(page, 'studio-pro');
   const card = page.getByTestId('curator-pro-card');
   await expect(card).toContainText('Your memberships and earnings are not affected.');
-  await page.getByTestId('curator-pro-manage').click();
+  await pauseAtReturnRead(page, returnPath, PRO_STATUS_PATH, () => page.getByTestId('curator-pro-manage').click());
+  const requestsAtPause = state.curatorProStatusRequests;
+  await page.clock.runFor(1_000);
+  await expect.poll(() => state.curatorProStatusRequests).toBe(requestsAtPause + 1);
+  await page.clock.fastForward('00:30');
 
   await expect(page.getByTestId('curator-pro-notice')).toHaveText(
     'No billing change has reached Cassette yet. A change made in Stripe can take a minute to appear.',
-    { timeout: 35_000 },
   );
   await expect(page).not.toHaveURL(/pro=/);
   await expect(page.getByText(/up to date|unchanged/)).toHaveCount(0);
   const requestsAtTimeout = state.curatorProStatusRequests;
-  await page.waitForTimeout(2_500);
+  await page.clock.runFor(5_000);
+  await page.waitForTimeout(300);
   expect(state.curatorProStatusRequests).toBe(requestsAtTimeout);
   await page.getByRole('button', { name: 'Check again' }).click();
+  await page.clock.runFor(1_000);
   await expect.poll(() => state.curatorProStatusRequests).toBeGreaterThan(requestsAtTimeout);
 });
 

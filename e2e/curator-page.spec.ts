@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import {
   CURATOR_SUBSCRIBER_SENTINEL,
@@ -7,18 +7,12 @@ import {
   fixtureMemberCuratorPage,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { AccountType } from '../src/types';
 
 const CURATOR_PATH = `/profile/${fixtureCuratorPage.curator.username}`;
 const MOBILE_VIEWPORT = { width: 390, height: 667 };
-
-async function expectNoHorizontalOverflow(page: Page) {
-  await expect.poll(() => page.evaluate(() => Math.max(
-    document.documentElement.scrollWidth,
-    document.body.scrollWidth,
-  ) - window.innerWidth)).toBeLessThanOrEqual(1);
-}
 
 test('shows a paid curator plan without leaking locked content to a nonmember', async ({ page }) => {
   await mockCassetteApp(page, {

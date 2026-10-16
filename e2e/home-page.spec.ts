@@ -60,6 +60,7 @@ test.describe('home page', () => {
   });
 
   test('turns the link card only while motion is allowed', async ({ page }) => {
+    await page.clock.install();
     await mockCassetteApp(page, { reducedMotion: 'no-preference' });
     await page.goto('/');
     const card = page.getByRole('figure', { name: /Paste a Spotify, Apple Music, or Deezer link/ });
@@ -82,7 +83,7 @@ test.describe('home page', () => {
     await expect(converted).toBeHidden();
     await expect(pastedStill).toHaveText('open.spotify.com/…');
     await expect(convertedStill).toHaveText('music.apple.com/…');
-    await page.waitForTimeout(3000);
+    await page.clock.runFor(5_000);
     expect(await pasted.isVisible()).toBe(false);
     expect(await convertedStill.isVisible()).toBe(true);
 

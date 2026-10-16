@@ -14,6 +14,7 @@ import {
   fixtureUsers,
 } from './support/cassette-fixtures';
 import { fulfillUnlessAborted, holdRoute } from './support/held-requests';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { openStudioStep } from './support/studio-steps';
 
@@ -236,7 +237,7 @@ test('says so when the profile read after a first draft fails, and recovers on r
   state.curatorProfileReadFailuresRemaining = 10;
   await card.getByRole('button', { name: 'Save draft' }).click();
 
-  await expect(page.getByText('Could not load your curator profile.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Could not load your curator profile.')).toBeVisible();
   expect(state.curatorPlanCreateRequests).toHaveLength(1);
 
   state.curatorProfileReadFailuresRemaining = 0;
@@ -1085,7 +1086,7 @@ test('leaves the plan card to explain a failed plan read, with no members or set
   await page.goto(STUDIO_PATH);
   await openStudioStep(page, 'studio-membership');
 
-  await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('curator-plan-card').getByRole('alert')).toBeVisible();
   await expect(page.getByTestId('curator-earnings-card')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Membership setup' })).toHaveCount(0);
   expect(state.curatorMemberStatsRequests).toEqual([]);
@@ -1344,7 +1345,7 @@ test.describe('audience', () => {
 
     await page.goto(STUDIO_PATH);
     await expect(page.getByTestId('curator-plan-card').getByRole('alert', { includeHidden: true }))
-      .toBeAttached({ timeout: 15_000 });
+      .toBeAttached();
 
     await audienceSection(page).getByRole('button', { name: 'Members 0', exact: true }).click();
     await expect(page).toHaveURL(/\/studio\/membership$/);
@@ -1398,7 +1399,7 @@ test.describe('audience', () => {
     await expect(section.getByText('0', { exact: true })).toHaveCount(0);
 
     release();
-    await expect(section.getByText('Unavailable right now')).toHaveCount(2, { timeout: 15_000 });
+    await expect(section.getByText('Unavailable right now')).toHaveCount(2);
     await expect(section.getByText('0', { exact: true })).toHaveCount(0);
     await expect(section.getByText('—')).toHaveCount(2);
 
@@ -1421,8 +1422,7 @@ test.describe('audience', () => {
 
       await page.goto(STUDIO_PATH);
       await expect(audienceSection(page).getByRole('button', { name: 'Members 89,012', exact: true })).toBeVisible();
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow).toBeLessThanOrEqual(0);
+      await expectNoHorizontalOverflow(page);
     });
   });
 });

@@ -7,6 +7,7 @@ import {
   fixturePaidPromotionSubjects,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 const CUSTOMER_COPY_DENYLIST = /\b(?:persisted|canonical|owner[- ]scoped)\b/i;
@@ -865,57 +866,39 @@ test('fails visibly when a paid campaign has unknown checkout totals', async ({ 
   await expectCustomerCopy(page);
 });
 
-test('keeps paid-promotion intake within a narrow mobile viewport', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 667 });
-  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+for (const surface of [
+  {
+    name: 'keeps paid-promotion intake within a narrow mobile viewport',
+    path: '/promote/new',
+    options: { currentUser: fixtureUsers.member },
+    ready: ['paid-promotion-subject-input'],
+  },
+  {
+    name: 'keeps the public landing within a narrow mobile viewport',
+    path: '/promote',
+    options: {},
+    ready: ['promote-landing'],
+  },
+  {
+    name: 'keeps promoter home usable within a narrow mobile viewport',
+    path: '/promote',
+    options: {
+      currentUser: fixtureUsers.member,
+      paidPromotionCampaigns: [fixturePaidPromotionCampaign],
+      paidPromotionSubjects: fixturePaidPromotionSubjects,
+    },
+    ready: ['paid-promotion-new-campaign', `paid-promotion-campaign-link-${fixturePaidPromotionCampaign.id}`],
+  },
+]) {
+  test(surface.name, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await mockCassetteApp(page, surface.options);
 
-  await page.goto('/promote/new');
-  await expect(page.getByTestId('paid-promotion-subject-input')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => {
-    const documentWidth = Math.max(
-      document.documentElement.scrollWidth,
-      document.body.scrollWidth,
-    );
-    return documentWidth - window.innerWidth;
-  })).toBeLessThanOrEqual(1);
-});
-
-test('keeps the public landing within a narrow mobile viewport', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 667 });
-  await mockCassetteApp(page);
-
-  await page.goto('/promote');
-  await expect(page.getByTestId('promote-landing')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => {
-    const documentWidth = Math.max(
-      document.documentElement.scrollWidth,
-      document.body.scrollWidth,
-    );
-    return documentWidth - window.innerWidth;
-  })).toBeLessThanOrEqual(1);
-});
-
-test('keeps promoter home usable within a narrow mobile viewport', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 667 });
-  await mockCassetteApp(page, {
-    currentUser: fixtureUsers.member,
-    paidPromotionCampaigns: [fixturePaidPromotionCampaign],
-    paidPromotionSubjects: fixturePaidPromotionSubjects,
+    await page.goto(surface.path);
+    for (const testId of surface.ready) await expect(page.getByTestId(testId)).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   });
-
-  await page.goto('/promote');
-  await expect(page.getByTestId('paid-promotion-new-campaign')).toBeVisible();
-  await expect(page.getByTestId(
-    `paid-promotion-campaign-link-${fixturePaidPromotionCampaign.id}`,
-  )).toBeVisible();
-  await expect.poll(() => page.evaluate(() => {
-    const documentWidth = Math.max(
-      document.documentElement.scrollWidth,
-      document.body.scrollWidth,
-    );
-    return documentWidth - window.innerWidth;
-  })).toBeLessThanOrEqual(1);
-});
+}
 
 test('keeps campaign detail and evidence links usable within a narrow mobile viewport', async ({
   page,
@@ -942,13 +925,7 @@ test('keeps campaign detail and evidence links usable within a narrow mobile vie
 
   await page.goto(`/promote/${fixturePaidPromotionCampaign.id}`);
   await expect(page.getByRole('link', { name: 'View evidence' })).toBeVisible();
-  await expect.poll(() => page.evaluate(() => {
-    const documentWidth = Math.max(
-      document.documentElement.scrollWidth,
-      document.body.scrollWidth,
-    );
-    return documentWidth - window.innerWidth;
-  })).toBeLessThanOrEqual(1);
+  await expectNoHorizontalOverflow(page);
 });
 
 for (const currentUser of [null, fixtureUsers.member]) {

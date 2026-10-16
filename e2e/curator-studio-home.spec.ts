@@ -221,7 +221,7 @@ test('says the earnings are unavailable when the ledger read fails, never that n
 
   await page.goto('/studio/membership');
 
-  await expect(page.getByText('Earnings are unavailable right now. Try again in a moment.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Earnings are unavailable right now. Try again in a moment.')).toBeVisible();
   await expect(page.getByText(/No earnings/)).toHaveCount(0);
 });
 

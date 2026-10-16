@@ -36,7 +36,7 @@ test('Pro owner loses displayed insights when the entitlement changes', async ({
   await expect(panel).toContainText('Unique viewers');
   state.curatorProStatus = { ...fixtureCuratorProDefaultStatus };
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
-  await expect(panel).toContainText('Post audience insights are part of Curator Pro.', { timeout: 35_000 });
+  await expect(panel).toContainText('Post audience insights are part of Curator Pro.');
   await expect(panel).not.toContainText('Unique viewers');
 });
 

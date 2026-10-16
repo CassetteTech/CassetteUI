@@ -6,6 +6,7 @@ import {
   fixturePaidPromotionSubjects,
   fixtureUsers,
 } from './support/cassette-fixtures';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 test('renders the team queue once, filters it, and shows complete campaign detail', async ({ page }) => {
@@ -328,13 +329,7 @@ test('keeps the subject catalog usable at a narrow mobile viewport', async ({ pa
   await page.goto('/internal/paid-promotions/subjects');
   await expect(page.getByRole('list', { name: 'Paid-promotion canonical subject catalog' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Subjects', level: 1 })).toHaveCount(1);
-  await expect.poll(() => page.evaluate(() => {
-    const documentWidth = Math.max(
-      document.documentElement.scrollWidth,
-      document.body.scrollWidth,
-    );
-    return documentWidth - window.innerWidth;
-  })).toBeLessThanOrEqual(1);
+  await expectNoHorizontalOverflow(page);
 });
 
 test('shows only refund pending and leaves refunded totals unchanged', async ({ page }) => {
@@ -517,11 +512,5 @@ test('keeps the internal queue usable at a narrow mobile viewport', async ({ pag
   await page.goto('/internal/paid-promotions');
   await expect(page.getByRole('list', { name: 'Paid-promotion campaign queue' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Paid Promotions' })).toHaveCount(1);
-  await expect.poll(() => page.evaluate(() => {
-    const documentWidth = Math.max(
-      document.documentElement.scrollWidth,
-      document.body.scrollWidth,
-    );
-    return documentWidth - window.innerWidth;
-  })).toBeLessThanOrEqual(1);
+  await expectNoHorizontalOverflow(page);
 });

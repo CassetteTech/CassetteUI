@@ -20,26 +20,15 @@ const signedIn = (overrides: BodyOverrides = {}) => ({
   ...overrides,
 });
 
-void test('a signed-in session carries the user and both Feed source counts', () => {
-  assert.deepEqual(readSessionResponse(200, signedInBodySchema.safeParse(signedIn()).data), {
-    kind: 'authenticated',
-    user,
-    counts: { activeMembershipCount: 2, feedCuratorCount: 3 },
+for (const [activeMembershipCount, feedCuratorCount] of [[2, 3], [0, 0], [0, 2]]) {
+  void test(`a signed-in session carries the user and the Feed source counts ${activeMembershipCount} paid of ${feedCuratorCount}`, () => {
+    assert.deepEqual(readSessionResponse(200, signedInBodySchema.safeParse(signedIn({ activeMembershipCount, feedCuratorCount })).data), {
+      kind: 'authenticated',
+      user,
+      counts: { activeMembershipCount, feedCuratorCount },
+    });
   });
-  assert.deepEqual(readSessionResponse(200, signedInBodySchema.safeParse(signedIn({ activeMembershipCount: 0, feedCuratorCount: 0 })).data), {
-    kind: 'authenticated',
-    user,
-    counts: { activeMembershipCount: 0, feedCuratorCount: 0 },
-  });
-});
-
-void test('a Follow-only viewer has Feed sources without a paid membership', () => {
-  assert.deepEqual(readSessionResponse(200, signedInBodySchema.safeParse(signedIn({ activeMembershipCount: 0, feedCuratorCount: 2 })).data), {
-    kind: 'authenticated',
-    user,
-    counts: { activeMembershipCount: 0, feedCuratorCount: 2 },
-  });
-});
+}
 
 void test('a membership count above the source count is an error, never a session', () => {
   assert.deepEqual(signedInBodySchema.parse(signedIn({ activeMembershipCount: 2, feedCuratorCount: 1 })), { user, counts: null });

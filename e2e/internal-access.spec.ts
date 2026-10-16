@@ -53,14 +53,22 @@ test.describe('internal console access', () => {
   test('bounces an authenticated non-internal account home without rendering the console', async ({
     page,
   }) => {
+    const internalRequests: string[] = [];
+    page.on('request', (request) => {
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.startsWith('/api/v1/internal/')) internalRequests.push(pathname);
+    });
     await mockCassetteApp(page, {
       currentUser: { ...fixtureUsers.member, accountType: 'Standard' },
     });
 
-    await page.goto('/internal');
+    for (const [path, heading] of [['/internal', 'Console'], ['/internal/curators', 'Curators']]) {
+      await page.goto(path);
 
-    await expect(page).toHaveURL('/');
-    await expect(consoleHeading(page)).toHaveCount(0);
+      await expect(page).toHaveURL('/');
+      await expect(page.getByRole('heading', { name: heading, level: 1 })).toHaveCount(0);
+    }
+    expect(internalRequests).toEqual([]);
   });
 
   test('grants access when an unknown account type resolves to internal on refresh', async ({

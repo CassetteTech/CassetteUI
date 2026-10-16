@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fixtureUsers } from './support/cassette-fixtures';
+import { expectNoHorizontalOverflow } from './support/layout';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { mockRedditCompetitions } from './support/mock-reddit-competitions';
 
@@ -75,7 +76,7 @@ test('weekly settings and review remain usable on a narrow screen', async ({ pag
   expect(state.community.enabled).toBe(true);
   expect(state.community.weekOneDate).toBe('2026-08-09');
   expect(state.community.introduction).toBe('Welcome to r/{subreddit}!');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: '/tmp/cassette-competition-console-mobile.png', fullPage: true });
   state.round.body = ''; state.round.candidates = []; state.round.selectedPostIds = [];
   state.round.issues = ['No eligible playlists were found.'];

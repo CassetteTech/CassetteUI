@@ -1,50 +1,18 @@
 import '../../../services/__tests__/browser-service-environment';
-import test, { afterEach, beforeEach } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NextRequest } from 'next/server';
+import { APP, STATE, appRequest, recordForwardedBridgeRequests } from './bridge-fetch-recorder';
 import * as followRoute from '../../../app/api/v1/curators/[curatorProfileId]/follow/route';
 
 const handlers = { GET: followRoute.GET, PUT: followRoute.PUT, DELETE: followRoute.DELETE };
 
-const APP = 'http://localhost:3000';
 const BRIDGE_FOLLOW = 'https://api.cassette.test/api/v1/curators/cpr_Night01/follow';
-const STATE = { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false };
-
-type Forwarded = { url: string; init: RequestInit };
-let forwarded: Forwarded[] = [];
-const previousFetch = globalThis.fetch;
-
-beforeEach(() => {
-  forwarded = [];
-  delete process.env.PLAYWRIGHT_TEST;
-  globalThis.fetch = async (input, init) => {
-    forwarded.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
-    return new Response(JSON.stringify(STATE), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
-        'cache-control': 'private, no-store',
-        vary: 'Authorization, Cookie',
-        'set-cookie': 'bridge_internal=1',
-      },
-    });
-  };
-});
-
-afterEach(() => {
-  globalThis.fetch = previousFetch;
-  delete process.env.PLAYWRIGHT_TEST;
-});
+const forwarded = recordForwardedBridgeRequests();
 
 const context = (curatorProfileId = 'cpr_Night01') => ({ params: Promise.resolve({ curatorProfileId }) });
 
-function request(method: string, headers: Record<string, string> = {}, signal?: AbortSignal) {
-  return new NextRequest(`${APP}/api/v1/curators/cpr_Night01/follow`, {
-    method,
-    headers: { cookie: 'cassette_session=session-123; other=x', ...headers },
-    signal,
-  });
-}
+const request = (method: string, headers: Record<string, string> = {}, signal?: AbortSignal) =>
+  appRequest(method, '/api/v1/curators/cpr_Night01/follow', headers, { signal });
 
 for (const method of ['PUT', 'DELETE'] as const) {
   void test(`a ${method} from another origin, or with no origin at all, is refused before forwarding`, async () => {

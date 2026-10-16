@@ -87,21 +87,6 @@ const openCuratorsConsole = async (page: Page) => {
   return mocked;
 };
 
-test('keeps the curator console team-only', async ({ page }) => {
-  const internalRequests: string[] = [];
-  page.on('request', (request) => {
-    const pathname = new URL(request.url()).pathname;
-    if (pathname.startsWith('/api/v1/internal/')) internalRequests.push(pathname);
-  });
-  await mockCassetteApp(page, { currentUser: fixtureUsers.member });
-
-  await page.goto('/internal/curators');
-
-  await expect(page).toHaveURL('/');
-  await expect(page.getByRole('heading', { name: 'Curators', level: 1 })).toHaveCount(0);
-  expect(internalRequests).toEqual([]);
-});
-
 test('suspends, reinstates, and keeps retired curators read-only', async ({ page }) => {
   const { state } = await openCuratorsConsole(page);
   const reason = 'Repeated payout-account ownership mismatch.';

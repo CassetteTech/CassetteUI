@@ -8,12 +8,27 @@ import type {
   InternalConversionQualityMetrics,
   InternalConversionQualityRate,
   InternalConversionQualityTrendResponse,
+  InternalJevLimitComparison,
 } from '@/types';
 import { cn } from '@/lib/utils';
 import { ErrorState } from './error-state';
-import { Panel, SectionHeader, Stat, StatStrip } from './kit/primitives';
+import { Field, Mono, Panel, SectionHeader, Stat, StatStrip } from './kit/primitives';
+import {
+  formatCounts,
+  formatLimitValue,
+  formatMilliseconds,
+  formatUsd,
+  limitStatusLabel,
+} from './match-decision-evidence';
 
 const WINDOWS = [7, 30, 90] as const;
+
+const LIMIT_LABELS = {
+  applied_wrong_song_rate: 'Wrong songs where Jev decided',
+  applied_no_match_error_rate: 'No-match errors where Jev decided (limit: deterministic result on the same songs)',
+  monthly_spend_usd: 'Jev spend per month',
+  single_track_added_latency_p95_ms: 'Added time per single track (p95)',
+} satisfies Record<InternalJevLimitComparison['limit'], string>;
 
 function percent(rate: InternalConversionQualityRate): string {
   return rate.value == null ? 'n/a' : `${(rate.value * 100).toFixed(1)}%`;
@@ -96,6 +111,137 @@ function DailyBars({ report }: { report: InternalConversionQualityTrendResponse 
   );
 }
 
+function EvidenceCoverage({ report }: { report: InternalConversionQualityTrendResponse }) {
+  const coverage = report.evidenceCoverage;
+  return (
+    <Panel title="Decision evidence coverage" bodyClassName="grid gap-x-6 px-3 py-1 sm:grid-cols-2">
+      <Field label="Stored records">{coverage.records.toLocaleString()}</Field>
+      <Field label="Linked to outcomes">{coverage.linkedToOutcomes.toLocaleString()}</Field>
+      <Field label="Unlinked by disposition"><Mono>{formatCounts(coverage.unlinkedDispositionCounts)}</Mono></Field>
+      <Field label="Metadata outcomes without evidence">{coverage.metadataDecisionsWithoutEvidence.toLocaleString()}</Field>
+      <Field label="Linked evidence not found">{coverage.linkedEvidenceNotFound.toLocaleString()}</Field>
+      <Field label="Stored without payload">{coverage.rejectedOversized.toLocaleString()}</Field>
+      <Field label="Unreadable payloads">{coverage.unreadablePayloads.toLocaleString()}</Field>
+      <Field label="Sample rates">
+        <Mono>{coverage.sampleRates.length === 0 ? 'none stored' : coverage.sampleRates.join(' · ')}</Mono>
+      </Field>
+      <Field label="Retention">
+        {coverage.retentionDays} days{coverage.windowExceedsRetention ? ' · window is longer than retention' : ''}
+      </Field>
+    </Panel>
+  );
+}
+
+function JevSelection({ report }: { report: InternalConversionQualityTrendResponse }) {
+  return (
+    <Panel title="Jev selection · operations" bodyClassName="overflow-x-auto">
+      {report.jevSelection.length === 0 ? (
+        <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+          No Jev attempts are stored for this window. Jev is Off or decision evidence is not captured.
+        </p>
+      ) : (
+        <table className="w-full min-w-[860px] text-left text-xs">
+          <caption className="sr-only">
+            Jev attempts by provider, context, mode, model and prompt, with calls, outcomes, tokens, spend and latency
+          </caption>
+          <thead className="border-b border-border bg-muted/40 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th scope="col" className="px-3 py-2 font-medium">Provider / context / mode / model / prompt</th>
+              <th scope="col" className="px-3 py-2 font-medium">Calls</th>
+              <th scope="col" className="px-3 py-2 font-medium">Answered · failed · skipped</th>
+              <th scope="col" className="px-3 py-2 font-medium">Recoveries · disagreements</th>
+              <th scope="col" className="px-3 py-2 font-medium">Tokens · est. spend</th>
+              <th scope="col" className="px-3 py-2 font-medium">Latency p50 / p95</th>
+              <th scope="col" className="px-3 py-2 font-medium">Reviewed accuracy</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {report.jevSelection.map(row => (
+              <tr key={`${row.provider}:${row.context}:${row.mode}:${row.model}:${row.promptVersion}`} className="align-top">
+                <td className="px-3 py-2 font-mono text-[10px]">
+                  {row.provider} · {row.context}<br />
+                  {row.mode}{row.mode === 'shadow' ? ' (not applied)' : ''} · {row.model}<br />
+                  {row.promptVersion}
+                </td>
+                <td className="px-3 py-2 tabular-nums">
+                  {percent(row.callRate)}
+                  <p className="text-[10px] text-muted-foreground">{row.calls}/{row.capturedDecisions} decisions</p>
+                </td>
+                <td className="px-3 py-2 tabular-nums">
+                  {row.answered} · {row.failed} · {row.skipped}
+                  <p className="text-[10px] text-muted-foreground">Failed: {formatCounts(row.failureReasonCounts)}</p>
+                  <p className="text-[10px] text-muted-foreground">Skipped: {formatCounts(row.skipReasonCounts)}</p>
+                </td>
+                <td className="px-3 py-2 tabular-nums">
+                  {row.unappliedRecoveries} unapplied · {row.appliedRecoveries} applied
+                  <p className="text-[10px] text-muted-foreground">{row.disagreements} disagree with an accepted result</p>
+                </td>
+                <td className="px-3 py-2 tabular-nums">
+                  {row.inputTokens.toLocaleString()} in · {row.outputTokens.toLocaleString()} out
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatUsd(row.estimatedSpendUsd)}{row.callsWithoutUsage > 0 ? ` · ${row.callsWithoutUsage} calls without usage` : ''}
+                  </p>
+                </td>
+                <td className="px-3 py-2 tabular-nums">
+                  <p>
+                    Request {formatMilliseconds(row.requestLatency.medianMs)} / {formatMilliseconds(row.requestLatency.p95Ms)}
+                    <span className="text-[10px] text-muted-foreground"> · {row.requestLatency.measured} measured</span>
+                  </p>
+                  <p>
+                    Added {formatMilliseconds(row.addedLatency.medianMs)} / {formatMilliseconds(row.addedLatency.p95Ms)}
+                    <span className="text-[10px] text-muted-foreground"> · {row.addedLatency.measured} measured</span>
+                  </p>
+                </td>
+                <td className="px-3 py-2 tabular-nums">
+                  Jev {percent(row.modelDecisionAccuracy)} · deterministic {percent(row.deterministicDecisionAccuracy)}
+                  <p className="text-[10px] text-muted-foreground">{row.adjudicatedAnswered} reviewed answers</p>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {report.jevLimitComparisons.length > 0 && (
+        <table className="w-full min-w-[640px] border-t border-border text-left text-xs">
+          <caption className="sr-only">Measured Jev values against the approved operating limits</caption>
+          <thead className="border-b border-border bg-muted/40 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th scope="col" className="px-3 py-2 font-medium">Approved limit</th>
+              <th scope="col" className="px-3 py-2 font-medium">Limit</th>
+              <th scope="col" className="px-3 py-2 font-medium">Measured</th>
+              <th scope="col" className="px-3 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {report.jevLimitComparisons.map(item => (
+              <tr key={item.limit} className="align-top">
+                <td className="px-3 py-2">{LIMIT_LABELS[item.limit]}</td>
+                <td className="px-3 py-2 tabular-nums">{formatLimitValue(item.limit, item.threshold)}</td>
+                <td className="px-3 py-2 tabular-nums">
+                  {formatLimitValue(item.limit, item.observed)}
+                  <p className="text-[10px] text-muted-foreground">{item.measured.toLocaleString()} measured</p>
+                </td>
+                <td className={cn('px-3 py-2 font-mono text-[10px]', item.status === 'exceeded' && 'text-destructive')}>
+                  {limitStatusLabel(item.status)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div className="space-y-1 border-t border-border px-3 py-2 text-[10px] text-muted-foreground">
+        <p>Timing: {report.jevTimingBoundary}</p>
+        {report.jevPriceAssumptions.map(price => (
+          <p key={price.model}>
+            Price for {price.model}: ${price.inputUsdPerMillionTokens} per million input tokens, $
+            {price.outputUsdPerMillionTokens} per million output tokens, checked {price.checkedOn} ({price.source}).
+          </p>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 export function ConversionQualityTrends() {
   const [days, setDays] = useState<(typeof WINDOWS)[number]>(30);
   const [report, setReport] = useState<InternalConversionQualityTrendResponse | null>(null);
@@ -147,7 +293,7 @@ export function ConversionQualityTrends() {
       {!error && loading && !report && <p className="py-12 text-center text-xs text-muted-foreground">Loading quality cohorts…</p>}
       {report && (
         <>
-          {(report.sourceRowsTruncated || report.adjudicationRowsTruncated) && (
+          {(report.sourceRowsTruncated || report.adjudicationRowsTruncated || report.evidenceCoverage.rowsTruncated) && (
             <p className="rounded-md border border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning-text))]">
               A report safety limit was reached. Narrow the time window before interpreting this report.
             </p>
@@ -208,6 +354,10 @@ export function ConversionQualityTrends() {
               </tbody>
             </table>
           </Panel>
+
+          <JevSelection report={report} />
+
+          <EvidenceCoverage report={report} />
 
           <Panel title="Offline deterministic baseline" bodyClassName="p-3">
             <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">

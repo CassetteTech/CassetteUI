@@ -5,6 +5,7 @@ import {
   parseInternalPaidPromotionCampaignDetail,
   parseInternalPaidPromotionCampaignSummary,
   parseInternalPaidPromotionDeliverable,
+  parseInternalPaidPromotionException,
   parseInternalPaidPromotionRefund,
 } from '../internal-paid-promotion-contract';
 
@@ -272,5 +273,38 @@ void test('carries the effort-week refund numbers as advisory nullables', () => 
   assert.throws(
     () => parseInternalPaidPromotionCampaignDetail(missing),
     /campaign\.subject\.subtitleNames/,
+  );
+});
+
+void test('internal exception parser keeps the payout transfer subject and accepts its absence', () => {
+  const exception = {
+    id: 'pmx_TestException1',
+    kind: 'payout_transfer',
+    paymentId: null,
+    campaignId: null,
+    status: 'open',
+    createdAtUtc: timestamp,
+    resolvedAtUtc: null,
+  };
+
+  const parsed = parseInternalPaidPromotionException({
+    ...exception,
+    payoutTransferCondition: 'transfer_not_found_at_provider',
+    payoutTransferId: 'ptr_TestAttempt1',
+    payoutAllocationId: 'pal_TestAllocation1',
+    curatorProfileId: 'cpr_TestCurator1',
+  });
+  assert.deepEqual(
+    [parsed.payoutTransferCondition, parsed.payoutTransferId, parsed.payoutAllocationId, parsed.curatorProfileId],
+    ['transfer_not_found_at_provider', 'ptr_TestAttempt1', 'pal_TestAllocation1', 'cpr_TestCurator1'],
+  );
+  const legacy = parseInternalPaidPromotionException(exception);
+  assert.deepEqual(
+    [legacy.payoutTransferCondition, legacy.payoutTransferId, legacy.payoutAllocationId, legacy.curatorProfileId],
+    [null, null, null, null],
+  );
+  assert.throws(
+    () => parseInternalPaidPromotionException({ ...exception, payoutTransferCondition: 7 }),
+    /payoutTransferCondition/,
   );
 });

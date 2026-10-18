@@ -214,6 +214,10 @@ export function parseInternalPaidPromotionException(
     paymentId: nullableString(item.paymentId, `${path}.paymentId`),
     campaignId: nullableString(item.campaignId, `${path}.campaignId`),
     status: string(item.status, `${path}.status`) as InternalPaidPromotionException['status'],
+    payoutTransferCondition: nullableString(item.payoutTransferCondition, `${path}.payoutTransferCondition`),
+    payoutTransferId: nullableString(item.payoutTransferId, `${path}.payoutTransferId`),
+    payoutAllocationId: nullableString(item.payoutAllocationId, `${path}.payoutAllocationId`),
+    curatorProfileId: nullableString(item.curatorProfileId, `${path}.curatorProfileId`),
     createdAtUtc: string(item.createdAtUtc, `${path}.createdAtUtc`),
     resolvedAtUtc: nullableString(item.resolvedAtUtc, `${path}.resolvedAtUtc`),
   };

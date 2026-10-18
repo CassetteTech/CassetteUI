@@ -72,14 +72,14 @@ const payoutExceptions = [
   },
 ];
 
-const openCuratorsConsole = async (page: Page) => {
+const openCuratorsConsole = async (page: Page, exceptions = payoutExceptions) => {
   const mocked = await mockCassetteApp(page, {
     currentUser: fixtureUsers.team,
     internalCurators: [activeCurator, retiredCurator],
     internalPricingPolicies: [defaultPolicy],
     internalPaidPromotionCampaign: {
       ...fixtureInternalPaidPromotionCampaign,
-      exceptions: payoutExceptions,
+      exceptions,
     },
   });
   await page.goto('/internal/curators');
@@ -120,6 +120,48 @@ test('suspends, reinstates, and keeps retired curators read-only', async ({ page
   await expect(page.getByRole('button', { name: 'Suspend curator' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Reinstate curator' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Assign policy' })).toHaveCount(0);
+});
+
+test('records only the payout attempt that Stripe does not hold as failed', async ({ page }) => {
+  const missingTransfer = {
+    ...payoutExceptions[0],
+    id: 'pmx_FixtureTransferMissing01',
+    payoutTransferCondition: 'transfer_not_found_at_provider',
+    payoutTransferId: 'ptr_FixtureAttempt01',
+    payoutAllocationId: 'pal_FixtureAllocation01',
+    curatorProfileId: activeCurator.id,
+  };
+  const mismatchedTransfer = {
+    ...payoutExceptions[0],
+    payoutTransferCondition: 'transfer_response_mismatch',
+    payoutTransferId: 'ptr_FixtureAttempt02',
+    payoutAllocationId: 'pal_FixtureAllocation02',
+    curatorProfileId: activeCurator.id,
+  };
+  const { state } = await openCuratorsConsole(page, [mismatchedTransfer, missingTransfer, payoutExceptions[1]]);
+  const exceptions = page.getByRole('list', { name: 'Open payout exceptions' });
+  const missingRow = exceptions.getByRole('listitem').filter({ hasText: missingTransfer.id });
+
+  await expect(missingRow).toContainText('Transfer Not Found At Provider');
+  await expect(missingRow).toContainText('Attempt ptr_FixtureAttempt01');
+  await expect(exceptions.getByRole('listitem').filter({ hasText: mismatchedTransfer.id }))
+    .toContainText('Transfer Response Mismatch');
+  await expect(exceptions.getByRole('button', { name: 'Record transfer failed' })).toHaveCount(1);
+
+  await missingRow.getByRole('button', { name: 'Record transfer failed' }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Record payout transfer as failed' });
+  await expect(dialog).toContainText('ptr_FixtureAttempt01');
+  await expect(dialog).toContainText(activeCurator.id);
+  await dialog.getByRole('button', { name: 'Record transfer failed' }).click();
+
+  await expect(exceptions.getByText(missingTransfer.id)).toHaveCount(0);
+  await expect(exceptions.getByText(mismatchedTransfer.id)).toBeVisible();
+  expect(state.internalPaidPromotionCampaign.exceptions.map((exception) => [exception.id, exception.status]))
+    .toEqual([
+      [mismatchedTransfer.id, 'open'],
+      [missingTransfer.id, 'resolved'],
+      [payoutExceptions[1].id, 'open'],
+    ]);
 });
 
 test('creates, defaults, assigns, and records an immutable pricing policy', async ({ page }) => {

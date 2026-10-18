@@ -282,11 +282,13 @@ export function LockedMusicCard({
   displayName,
   membershipId,
   showMembership,
+  onSelect,
 }: {
   createdAt: string;
   displayName: string;
   membershipId: string;
   showMembership: boolean;
+  onSelect?: () => void;
 }) {
   const row = (
     <div className="flex items-start gap-4 py-4">
@@ -311,6 +313,7 @@ export function LockedMusicCard({
       {showMembership ? (
         <a
           href={`#${membershipId}`}
+          onClick={onSelect}
           aria-label={`View ${displayName} membership`}
           className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

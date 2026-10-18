@@ -209,7 +209,7 @@ type MockState = {
   membershipPollSequence: FixtureMembershipStatusView[];
   membershipPollSequenceActive: boolean;
   membershipActiveCuratorPage?: CuratorPage;
-  membershipCheckoutRequests: Array<{ planId: string; interval: 'month' | 'year' }>;
+  membershipCheckoutRequests: Array<{ planId: string; interval: 'month' | 'year'; sourcePostId?: string }>;
   membershipPortalRequests: Array<{ membershipSubscriptionId: string }>;
   membershipStatusRequests: string[];
   myMemberships: MyMembership[];
@@ -290,6 +290,7 @@ const buildConnectedServices = (services: string[] = []) =>
 const membershipCheckoutRequestSchema = z.object({
   planId: z.string(),
   interval: z.enum(['month', 'year']),
+  sourcePostId: z.string().optional(),
 }).strict();
 
 const membershipPortalRequestSchema = z.object({

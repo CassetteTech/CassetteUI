@@ -38,6 +38,11 @@ void test('turns a Follow or Join sign-in return into the profile with its inten
     browserHandoffPath('/profile/crate_keeper?membership=join&interval=year'),
     '/profile/crate_keeper?intent=join&interval=year',
   );
+  // The post a Join came from travels with the intent.
+  assert.equal(
+    browserHandoffPath('/profile/crate_keeper?membership=join&interval=month&source_post=p_20261001120000_abcdefghij0123'),
+    '/profile/crate_keeper?source_post=p_20261001120000_abcdefghij0123&intent=join&interval=month',
+  );
 });
 
 void test('opens sign-in with the same return for any other local page', () => {

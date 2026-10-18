@@ -50,6 +50,7 @@ test.beforeEach(async ({ page }) => {
 type MembershipAnalyticsProperties = {
   curator_id?: string;
   membership_plan_id?: string;
+  post_id?: string;
   is_member_view?: boolean;
   billing_interval?: string;
   device_category?: string;
@@ -845,6 +846,68 @@ test('resumes the selected membership after sign-in', async ({ page }) => {
     'Choose a billing option and select Join to continue.',
   );
   expect(state.membershipCheckoutRequests).toHaveLength(1);
+});
+
+const SOURCE_POST_ID = 'p_20261001120000_sourcepost0001';
+
+test('keeps the post a Join came from through sign-in and sends it to Checkout', async ({ page }) => {
+  const captures: MembershipAnalyticsCapture[] = [];
+  const { state } = await mockCassetteApp(page, {
+    analyticsCaptures: captures,
+    curatorPage: fixtureCuratorPage,
+    googleAuthUser: fixtureUsers.viewer,
+    membershipStatus: fixtureNoMembershipStatus,
+  });
+
+  await page.goto(`${CURATOR_PATH}?source_post=${SOURCE_POST_ID}`);
+  await joinControl(page).click();
+
+  await expect(page).toHaveURL(/\/auth\/signin\?redirect=/);
+  const redirect = await page.evaluate(() => new URL(location.href).searchParams.get('redirect'));
+  expect(redirect).toBe(`${CURATOR_PATH}?membership=join&interval=month&source_post=${SOURCE_POST_ID}`);
+
+  await returnFromProvider(page, CHECKOUT_URL, `${CURATOR_PATH}?membership=canceled`);
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+
+  await expect.poll(() => state.membershipCheckoutRequests.at(-1)).toEqual({
+    planId: fixtureCuratorPage.membership!.planId,
+    interval: 'month',
+    sourcePostId: SOURCE_POST_ID,
+  });
+  const checkoutStarted = captures.find((capture) => capture.event === 'membership_checkout_started');
+  expect(checkoutStarted?.properties?.post_id).toBe(SOURCE_POST_ID);
+});
+
+test('a locked post selected on the curator page becomes the Checkout source', async ({ page }) => {
+  const curatorPage = structuredClone(fixtureCuratorPage);
+  curatorPage.posts.items = curatorPage.posts.items.map((item) =>
+    item.kind === 'locked' ? { ...item, postId: SOURCE_POST_ID } : item);
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    curatorPage,
+    membershipStatus: fixtureNoMembershipStatus,
+  });
+
+  await page.goto(CURATOR_PATH);
+  // Stripe sends the fan back to a URL that names the source post, as the selection left it.
+  await returnFromProvider(page, CHECKOUT_URL, `${CURATOR_PATH}?source_post=${SOURCE_POST_ID}&membership=canceled`);
+  await page.locator('[data-testid="curator-locked-post"]:visible').first()
+    .getByRole('link', { name: /view .* membership/i })
+    .click();
+  // The URL keeps the selection, so Join sends it at once and after a remount.
+  await expect(page).toHaveURL(new RegExp(`[?&]source_post=${SOURCE_POST_ID}`));
+  await joinControl(page).click();
+  await expect.poll(() => state.membershipCheckoutRequests.at(-1)).toEqual({
+    planId: fixtureCuratorPage.membership!.planId,
+    interval: 'month',
+    sourcePostId: SOURCE_POST_ID,
+  });
+
+  // After the full navigation back from Checkout, a retry still sends the source post.
+  await expect(joinControl(page)).toHaveText('Retry Checkout');
+  await joinControl(page).click();
+  await expect.poll(() => state.membershipCheckoutRequests).toHaveLength(2);
+  expect(state.membershipCheckoutRequests.at(-1)?.sourcePostId).toBe(SOURCE_POST_ID);
 });
 
 test('does not execute a crafted unavailable annual join URL', async ({ page }) => {

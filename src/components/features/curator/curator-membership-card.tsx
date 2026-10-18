@@ -26,7 +26,7 @@ import { useScrollToHashTarget } from '@/hooks/use-scroll-to-hash-target';
 import { useSharedPosition } from '@/hooks/use-shared-position';
 import { cn } from '@/lib/utils';
 
-export const MEMBERSHIP_OFFER_ID = 'membership-offer';
+export { MEMBERSHIP_OFFER_ID } from '@/services/membership';
 
 export const membershipPassPositionKey = (username: string) => `membership-pass:${username}`;
 

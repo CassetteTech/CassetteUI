@@ -41,6 +41,7 @@ function setupBrowserMocks(pathname: string, search: string) {
     location: {
       pathname,
       search,
+      host: 'cassette.test',
       origin: 'https://cassette.test',
       href: `https://cassette.test${pathname}${search}`,
     },
@@ -404,6 +405,7 @@ test('membership events keep only opaque attribution and relationship state', { 
       source_surface: 'curator',
       curator_id: 'cpr_0123AbCd',
       membership_plan_id: 'mpl_0123AbCd',
+      post_id: 'p_20261001120000_abcdefghij0123',
       is_member_view: false,
       amount_minor: 550,
       checkout_url: 'https://checkout.stripe.test/secret',
@@ -419,7 +421,10 @@ test('membership events keep only opaque attribution and relationship state', { 
 
     assert.equal(properties?.curator_id, 'cpr_0123AbCd');
     assert.equal(properties?.membership_plan_id, 'mpl_0123AbCd');
+    assert.equal(properties?.post_id, 'p_20261001120000_abcdefghij0123');
     assert.equal(properties?.is_member_view, false);
+    // The serving host lets dashboards keep production events only.
+    assert.equal(properties?.$host, 'cassette.test');
     assert.equal(properties?.amount_minor, undefined);
     assert.equal(properties?.checkout_url, undefined);
     assert.equal(properties?.promotion_code, undefined);

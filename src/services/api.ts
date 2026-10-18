@@ -83,6 +83,7 @@ import {
   parsePaidPromotionCampaigns,
 } from './paid-promotion-lifecycle';
 import {
+  membershipCheckoutRequest,
   membershipCheckoutSchema,
   membershipPortalSchema,
   membershipStatusViewSchema,
@@ -473,10 +474,11 @@ class ApiService {
   async createMembershipCheckout(
     planId: string,
     interval: MembershipInterval,
+    sourcePostId?: string,
   ): Promise<MembershipCheckout> {
     const response = await this.request<unknown>('/api/v1/memberships/checkout', {
       method: 'POST',
-      body: JSON.stringify({ planId, interval }),
+      body: JSON.stringify(membershipCheckoutRequest(planId, interval, sourcePostId)),
     });
     return membershipCheckoutSchema.parse(response);
   }

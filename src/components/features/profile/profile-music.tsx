@@ -78,6 +78,7 @@ export function ProfileMusic({
   ownerAccountType,
   membershipId,
   showMembership = false,
+  onLockedPostSelect,
 }: {
   id?: string;
   views: readonly ProfileMusicView[];
@@ -96,6 +97,8 @@ export function ProfileMusic({
   ownerAccountType?: AccountType;
   membershipId?: string;
   showMembership?: boolean;
+  /** A locked card opened the offer: its post is where the Join comes from. */
+  onLockedPostSelect?: (postId: string) => void;
 }) {
   const headingId = useId();
   let body;
@@ -121,6 +124,7 @@ export function ProfileMusic({
                 displayName={displayName}
                 membershipId={membershipId ?? ''}
                 showMembership={showMembership && Boolean(membershipId)}
+                onSelect={onLockedPostSelect && (() => onLockedPostSelect(item.postId))}
               />
             )
           : (

@@ -579,17 +579,43 @@ function PricingPolicies({
   );
 }
 
+const TRANSFER_NOT_FOUND_AT_PROVIDER = 'transfer_not_found_at_provider';
+
 function PayoutExceptions({
   exceptions,
   isLoading,
   loadFailed,
   onRetry,
+  onSettled,
 }: {
   exceptions: InternalPaidPromotionException[];
   isLoading: boolean;
   loadFailed: boolean;
   onRetry: () => void;
+  onSettled: () => Promise<void>;
 }) {
+  const [pendingFailure, setPendingFailure] = useState<InternalPaidPromotionException | null>(null);
+  // Bridge checks Stripe again and records the attempt failed only when Stripe still has no transfer.
+  const recordFailed = useMutation({
+    mutationFn: async (exceptionId: string) => {
+      const resolved = await internalPaidPromotionsService.resolveException(exceptionId);
+      if (resolved.status !== 'resolved') {
+        throw new Error('Bridge did not confirm that the payout attempt is settled.');
+      }
+      return resolved;
+    },
+    onSuccess: async () => {
+      setPendingFailure(null);
+      await onSettled();
+      toast.success('Payout attempt settled. The next payout sweep pays the allocation again if it failed.');
+    },
+    onError: async (error) => {
+      setPendingFailure(null);
+      await onSettled();
+      toast.error(`Could not record the payout transfer as failed. ${errorMessage(error)}`);
+    },
+  });
+
   return (
     <Panel title="Open payout exceptions">
       {isLoading ? (
@@ -606,8 +632,16 @@ function PayoutExceptions({
           {exceptions.map((exception) => (
             <li key={exception.id} className="flex items-start gap-3 p-3">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[hsl(var(--warning-text))]" aria-hidden />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">{formatState(exception.kind)}</p>
+                {exception.payoutTransferCondition && (
+                  <p className="text-xs text-muted-foreground">{formatState(exception.payoutTransferCondition)}</p>
+                )}
+                {exception.payoutTransferId && (
+                  <p className="font-mono text-[10px] text-muted-foreground">
+                    Attempt {exception.payoutTransferId} · Allocation {exception.payoutAllocationId} · Curator {exception.curatorProfileId}
+                  </p>
+                )}
                 <p className="font-mono text-[10px] text-muted-foreground">{exception.id} · {formatDate(exception.createdAtUtc)}</p>
                 <Link
                   className="mt-1 inline-flex rounded-sm text-xs text-domain underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -619,11 +653,48 @@ function PayoutExceptions({
                     ? `Open campaign ${exception.campaignId}`
                     : 'Open paid-promotions console'}
                 </Link>
+                {exception.payoutTransferCondition === TRANSFER_NOT_FOUND_AT_PROVIDER && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 flex"
+                    disabled={recordFailed.isPending}
+                    onClick={() => setPendingFailure(exception)}
+                  >
+                    Record transfer failed
+                  </Button>
+                )}
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      <AlertDialog
+        open={pendingFailure !== null}
+        onOpenChange={(open) => { if (!open) setPendingFailure(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Record payout transfer as failed</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingFailure && (
+                `Stripe has no transfer for payout attempt ${pendingFailure.payoutTransferId} (curator ${pendingFailure.curatorProfileId}). First confirm in the Stripe dashboard that the curator's connected account has no transfer whose payout_transfer_id metadata is ${pendingFailure.payoutTransferId}. Bridge then checks Stripe again and records the attempt as failed only if Stripe still has no transfer. The next payout sweep pays the allocation with a new transfer.`
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={recordFailed.isPending}
+              onClick={() => pendingFailure && recordFailed.mutate(pendingFailure.id)}
+            >
+              Record transfer failed
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Panel>
   );
 }
@@ -747,6 +818,7 @@ export default function InternalCuratorsPage() {
             isLoading={payoutExceptions.isLoading}
             loadFailed={payoutExceptions.isError}
             onRetry={() => void payoutExceptions.refetch()}
+            onSettled={async () => { await payoutExceptions.refetch(); }}
           />
         </div>
         <AssignmentPanel

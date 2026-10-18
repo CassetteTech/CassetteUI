@@ -574,6 +574,10 @@ export interface InternalPaidPromotionException {
   paymentId: string | null;
   campaignId: string | null;
   status: PaidPromotionExceptionStatus;
+  payoutTransferCondition: string | null;
+  payoutTransferId: string | null;
+  payoutAllocationId: string | null;
+  curatorProfileId: string | null;
   createdAtUtc: string;
   resolvedAtUtc: string | null;
 }

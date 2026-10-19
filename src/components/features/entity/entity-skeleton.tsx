@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { BackButton } from '@/components/ui/back-button';
 import { ArtworkImage } from '@/components/ui/artwork-image';
+import { Spinner } from '@/components/ui/spinner';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { PostLabelHead, bandColor, postLabelMeta, type PostLabelDetails } from '@/components/features/post/post-label-head';
@@ -548,9 +549,9 @@ const LINK_ROW = 'h-[38.5px] rounded-md sm:h-[42px]';
 /** A listen link with a caption under the service name (StreamingLinks `captions`). */
 const CAPTIONED_LINK_ROW = 'h-[54.5px] rounded-md sm:h-[54px]';
 
-const PendingLink: React.FC<{ platform: PlatformUiKey; matching: boolean; order: number; delay: number }> = ({
+/** A service row still waiting for its link. The spinner sits where the link's arrow lands. */
+const PendingLink: React.FC<{ platform: PlatformUiKey; order: number; delay: number }> = ({
   platform,
-  matching,
   order,
   delay,
 }) => {
@@ -563,11 +564,10 @@ const PendingLink: React.FC<{ platform: PlatformUiKey; matching: boolean; order:
           <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/70 sm:text-xs">
             {service.name}
           </span>
-          {matching && (
-            <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60 motion-safe:animate-pulse">
-              Matching
-            </span>
-          )}
+          <span data-testid="pending-link-indicator" className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60">
+            Matching
+            <Spinner aria-hidden size="xs" variant="muted" className="size-3.5 motion-reduce:hidden" />
+          </span>
         </>
       )}
     </Part>
@@ -604,7 +604,7 @@ const ListenLinks: React.FC<{
   return (
   <ConversionBeam active={blueprint.beam === 'links'} borderRadius={0} className="flex flex-1 flex-col">
     <div className={className}>
-      <div className="grid gap-2.5">
+      <div className="grid gap-2.5" aria-busy={(perService && staged && !staged.linksFinal) || undefined}>
         {perService ? (
           staged
             ? ACTIVE_PLATFORM_UI_KEYS.filter((platform) => !staged.linksFinal || staged.links[platform]).map((platform, i) => {
@@ -619,7 +619,6 @@ const ListenLinks: React.FC<{
                   <PendingLink
                     key={platform}
                     platform={platform}
-                    matching={Boolean(staged.source)}
                     order={next()}
                     delay={LINK_DELAY_MS + i * LINK_GAP_MS}
                   />

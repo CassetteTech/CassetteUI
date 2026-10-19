@@ -197,9 +197,12 @@ test.describe('home conversion funnel', () => {
     await expect(page).toHaveURL(/\/post\?url=/);
 
     const visible = (text: string) => page.getByText(text, { exact: true }).filter({ visible: true });
+    const loading = page.getByTestId('pending-link-indicator').filter({ visible: true });
     await expect(visible('Reading your link')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Spotify' }).filter({ visible: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Apple Music' })).toHaveCount(0);
+    // Each service still waiting for its link loads from the first paint.
+    await expect(loading).toHaveCount(2);
 
     step = 1;
     await expect(page.getByRole('heading', { name: track.title }).filter({ visible: true })).toBeVisible();
@@ -207,10 +210,46 @@ test.describe('home conversion funnel', () => {
 
     step = 2;
     await expect(page.getByRole('link', { name: 'Apple Music' }).filter({ visible: true })).toBeVisible();
+    await expect(loading).toHaveCount(1);
 
     releaseConversion();
     await expect(page).toHaveURL(/\/post\/post-home-converted$/);
     await expect(page.getByRole('link', { name: 'Deezer' }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByTestId('pending-link-indicator')).toHaveCount(0);
+  });
+
+  test('stops loading a service the finished post has no link for', async ({ page }) => {
+    const { spotify, appleMusic } = fixtureConvertTemplates.homeTrack.convertedUrls;
+    const track = { ...fixtureConvertTemplates.homeTrack, convertedUrls: { spotify, appleMusic } };
+    await mockCassetteApp(page, { convertTemplates: [track] });
+    const releaseConversion = await holdRoute(page, '**/api/v1/convert');
+    const source = { elementType: 'track', title: track.title, artists: [track.artist], platform: 'spotify' };
+    await page.route('**/api/v1/convert/jobs/by-key/**', (route) => route.fulfill({
+      status: 202,
+      json: { success: false, status: 'processing', jobId: 'job_unmatched', stage: 'matching_platforms', partialResult: { source } },
+    }));
+    const releaseLanding = await holdRoute(
+      page,
+      (url) => url.pathname === `/post/${track.postId}`,
+      (request) => request.headers()['rsc'] === '1',
+    );
+
+    await page.goto('/');
+    await dispatchPaste(page, 'home-search-input', track.originalUrl);
+    const deezerRow = page.getByText('Deezer', { exact: true }).filter({ visible: true });
+    const loading = page.getByTestId('pending-link-indicator').filter({ visible: true });
+    await expect(deezerRow).toBeVisible();
+    await expect(loading).toHaveCount(2);
+
+    releaseConversion();
+    await expect(page.getByRole('link', { name: 'Apple Music' }).filter({ visible: true })).toBeVisible();
+    await expect(deezerRow).toHaveCount(0);
+    await expect(loading).toHaveCount(0);
+
+    releaseLanding();
+    await expect(page).toHaveURL(new RegExp(`/post/${track.postId}$`));
+    await expect(page.getByRole('heading', { name: track.title })).toBeVisible();
+    await expect(page.getByTestId('pending-link-indicator')).toHaveCount(0);
   });
 
   test('settles the staged post to the finished post before it lands', async ({ page }) => {

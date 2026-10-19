@@ -280,8 +280,12 @@ function containSheetFocus(event: KeyboardEvent, root: HTMLElement, close: () =>
   const focusable = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
-  if (!first) return;
   const active = document.activeElement;
+  // While a conversion runs the sheet has no controls; focus parks on the sheet itself.
+  if (!first) {
+    event.preventDefault();
+    return root.focus();
+  }
   if (!root.contains(active) || active === (event.shiftKey ? first : last)) {
     event.preventDefault();
     (event.shiftKey ? last : first).focus();
@@ -473,6 +477,10 @@ export function HomeConceptWindow() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [sheet, close, sheetRef]);
+  const converting = search.isConverting;
+  useEffect(() => {
+    if (sheet && converting) sheetRef.current?.focus();
+  }, [sheet, converting, sheetRef]);
   const [hasOpened, setHasOpened] = useState(false);
   if (expanded && !hasOpened) setHasOpened(true);
   const { dismiss } = search;
@@ -560,9 +568,10 @@ export function HomeConceptWindow() {
                   role={sheet ? 'dialog' : undefined}
                   aria-modal={sheet || undefined}
                   aria-label={sheet ? 'Search music' : undefined}
+                  tabIndex={sheet ? -1 : undefined}
                   className={cn(
                     // z-[60] clears the fixed navbar (z-50): the sheet is modal.
-                    sheet ? 'fixed inset-0 z-[60] flex flex-col' : 'relative w-full pt-5 lg:z-10 lg:pt-6',
+                    sheet ? 'fixed inset-0 z-[60] flex flex-col outline-none' : 'relative w-full pt-5 lg:z-10 lg:pt-6',
                     sheet && search.isConverting && 'justify-center px-6',
                   )}
                   style={{ overscrollBehavior: 'contain' }}

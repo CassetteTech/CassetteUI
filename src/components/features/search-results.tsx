@@ -218,7 +218,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               label={showSearchResults ? 'Search results' : 'Top charts'}
               skeleton={<ResultRowSkeletons />}
             >
-            {allResults.length === 0 ? (
+            {!pending && allResults.length === 0 ? (
               // The header stays, so the close control survives an empty result.
               <div className="text-center py-8">
                 <UIText className="text-muted-foreground">No results found</UIText>

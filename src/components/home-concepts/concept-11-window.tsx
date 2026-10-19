@@ -596,7 +596,7 @@ export function HomeConceptWindow() {
                       initial={{ opacity: 0, y: 24 }}
                       animate={{ opacity: 1, y: 0 }}
                       // The list arrives once the bar has nearly reached the top.
-                      transition={{ ...SHEET_SPRING, delay: 0.14 }}
+                      transition={{ ...SHEET_SPRING, delay: 0.28 }}
                       className="min-h-0 flex-1 overflow-y-auto px-5 pb-4"
                       style={{ overscrollBehavior: 'contain' }}
                       // A tap on the empty area under the list closes the sheet, like a scrim.

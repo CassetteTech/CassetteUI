@@ -211,11 +211,11 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   // flight, and the whole theme change on phones, with the copy colours
   // flipping halfway through.
   async function settle(theme: Theme, run: number, duration = SETTLE_MS, flipAfter = 0) {
-    if (flipAfter) setTimeout(() => { if (run === latest) onScene(theme); }, flipAfter);
-    else onScene(theme);
+    if (!flipAfter) onScene(theme);
     const idle = idles[theme];
     if (!idle.running()) await idle.start();
     if (run !== latest) return overtaken();
+    if (flipAfter) setTimeout(() => { if (run === latest) onScene(theme); }, flipAfter);
     const onTop = Number(idle.layer.style.zIndex) === highestLayer;
     const from = onTop ? Number(getComputedStyle(idle.layer).opacity) : 0;
     raise(idle.layer);
@@ -271,6 +271,22 @@ const PLACEHOLDER = 'Paste a link, or search for music';
 const SEARCH_MOVE = { duration: 0.38, ease: EASE_OUT_QUART };
 const SEARCH_FADE = { duration: 0.2, ease: EASE_OUT_QUART };
 const SHEET_SPRING = { type: 'spring', damping: 28, stiffness: 260 } as const;
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// The open sheet is modal: Tab stays inside it and Escape closes it.
+function containSheetFocus(event: KeyboardEvent, root: HTMLElement, close: () => void) {
+  if (event.key === 'Escape') return close();
+  if (event.key !== 'Tab') return;
+  const focusable = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!first) return;
+  const active = document.activeElement;
+  if (!root.contains(active) || active === (event.shiftKey ? first : last)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  }
+}
 const BRAND_SCALE = 0.55;
 
 function Departing({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<HTMLDivElement> }) {
@@ -421,7 +437,7 @@ function WindowScene({ theme, scene, onScene, copyRef }: {
         <div
           key={value}
           className={cn(
-            'pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-background via-background/50 to-transparent transition-opacity duration-[400ms] lg:hidden',
+            'pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-background via-background/50 to-transparent transition-opacity duration-400 lg:hidden',
             value === 'dark' ? 'dark' : 'force-light',
             shown(value),
           )}
@@ -450,6 +466,13 @@ export function HomeConceptWindow() {
   // bar glides between its hero and sheet positions as one element.
   const sheet = !wide && (search.isSearchActive || search.isConverting);
   const sheetRef = useSheetViewportPin(!wide && search.isSearchActive);
+  const { close } = search;
+  useEffect(() => {
+    if (!sheet) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (sheetRef.current) containSheetFocus(event, sheetRef.current, close); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [sheet, close, sheetRef]);
   const [hasOpened, setHasOpened] = useState(false);
   if (expanded && !hasOpened) setHasOpened(true);
   const { dismiss } = search;
@@ -482,7 +505,7 @@ export function HomeConceptWindow() {
       <section
         data-scene={scene}
         className={cn(
-          'relative -mt-16 flex min-h-svh overflow-hidden bg-background transition-colors duration-[400ms] [--wall:calc(100vw_-_0.424_*_max(100vw,_100svh_*_16_/_9))] [--scene:75svh] [--sill:max(0.57_*_var(--scene),_12.4vw_+_var(--scene)_/_2)]',
+          'relative -mt-16 flex min-h-svh overflow-hidden bg-background transition-colors duration-400 [--wall:calc(100vw_-_0.424_*_max(100vw,_100svh_*_16_/_9))] [--scene:75svh] [--sill:max(0.57_*_var(--scene),_12.4vw_+_var(--scene)_/_2)]',
           scene === 'dark' && 'dark',
           scene === 'light' && 'force-light',
         )}
@@ -534,6 +557,9 @@ export function HomeConceptWindow() {
                   ref={sheetRef}
                   data-testid="home-search-sheet"
                   data-open={sheet || undefined}
+                  role={sheet ? 'dialog' : undefined}
+                  aria-modal={sheet || undefined}
+                  aria-label={sheet ? 'Search music' : undefined}
                   className={cn(
                     // z-[60] clears the fixed navbar (z-50): the sheet is modal.
                     sheet ? 'fixed inset-0 z-[60] flex flex-col' : 'relative w-full pt-5 lg:z-10 lg:pt-6',
@@ -560,7 +586,7 @@ export function HomeConceptWindow() {
                     transition={{ layout: wide ? { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } : SHEET_SPRING }}
                     className={cn('w-full', sheet && !search.isConverting && 'px-5 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2')}
                   >
-                    <motion.div {...barRise}>
+                    <motion.div {...barRise} data-testid="home-search-entrance">
                       <HomeSearchBar search={search} closeOnBlur={wide} size="sm" placeholder={PLACEHOLDER} />
                     </motion.div>
                   </motion.div>
@@ -573,6 +599,8 @@ export function HomeConceptWindow() {
                       transition={{ ...SHEET_SPRING, delay: 0.14 }}
                       className="min-h-0 flex-1 overflow-y-auto px-5 pb-4"
                       style={{ overscrollBehavior: 'contain' }}
+                      // A tap on the empty area under the list closes the sheet, like a scrim.
+                      role="presentation"
                       onPointerDown={(event) => { if (event.target === event.currentTarget) search.close(); }}
                     >
                       <HomeSearchResults search={search} chrome="flat" />

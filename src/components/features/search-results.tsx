@@ -158,14 +158,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   const pending = isLoading || isSearching;
 
-  if (!pending && (!results || allResults.length === 0)) {
-    return (
-      <div className="text-center py-8">
-        <UIText className="text-muted-foreground">No results found</UIText>
-      </div>
-    );
-  }
-
   return (
     <div
       data-testid="search-results"
@@ -226,7 +218,12 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               label={showSearchResults ? 'Search results' : 'Top charts'}
               skeleton={<ResultRowSkeletons />}
             >
-            {allResults.map((item, index) => (
+            {allResults.length === 0 ? (
+              // The header stays, so the close control survives an empty result.
+              <div className="text-center py-8">
+                <UIText className="text-muted-foreground">No results found</UIText>
+              </div>
+            ) : allResults.map((item, index) => (
               <div
                 key={`${item.type}-${item.id}-${index}`}
                 data-testid={`search-result-${item.type}-${item.id}`}

@@ -110,6 +110,12 @@ test('home window scene crossfades the portrait idle loops on a phone', async ({
   await expect(page.locator('video[data-idle="light"]')).toHaveAttribute('src', /\/portrait\/idle-light\.mp4$/);
   await expect(page.locator('video[data-move]')).toHaveCount(0);
   await switchTheme(page, 'dark');
+  // Early in the fade the incoming loop is translucent and the copy still wears the old theme.
+  const early = await page.waitForFunction(() => {
+    const opacity = Number(getComputedStyle(document.querySelector('[data-idle="dark"]')!).opacity);
+    return opacity > 0 && opacity < 0.5 ? { opacity, scene: document.querySelector('[data-scene]')?.getAttribute('data-scene') } : null;
+  });
+  expect(await early.jsonValue()).toMatchObject({ scene: 'light' });
   await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['dark', 'light'], playingMoves: 0 });
   await expectAtRest(page, 'dark');
   expect(errors).toEqual([]);
@@ -122,13 +128,9 @@ test('home window search opens as a full-screen sheet on a phone', async ({ page
   const sheet = page.getByTestId('home-search-sheet');
   const barTop = async () => Math.round((await input.boundingBox())!.y);
   // The bar's entrance is still running when the scene comes to rest.
-  let restTop = -1;
-  await expect.poll(async () => {
-    const top = await barTop();
-    const settled = top === restTop;
-    restTop = top;
-    return settled;
-  }, { intervals: [250, 250, 250, 250, 250, 250, 250, 250] }).toBe(true);
+  const entrance = page.getByTestId('home-search-entrance');
+  await expect.poll(() => entrance.evaluate((node) => `${getComputedStyle(node).opacity} ${getComputedStyle(node).transform}`)).toBe('1 none');
+  const restTop = await barTop();
   expect(restTop).toBeGreaterThan(400);
 
   await input.focus();
@@ -140,8 +142,22 @@ test('home window search opens as a full-screen sheet on a phone', async ({ page
   const panel = (await results.boundingBox())!;
   expect(panel.y).toBeGreaterThan(bar.y + bar.height);
   await expect(input).toBeFocused();
+  await expect(sheet).toHaveAttribute('aria-modal', 'true');
 
-  await page.getByRole('button', { name: 'Close search results' }).click();
+  // A query with no matches keeps the header and its close control.
+  await input.fill('zzzz');
+  await expect(page.getByText('No results found')).toBeVisible();
+  const close = page.getByRole('button', { name: 'Close search results' });
+  await expect(close).toBeVisible();
+
+  // Tab stays inside the sheet and Escape closes it from anywhere in it.
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(input).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(close).toBeFocused();
+  await page.keyboard.press('Escape');
   await expect(results).toBeHidden();
   await expect(sheet).not.toHaveAttribute('data-open', 'true');
   await expect.poll(barTop).toBe(restTop);

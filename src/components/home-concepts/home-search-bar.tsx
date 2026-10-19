@@ -99,7 +99,8 @@ export function HomeSearchBar({
           {search.urlError}{' '}
           <button
             type="button"
-            onClick={() => search.setIsHelpModalOpen(true)}
+            // The help dialog sits under the phone search sheet, so the sheet closes first.
+            onClick={() => { search.dismiss(); search.setIsHelpModalOpen(true); }}
             className="underline hover:text-destructive/80 focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 rounded"
           >
             Show me how.

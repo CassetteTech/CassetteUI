@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type Ref, type RefObject } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type Ref, type RefObject } from 'react';
 import Image, { getImageProps } from 'next/image';
 import { useTheme } from 'next-themes';
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
@@ -35,19 +35,16 @@ const subscribeToLayout = (onChange: () => void) => {
 const readLayout = (): Layout => (window.matchMedia(WIDE).matches ? 'landscape' : 'portrait');
 const MOVE_RATE = 1.8;
 const SETTLE_MS = 350;
-// Phones crossfade the idle loops instead of playing a camera move. The
-// hero's background fill, scrims and paper edge change with the loops, from
-// the moment the incoming loop starts, through the Web Animations API like
-// the loops, because the theme provider suppresses CSS transitions at the
-// click. The fill is one opaque layer whose colour animates, so the page
-// behind never shows through; the scrims and the paper edge are a pair per
-// theme that crossfade over opaque content. Only the copy switches halfway
-// through, where its contrast is safe.
+// Phones have no camera move. Each theme is one stack (still, loop, print,
+// scrim, background, paper edge), and a theme change is one opacity fade of
+// the incoming stack over the other, so the top and the bottom of the hero
+// cannot change colour out of step. The copy switches halfway through, where
+// its contrast is safe. CSS transitions cannot do this: the theme provider
+// suppresses them for the frame in which the theme changes.
 const FADE_MS = 800;
+const START_WAIT_MS = 2000;
 const THEMES = ['dark', 'light'] as const;
 const THEME_CLASS = { dark: 'dark', light: 'force-light' } satisfies Record<Theme, string>;
-// A theme layer's tokens, and its opacity until the driver takes over.
-const dressed = (value: Theme) => value === 'dark' ? 'dark opacity-0 dark:opacity-100' : 'force-light opacity-100 dark:opacity-0';
 // The dark idle loop does not end on its first frame, so two copies of it
 // take turns: the next copy fades in on top shortly before the current one
 // ends. Repeats skip the first second, which still looks like the still.
@@ -80,10 +77,24 @@ async function seek(video: HTMLVideoElement, time: number) {
 
 const painted = (video: HTMLVideoElement) => new Promise<void>((resolve) => video.requestVideoFrameCallback(() => resolve()));
 
-async function startAt(video: HTMLVideoElement, time: number) {
+// A startup that is no longer wanted (`live` false) resolves early; it pauses
+// the video only while it still owns it (`owns` true), because a newer
+// startup of the same video may already be playing it.
+interface Startup { live: () => boolean; owns: () => boolean }
+const ALWAYS: Startup = { live: () => true, owns: () => true };
+
+async function startAt(video: HTMLVideoElement, time: number, startup: Startup = ALWAYS) {
+  const stale = () => {
+    if (startup.live()) return false;
+    if (startup.owns()) video.pause();
+    return true;
+  };
   await seek(video, time);
+  if (stale()) return;
   await video.play();
+  if (stale()) return;
   await painted(video);
+  stale();
 }
 
 interface Idle {
@@ -94,19 +105,28 @@ interface Idle {
   stop: () => void;
 }
 
-// One startup at a time, kept until reset() so a started loop answers at once.
-function startOnce(begin: () => Promise<void>) {
+// One startup at a time, kept until reset() so a started loop answers at
+// once. reset() expires the startup in flight; it then stops itself unless a
+// newer startup has taken the video over.
+function startOnce(begin: (startup: Startup) => Promise<void>) {
   let pending: Promise<void> | null = null;
+  let generation = 0;
+  let started = 0;
   return {
     start() {
       if (!pending) {
-        const startup = begin();
+        const mine = ++generation;
+        started = mine;
+        const startup = begin({ live: () => mine === generation, owns: () => mine === started });
         startup.catch(() => { if (pending === startup) pending = null; });
         pending = startup;
       }
       return pending;
     },
-    reset() { pending = null; },
+    reset() {
+      generation++;
+      pending = null;
+    },
   };
 }
 
@@ -135,12 +155,13 @@ function blendLoop(layer: HTMLElement, signal: AbortSignal): Idle {
       }, () => {});
     }, { signal });
   }
-  const startup = startOnce(async () => {
+  const startup = startOnce(async (ownership) => {
     active = true;
     const [first, second] = copies;
     current = first;
     second.pause();
-    await startAt(first, 0);
+    await startAt(first, 0, ownership);
+    if (!ownership.live()) return;
     if (current !== first) return first.pause();
     // The first copy appears at once; only the handovers between copies fade.
     for (const copy of copies) copy.style.transition = 'none';
@@ -163,37 +184,18 @@ function blendLoop(layer: HTMLElement, signal: AbortSignal): Idle {
   };
 }
 
-function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, switchAt: Record<Theme, number> | null) {
+function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, switchAt: Record<Theme, number>) {
   const abort = new AbortController();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const pick = <T extends Element>(selector: string) => root.querySelector<T>(selector)!;
   const lightVideo = pick<HTMLVideoElement>('[data-idle="light"]');
-  const lightStartup = startOnce(() => startAt(lightVideo, 0));
+  const lightStartup = startOnce((ownership) => startAt(lightVideo, 0, ownership));
   const idles = {
     dark: blendLoop(pick('[data-idle="dark"]'), abort.signal),
     light: { layer: lightVideo, start: () => lightStartup.start(), stop: () => { lightStartup.reset(); lightVideo.pause(); } },
   } satisfies Record<Theme, Idle>;
-  const moves = switchAt && { light: pick<HTMLVideoElement>('[data-move="light"]'), dark: pick<HTMLVideoElement>('[data-move="dark"]') };
+  const moves = { light: pick<HTMLVideoElement>('[data-move="light"]'), dark: pick<HTMLVideoElement>('[data-move="dark"]') };
   const layers = [...root.querySelectorAll<HTMLElement>('[data-layer]')];
-  const themeLayers = [...root.querySelectorAll<HTMLElement>('[data-theme-layer]')];
-  const fill = pick<HTMLElement>('[data-theme-fill]');
-  const fillColour = (theme: Theme) => getComputedStyle(pick(`[data-theme-probe="${theme}"]`)).backgroundColor;
-  // Each animation starts from the value on screen and ends on an inline
-  // value set beforehand, so no finished animation holds a layer.
-  const dress = (theme: Theme, duration: number) => {
-    const fillFrom = getComputedStyle(fill).backgroundColor;
-    const fillTo = fillColour(theme);
-    for (const animation of fill.getAnimations()) animation.cancel();
-    fill.style.backgroundColor = fillTo;
-    if (duration > 0 && fillFrom !== fillTo) fill.animate([{ backgroundColor: fillFrom }, { backgroundColor: fillTo }], { duration, easing: 'ease-out' });
-    for (const layer of themeLayers) {
-      const target = layer.dataset.themeLayer === theme ? 1 : 0;
-      const from = Number(getComputedStyle(layer).opacity);
-      for (const animation of layer.getAnimations()) animation.cancel();
-      layer.style.opacity = String(target);
-      if (duration > 0 && from !== target) layer.animate([{ opacity: from }, { opacity: target }], { duration, easing: 'ease-out' });
-    }
-  };
 
   let target: Theme | undefined;
   let latest = 0;
@@ -206,13 +208,12 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   };
   const stopAll = () => {
     for (const idle of Object.values(idles)) idle.stop();
-    for (const move of Object.values(moves ?? {})) move.pause();
+    for (const move of Object.values(moves)) move.pause();
   };
   let stills = false;
   const stillsOnly = (theme: Theme) => {
     stills = true;
     onScene(theme);
-    dress(theme, 0);
     for (const layer of layers) setOpacity(layer, 0);
     stopAll();
   };
@@ -220,7 +221,7 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   const overtaken = () => {
     if (disposed || stills || reducedMotion.matches) return stopAll();
     if (!atRest || !target) return;
-    for (const move of Object.values(moves ?? {})) move.pause();
+    for (const move of Object.values(moves)) move.pause();
     idles[other(target)].stop();
   };
 
@@ -231,24 +232,23 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     raise(idle.layer);
     setOpacity(idle.layer, 1);
     for (const layer of layers) if (layer !== idle.layer) setOpacity(layer, 0);
-    for (const move of Object.values(moves ?? {})) move.pause();
+    for (const move of Object.values(moves)) move.pause();
     idles[other(theme)].stop();
     atRest = true;
   }
 
   async function playMove(theme: Theme, run: number) {
-    const move = moves![theme];
+    const move = moves[theme];
     move.playbackRate = MOVE_RATE;
     await startAt(move, 0);
     if (run !== latest) return overtaken();
-    dress(theme, FADE_MS);
     raise(move);
     setOpacity(move, 1);
     idles[other(theme)].stop();
     // Checked on every painted frame: `timeupdate` fires only about four times a second.
     const onFrame: VideoFrameRequestCallback = (_now, frame) => {
       if (run !== latest) return;
-      if (frame.mediaTime >= switchAt![theme]) return onScene(theme);
+      if (frame.mediaTime >= switchAt[theme]) return onScene(theme);
       move.requestVideoFrameCallback(onFrame);
     };
     move.requestVideoFrameCallback(onFrame);
@@ -258,24 +258,19 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     await rest(theme, run);
   }
 
-  // A crossfade to the theme's idle loop: quick when it retargets a change in
-  // flight, and the whole theme change on phones, with the copy colours
-  // flipping halfway through.
-  async function settle(theme: Theme, run: number, duration = SETTLE_MS, flipAfter = 0) {
-    if (!flipAfter) onScene(theme);
+  // A quick crossfade to the theme's idle loop when a change is retargeted in flight.
+  async function settle(theme: Theme, run: number) {
+    onScene(theme);
     const idle = idles[theme];
     await idle.start();
     if (run !== latest) return overtaken();
-    if (flipAfter) setTimeout(() => { if (run === latest) onScene(theme); }, flipAfter);
     const onTop = Number(idle.layer.style.zIndex) === highestLayer;
     const from = onTop ? Number(getComputedStyle(idle.layer).opacity) : 0;
-    const fadeMs = duration * (1 - from);
-    dress(theme, fadeMs);
     raise(idle.layer);
     // The fade runs over its end value, so no finished animation holds the layer:
     // Chromium can keep a cancelled `fill: 'forwards'` value after the inline style changes.
     idle.layer.style.opacity = '1';
-    const fade = idle.layer.animate([{ opacity: from }, { opacity: 1 }], { duration: fadeMs, easing: 'ease-out' });
+    const fade = idle.layer.animate([{ opacity: from }, { opacity: 1 }], { duration: SETTLE_MS * (1 - from), easing: 'ease-out' });
     await fade.finished.catch(() => {});
     if (run !== latest) return;
     await rest(theme, run);
@@ -299,18 +294,12 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
       const first = target === undefined;
       target = theme;
       const run = ++latest;
-      if (first || reducedMotion.matches) {
-        onScene(theme);
-        dress(theme, 0);
-      }
+      if (first || reducedMotion.matches) onScene(theme);
       if (reducedMotion.matches) return;
       const wasAtRest = atRest;
       atRest = false;
       stills = false;
-      const step = first ? rest(theme, run)
-        : !wasAtRest ? settle(theme, run)
-        : moves ? playMove(theme, run)
-        : settle(theme, run, FADE_MS, FADE_MS / 2);
+      const step = first ? rest(theme, run) : wasAtRest ? playMove(theme, run) : settle(theme, run);
       step.catch(() => { if (run === latest) stillsOnly(theme); });
     },
     dispose() {
@@ -319,6 +308,100 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
       reducedMotion.removeEventListener('change', resync);
       abort.abort();
       stopAll();
+    },
+  };
+}
+
+// Phones: the incoming theme's stack fades in over the other, which stays
+// opaque beneath it, so nothing behind the hero ever shows through. A loop
+// that cannot play (blocked autoplay, a media error) leaves its still in view.
+function createPortraitScene(root: HTMLElement, onScene: (theme: Theme) => void) {
+  const abort = new AbortController();
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const pick = <T extends Element>(selector: string) => root.querySelector<T>(selector)!;
+  const stacks = { dark: pick<HTMLElement>('[data-stack="dark"]'), light: pick<HTMLElement>('[data-stack="light"]') };
+  const lightVideo = pick<HTMLVideoElement>('[data-stack="light"] [data-idle="light"]');
+  const lightStartup = startOnce((ownership) => startAt(lightVideo, 0, ownership));
+  const idles = {
+    dark: blendLoop(pick('[data-stack="dark"] [data-idle="dark"]'), abort.signal),
+    light: { layer: lightVideo, start: () => lightStartup.start(), stop: () => { lightStartup.reset(); lightVideo.pause(); } },
+  } satisfies Record<Theme, Idle>;
+
+  let target: Theme | undefined;
+  let latest = 0;
+  let atRest = false;
+  let highest = 0;
+  const settle = (stack: HTMLElement, opacity: number) => {
+    for (const animation of stack.getAnimations()) animation.cancel();
+    stack.style.opacity = String(opacity);
+  };
+  const place = (theme: Theme) => {
+    settle(stacks[other(theme)], 1);
+    stacks[theme].style.zIndex = String(++highest);
+    settle(stacks[theme], 1);
+  };
+  // The change waits for the incoming loop up to a bound; a loop that is
+  // still not playing by then appears over its still once it does.
+  const startLoop = (theme: Theme) => reducedMotion.matches
+    ? Promise.resolve()
+    : Promise.race([idles[theme].start().catch(() => {}), new Promise<void>((resolve) => setTimeout(resolve, START_WAIT_MS))]);
+
+  async function change(theme: Theme, run: number, duration: number) {
+    await startLoop(theme);
+    if (run !== latest) return;
+    const stack = stacks[theme];
+    const outgoing = stacks[other(theme)];
+    const onTop = Number(stack.style.zIndex) === highest;
+    // From the blend on screen: the target's own opacity when it is on top,
+    // otherwise what the outgoing stack on top lets through.
+    const from = onTop ? Number(getComputedStyle(stack).opacity) : 1 - Number(getComputedStyle(outgoing).opacity);
+    const fadeMs = duration * (1 - from);
+    settle(outgoing, 1);
+    stack.style.zIndex = String(++highest);
+    // The fade runs over its end value, so no finished animation holds the stack.
+    settle(stack, 1);
+    const fade = stack.animate([{ opacity: from }, { opacity: 1 }], { duration: fadeMs, easing: 'ease-out' });
+    setTimeout(() => { if (run === latest) onScene(theme); }, fadeMs / 2);
+    await fade.finished.catch(() => {});
+    if (run !== latest) return;
+    idles[other(theme)].stop();
+    atRest = true;
+  }
+
+  const resync = () => {
+    if (!target) return;
+    latest++;
+    for (const idle of Object.values(idles)) idle.stop();
+    place(target);
+    onScene(target);
+    void startLoop(target);
+    atRest = true;
+  };
+  reducedMotion.addEventListener('change', resync);
+
+  return {
+    show(theme: Theme) {
+      if (theme === target) return;
+      const first = target === undefined;
+      target = theme;
+      const run = ++latest;
+      if (first || reducedMotion.matches) {
+        place(theme);
+        onScene(theme);
+        idles[other(theme)].stop();
+        void startLoop(theme);
+        atRest = true;
+        return;
+      }
+      const wasAtRest = atRest;
+      atRest = false;
+      void change(theme, run, wasAtRest ? FADE_MS : SETTLE_MS);
+    },
+    dispose() {
+      latest++;
+      reducedMotion.removeEventListener('change', resync);
+      abort.abort();
+      for (const idle of Object.values(idles)) idle.stop();
     },
   };
 }
@@ -450,14 +533,16 @@ function WindowScene({ theme, scene, onScene, copyRef }: {
   copyRef: RefObject<HTMLElement | null>;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const driver = useRef<ReturnType<typeof createWindowScene>>(null);
+  const driver = useRef<{ show: (theme: Theme) => void; dispose: () => void }>(null);
   const layout = useSyncExternalStore(subscribeToLayout, readLayout, () => undefined);
   const crop = 'object-cover object-center lg:object-right';
   const layerClass = `absolute inset-0 h-full w-full ${crop} opacity-0 motion-reduce:hidden`;
 
   useEffect(() => {
     if (!layout) return;
-    driver.current = createWindowScene(rootRef.current!, onScene, layout === 'landscape' ? SWITCH_AT : null);
+    driver.current = layout === 'landscape'
+      ? createWindowScene(rootRef.current!, onScene, SWITCH_AT)
+      : createPortraitScene(rootRef.current!, onScene);
     return () => driver.current?.dispose();
   }, [onScene, layout]);
 
@@ -468,52 +553,60 @@ function WindowScene({ theme, scene, onScene, copyRef }: {
   const shown = (value: Theme) => scene
     ? scene === value ? 'opacity-100' : 'opacity-0'
     : value === 'dark' ? 'opacity-0 dark:opacity-100' : 'opacity-100 dark:opacity-0';
+  // Until the driver places a stack, the html class decides which one is seen.
+  const placed = (value: Theme) => value === 'dark' ? 'opacity-0 dark:opacity-100' : 'opacity-100 dark:opacity-0';
+  const portrait = (value: Theme) => getImageProps({ alt: '', src: STILLS[value].portrait, fill: true, sizes: '100vw', loading: 'eager', fetchPriority: 'high' }).props;
+  const darkLoop = (media: string, className: string) => (
+    <div data-layer data-idle="dark" className={cn('absolute inset-0 isolate motion-reduce:hidden', className)}>
+      {[0, 1].map((copy) => (
+        <video key={copy} src={`${media}/idle-dark.mp4`} muted playsInline preload="auto" className={cn('absolute inset-0 h-full w-full opacity-0 transition-opacity duration-[1200ms] ease-linear data-[current]:opacity-100', crop)} />
+      ))}
+    </div>
+  );
 
   // Below lg the scene box is a fixed share of the viewport (`--scene`), so
   // the copy keeps its place under the window sill on every screen height.
   return (
-    <div ref={rootRef} aria-hidden className="absolute inset-0">
-      {THEMES.map((value) => (
-        <div key={value} data-theme-probe={value} className={cn('hidden bg-background', THEME_CLASS[value])} />
-      ))}
-      <div data-theme-fill className="absolute inset-0 bg-background" />
+    <div ref={rootRef} aria-hidden className="absolute inset-0 isolate">
+      {/* The page's stills, fetched for the screen's layout, are the first
+          paint everywhere and the base of the desktop scene. */}
       <div className="absolute inset-x-0 top-0 h-[var(--scene)] overflow-hidden lg:bottom-0 lg:h-auto">
-      <div className="absolute inset-0 isolate">
-        <Still theme="dark" className={cn(crop, 'transition-opacity duration-500', shown('dark'))} />
-        <Still theme="light" className={cn(crop, 'transition-opacity duration-500', shown('light'))} />
-        {layout && (
-          <Fragment key={layout}>
-            <div data-layer data-idle="dark" className="absolute inset-0 isolate opacity-0 motion-reduce:hidden">
-              {[0, 1].map((copy) => (
-                <video key={copy} src={`${MEDIA[layout]}/idle-dark.mp4`} muted playsInline preload="auto" className={cn('absolute inset-0 h-full w-full opacity-0 transition-opacity duration-[1200ms] ease-linear data-[current]:opacity-100', crop)} />
-              ))}
+        <div className="absolute inset-0 isolate">
+          <Still theme="dark" className={cn(crop, 'transition-opacity duration-500', shown('dark'))} />
+          <Still theme="light" className={cn(crop, 'transition-opacity duration-500', shown('light'))} />
+          {layout === 'landscape' && (
+            <>
+              {darkLoop(MEDIA.landscape, 'opacity-0')}
+              <video data-layer data-idle="light" src={`${MEDIA.landscape}/idle-light.mp4`} muted playsInline loop preload="auto" className={layerClass} />
+              <video data-layer data-move="light" src={`${MEDIA.landscape}/move-to-light.mp4`} muted playsInline preload="auto" className={layerClass} />
+              <video data-layer data-move="dark" src={`${MEDIA.landscape}/move-to-dark.mp4`} muted playsInline preload="auto" className={layerClass} />
+            </>
+          )}
+        </div>
+        {layout === 'landscape' && <WindowDither copyRef={copyRef} />}
+      </div>
+      {layout === 'portrait' && THEMES.map((value) => (
+        <div key={value} data-stack={value} className={cn('absolute inset-0 bg-background', THEME_CLASS[value], placed(value))}>
+          <div className="absolute inset-x-0 top-0 h-[var(--scene)] overflow-hidden">
+            <div className="absolute inset-0 isolate">
+              <picture><img data-still {...portrait(value)} alt="" className={crop} /></picture>
+              {value === 'dark'
+                ? darkLoop(MEDIA.portrait, '')
+                : <video data-layer data-idle="light" src={`${MEDIA.portrait}/idle-light.mp4`} muted playsInline loop preload="auto" className={cn('absolute inset-0 h-full w-full motion-reduce:hidden', crop)} />}
             </div>
-            <video data-layer data-idle="light" src={`${MEDIA[layout]}/idle-light.mp4`} muted playsInline loop preload="auto" className={layerClass} />
-            {layout === 'landscape' && (
-              <>
-                <video data-layer data-move="light" src={`${MEDIA.landscape}/move-to-light.mp4`} muted playsInline preload="auto" className={layerClass} />
-                <video data-layer data-move="dark" src={`${MEDIA.landscape}/move-to-dark.mp4`} muted playsInline preload="auto" className={layerClass} />
-              </>
-            )}
-          </Fragment>
-        )}
-      </div>
-      <WindowDither key={layout} copyRef={copyRef} />
-      {THEMES.map((value) => (
-        <div
-          key={value}
-          data-theme-layer={value}
-          className={cn('pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-background via-background/50 to-transparent lg:hidden', dressed(value))}
-        />
-      ))}
-      </div>
-      <div className="absolute inset-x-0 bottom-0">
-        {THEMES.map((value) => (
-          <div key={value} data-theme-layer={value} className={cn('absolute inset-x-0 bottom-0', dressed(value))}>
+            <WindowDither copyRef={copyRef} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-background via-background/50 to-transparent" />
+          </div>
+          <div className="absolute inset-x-0 bottom-0">
             <DitherEdge color="hsl(var(--background))" />
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
+      {layout === 'landscape' && (
+        <div className="absolute inset-x-0 bottom-0">
+          <DitherEdge color="hsl(var(--background))" />
+        </div>
+      )}
     </div>
   );
 }

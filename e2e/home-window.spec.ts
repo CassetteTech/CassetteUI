@@ -4,6 +4,13 @@ import { mockCassetteApp } from './support/mock-cassette-app';
 type Theme = 'light' | 'dark';
 const other = (theme: Theme): Theme => (theme === 'dark' ? 'light' : 'dark');
 
+declare global {
+  interface Window {
+    // Set by gateLightLoop's init script; opens the held light loop.
+    releaseLightLoop?: () => void;
+  }
+}
+
 // The longer camera move, to dark, lasts 6.58 s of media at 1.8x.
 const MOVE_MS = 3660;
 
@@ -13,16 +20,25 @@ const switchTheme = (page: Page, theme: string) =>
 const sceneState = (page: Page) =>
   page.evaluate(() => {
     const layers = [...document.querySelectorAll<HTMLElement>('[data-layer]')];
+    const stacks = [...document.querySelectorAll<HTMLElement>('[data-stack]')];
+    const top = stacks.length ? stacks.reduce((a, b) => (Number(b.style.zIndex || 0) > Number(a.style.zIndex || 0) ? b : a)) : null;
+    const playing = (root: ParentNode) => [...root.querySelectorAll<HTMLVideoElement>('video')].filter((video) => !video.paused).length;
     return {
       visible: layers.filter((layer) => getComputedStyle(layer).opacity !== '0').map((layer) => layer.dataset.idle ?? `move-${layer.dataset.move}`),
       playingMoves: [...document.querySelectorAll<HTMLVideoElement>('video[data-move]')].filter((video) => !video.paused).length,
       theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
       scene: document.querySelector('[data-scene]')?.getAttribute('data-scene'),
+      // Phones: the stack on top, its opacity, and whether the other stack's loop is paused.
+      stack: top ? { theme: top.dataset.stack, opacity: Number(getComputedStyle(top).opacity), otherPlaying: stacks.filter((stack) => stack !== top).reduce((count, stack) => count + playing(stack), 0) } : null,
     };
   });
 
+const isPhone = (page: Page) => page.viewportSize()!.width < 1024;
+
 const expectAtRest = (page: Page, theme: Theme) =>
-  expect.poll(() => sceneState(page), { timeout: MOVE_MS + 5000 }).toEqual({ visible: [theme], playingMoves: 0, theme, scene: theme });
+  expect.poll(() => sceneState(page), { timeout: MOVE_MS + 5000 }).toMatchObject(isPhone(page)
+    ? { stack: { theme, opacity: 1, otherPlaying: 0 }, playingMoves: 0, theme, scene: theme }
+    : { visible: [theme], playingMoves: 0, theme, scene: theme });
 
 async function openWindow(page: Page, theme: Theme, viewport = { width: 1440, height: 900 }) {
   const errors: Error[] = [];
@@ -57,10 +73,6 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
         await switchTheme(page, theme);
       }
       await expectAtRest(page, theme);
-      await expect.poll(() => page.evaluate((value) => {
-        const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
-        return colour('[data-theme-fill]') === colour(`[data-theme-probe="${value}"]`);
-      }, theme)).toBe(true);
       expect(errors).toEqual([]);
     });
   }
@@ -77,7 +89,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await page.getByRole('menuitem', { name: 'Dark' }).click();
     await expect.poll(() => sceneState(page)).toMatchObject(viewport.width >= 1024
       ? { visible: ['light', 'move-dark'], theme: 'dark', scene: 'light' }
-      : { visible: ['dark', 'light'], playingMoves: 0, theme: 'dark' });
+      : { stack: { theme: 'dark' }, playingMoves: 0, theme: 'dark' });
     await expectAtRest(page, 'dark');
 
     await menu.click();
@@ -117,43 +129,43 @@ test('home window search opens in the wall and closes on Escape', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('home window scene crossfades the portrait idle loops on a phone', async ({ page }) => {
+test('home window scene fades the dark stack in over the light one on a phone', async ({ page }) => {
   const errors = await openWindow(page, 'light', { width: 390, height: 844 });
-  await expect(page.locator('video[data-idle="light"]')).toHaveAttribute('src', /\/portrait\/idle-light\.mp4$/);
+  await expect(page.locator('[data-stack="light"] video[data-idle="light"]')).toHaveAttribute('src', /\/portrait\/idle-light\.mp4$/);
   await expect(page.locator('video[data-move]')).toHaveCount(0);
   await switchTheme(page, 'dark');
-  // Early in the fade the incoming loop is translucent, the hero's fill is
-  // between the two theme colours, the dark scrim is on its way in, and the
-  // copy still wears the old theme.
+  // Early in the fade the dark stack is translucent on top of the opaque light
+  // stack, its loop plays, and the copy still wears the old theme.
   const early = await page.waitForFunction(() => {
-    const style = (selector: string) => getComputedStyle(document.querySelector(selector)!);
-    const loop = Number(style('[data-idle="dark"]').opacity);
-    return loop > 0 && loop < 0.5
+    const opacity = (selector: string) => Number(getComputedStyle(document.querySelector(selector)!).opacity);
+    const dark = opacity('[data-stack="dark"]');
+    return dark > 0 && dark < 0.5
       ? {
-          loop,
-          scrim: Number(style('[data-theme-layer="dark"]').opacity),
-          fill: style('[data-theme-fill]').backgroundColor,
-          light: style('[data-theme-probe="light"]').backgroundColor,
-          dark: style('[data-theme-probe="dark"]').backgroundColor,
+          dark,
+          light: opacity('[data-stack="light"]'),
+          darkOnTop: Number(document.querySelector<HTMLElement>('[data-stack="dark"]')!.style.zIndex) > Number(document.querySelector<HTMLElement>('[data-stack="light"]')!.style.zIndex),
+          darkLoopPlaying: [...document.querySelectorAll<HTMLVideoElement>('[data-stack="dark"] video')].some((video) => !video.paused),
           scene: document.querySelector('[data-scene]')?.getAttribute('data-scene'),
         }
       : null;
   });
   // SAFETY: waitForFunction resolves only once the predicate returned this object.
-  const snapshot = (await early.jsonValue()) as { loop: number; scrim: number; fill: string; light: string; dark: string; scene: string };
-  expect(snapshot.scene).toBe('light');
-  expect(snapshot.scrim).toBeGreaterThan(0);
-  expect(snapshot.scrim).toBeLessThan(1);
-  expect(snapshot.fill).not.toBe(snapshot.light);
-  expect(snapshot.fill).not.toBe(snapshot.dark);
-  await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['dark', 'light'], playingMoves: 0 });
+  const snapshot = (await early.jsonValue()) as { dark: number; light: number; darkOnTop: boolean; darkLoopPlaying: boolean; scene: string };
+  expect(snapshot).toMatchObject({ light: 1, darkOnTop: true, darkLoopPlaying: true, scene: 'light' });
   await expectAtRest(page, 'dark');
-  await expect(page.locator('[data-theme-layer="dark"]').first()).toHaveCSS('opacity', '1');
-  await expect.poll(() => page.evaluate(() => {
-    const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
-    return colour('[data-theme-fill]') === colour('[data-theme-probe="dark"]');
-  })).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test('home window scene swaps the stacks at once under reduced motion on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockCassetteApp(page);
+  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-scene="light"]')).toBeVisible();
+  await switchTheme(page, 'dark');
+  await expect(page.locator('[data-scene="dark"]')).toBeVisible();
+  await expect.poll(() => sceneState(page)).toMatchObject({ stack: { theme: 'dark', opacity: 1, otherPlaying: 0 }, scene: 'dark' });
+  expect(await page.locator('[data-stack] video').evaluateAll((videos: HTMLVideoElement[]) => videos.filter((video) => !video.paused).length)).toBe(0);
 });
 
 test('home window search opens as a full-screen sheet on a phone', async ({ page }) => {
@@ -202,36 +214,64 @@ test('home window search opens as a full-screen sheet on a phone', async ({ page
   expect(errors).toEqual([]);
 });
 
-test('home window scene waits for a slow idle loop before it dresses the hero', async ({ page }) => {
-  // The light loop takes 1.2 s to start playing.
-  await page.addInitScript(() => {
+// The light loop's play() waits for the test to open a gate.
+const gateLightLoop = (page: Page) =>
+  page.addInitScript(() => {
+    const gate = new Promise<void>((resolve) => { window.releaseLightLoop = resolve; });
     // oxlint-disable-next-line typescript/unbound-method -- the original play runs with each element as `this` below.
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
-      const delay = this.getAttribute('src')?.includes('idle-light') ? 1200 : 0;
-      return new Promise<void>((resolve, reject) => setTimeout(() => play.call(this).then(resolve, reject), delay));
+      const held = this.getAttribute('src')?.includes('idle-light') ? gate : Promise.resolve();
+      return held.then(() => play.call(this));
     };
   });
+const releaseLightLoop = (page: Page) => page.evaluate(() => window.releaseLightLoop?.());
+
+test('home window scene waits for a slow idle loop before it changes the hero', async ({ page }) => {
+  await gateLightLoop(page);
   const errors = await openWindow(page, 'dark', { width: 390, height: 844 });
-  // The first request starts the slow loop; the quick ones that follow must
-  // join that startup rather than dress the hero while the loop is not playing.
+  // The first request starts the held loop; the quick ones that follow must
+  // join that startup rather than change the hero while the loop is not playing.
   for (const theme of ['light', 'dark', 'light'] as const) {
     await switchTheme(page, theme);
     await page.waitForTimeout(100);
   }
-  await page.waitForTimeout(400);
-  expect(await page.evaluate(() => {
-    const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
-    return {
-      fillIsDark: colour('[data-theme-fill]') === colour('[data-theme-probe="dark"]'),
-      lightLoop: Number(getComputedStyle(document.querySelector('[data-idle="light"]')!).opacity),
-    };
-  })).toEqual({ fillIsDark: true, lightLoop: 0 });
+  await page.waitForTimeout(300);
+  expect(await sceneState(page)).toMatchObject({ stack: { theme: 'dark', opacity: 1 }, scene: 'dark' });
+  await releaseLightLoop(page);
   await expectAtRest(page, 'light');
-  await expect.poll(() => page.evaluate(() => {
-    const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
-    return colour('[data-theme-fill]') === colour('[data-theme-probe="light"]');
-  })).toBe(true);
+  // The released loop plays: the stale startups it joined must not have paused it.
+  const lightLoop = page.locator('[data-stack="light"] video[data-idle="light"]');
+  await expect.poll(() => lightLoop.evaluate((video: HTMLVideoElement) => !video.paused && video.currentTime)).toBeGreaterThan(0.2);
+  expect(errors).toEqual([]);
+});
+
+test('home window scene shows the still when an idle loop never starts', async ({ page }) => {
+  await gateLightLoop(page);
+  const errors = await openWindow(page, 'dark', { width: 390, height: 844 });
+  await switchTheme(page, 'light');
+  // The gate never opens: after the bounded wait the light stack arrives with its still.
+  await expect.poll(() => sceneState(page), { timeout: 8000 }).toMatchObject({ stack: { theme: 'light', opacity: 1, otherPlaying: 0 }, scene: 'light' });
+  expect(await page.locator('[data-stack="light"] video').evaluateAll((videos: HTMLVideoElement[]) => videos.filter((video) => !video.paused).length)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('home window copy stays above the stacks after many theme changes', async ({ page }) => {
+  // Twelve fades, each waited for, take over half a minute on a slow machine.
+  test.setTimeout(60_000);
+  const errors = await openWindow(page, 'light', { width: 390, height: 844 });
+  let theme: Theme = 'light';
+  for (let step = 0; step < 12; step += 1) {
+    theme = other(theme);
+    await switchTheme(page, theme);
+    await expectAtRest(page, theme);
+  }
+  // Each change raised a stack; the copy's own layer sits at z-index 10.
+  expect(await page.locator('[data-stack]').evaluateAll((stacks: HTMLElement[]) => Math.max(...stacks.map((stack) => Number(stack.style.zIndex || 0))))).toBeGreaterThan(10);
+  const headline = page.locator('h1');
+  await expect(headline).toBeVisible();
+  const box = (await headline.boundingBox())!;
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('h1') !== null, { x: box.x + box.width / 2, y: box.y + box.height / 2 })).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -244,14 +284,18 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 375, height: 667 }
       const errors = await openWindow(page, theme, viewport);
       const sources = await page.locator('img[data-still]').evaluateAll((images: HTMLImageElement[]) => images.map((image) => image.currentSrc));
       expect(sources.every((source) => source.includes('-portrait'))).toBe(true);
-      // The sill in viewport coordinates, from the drawn picture of the theme's still.
-      const sill = await page.locator('img[data-still]').evaluateAll((images: HTMLImageElement[], { theme, fraction }) => {
-        const image = images.find((candidate) => candidate.currentSrc.includes(`window-${theme}-portrait`))!;
+      // The sill in viewport coordinates, from the drawn picture of the theme's
+      // still, once the browser has decoded it (WebKit reports no size before).
+      const stillHandle = await page.waitForFunction((value) => {
+        const image = [...document.querySelectorAll<HTMLImageElement>('img[data-still]')].find((candidate) => candidate.currentSrc.includes(`window-${value}-portrait`) && candidate.naturalWidth > 0);
+        return image ?? null;
+      }, theme);
+      const sill = await stillHandle.evaluate((image: HTMLImageElement, fraction) => {
         const rect = image.getBoundingClientRect();
         const scale = Math.max(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
         const drawn = image.naturalHeight * scale;
         return rect.top + (rect.height - drawn) / 2 + drawn * fraction;
-      }, { theme, fraction: SILL });
+      }, SILL);
       const brand = (await page.getByTestId('home-window-brand').boundingBox())!;
       expect(brand.y).toBeGreaterThanOrEqual(sill);
       await expect(page.getByRole('figure', { name: /Paste a Spotify, Apple Music, or Deezer link/ })).toBeHidden();
@@ -282,7 +326,7 @@ test('home window scene falls back to the stills when a clip fails to load', asy
   await page.route(/move-to-dark\.mp4$/, (route) => route.fulfill({ status: 404 }));
   const errors = await openWindow(page, 'light');
   await switchTheme(page, 'dark');
-  await expect.poll(() => sceneState(page)).toEqual({ visible: [], playingMoves: 0, theme: 'dark', scene: 'dark' });
+  await expect.poll(() => sceneState(page)).toMatchObject({ visible: [], playingMoves: 0, theme: 'dark', scene: 'dark' });
   expect(errors).toEqual([]);
 });
 

@@ -24,14 +24,14 @@ const sceneState = (page: Page) =>
 const expectAtRest = (page: Page, theme: Theme) =>
   expect.poll(() => sceneState(page), { timeout: MOVE_MS + 5000 }).toEqual({ visible: [theme], playingMoves: 0, theme, scene: theme });
 
-async function openWindow(page: Page, theme: Theme, width = 1440, path = '/') {
+async function openWindow(page: Page, theme: Theme, viewport = { width: 1440, height: 900 }) {
   const errors: Error[] = [];
   page.on('pageerror', (error) => errors.push(error));
-  await page.setViewportSize({ width, height: 900 });
+  await page.setViewportSize(viewport);
   await mockCassetteApp(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.addInitScript((value) => localStorage.setItem('theme', value), theme);
-  await page.goto(path, { waitUntil: 'domcontentloaded' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expectAtRest(page, theme);
   return errors;
 }
@@ -105,23 +105,40 @@ test('home window search opens in the wall and closes on Escape', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('home window scene plays the cropped desktop set on a phone', async ({ page }) => {
-  const errors = await openWindow(page, 'light', 390);
-  await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('src', /\/home-window\/move-to-dark\.mp4$/);
+test('home window scene plays the portrait set on a phone', async ({ page }) => {
+  const errors = await openWindow(page, 'light', { width: 390, height: 844 });
+  await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('src', /\/portrait\/move-to-dark\.mp4$/);
+  await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('preload', 'metadata');
   await switchTheme(page, 'dark');
   await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['light', 'move-dark'], scene: 'light' });
   await expectAtRest(page, 'dark');
   expect(errors).toEqual([]);
 });
 
-test('home window scene plays the portrait set on a phone for review', async ({ page }) => {
-  const errors = await openWindow(page, 'light', 390, '/?phone=portrait');
-  await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('src', /\/portrait\/move-to-dark\.mp4$/);
-  await switchTheme(page, 'dark');
-  await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['light', 'move-dark'], scene: 'light' });
-  await expectAtRest(page, 'dark');
-  expect(errors).toEqual([]);
-});
+// The portrait stills keep the window and the desk objects in the top 57% of
+// the picture, so the copy must start below that line on every phone and tablet.
+const SILL = 0.57;
+for (const viewport of [{ width: 390, height: 844 }, { width: 375, height: 667 }, { width: 768, height: 1024 }]) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`home window copy starts under the window sill in ${theme} at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      const errors = await openWindow(page, theme, viewport);
+      const sources = await page.locator('img[data-still]').evaluateAll((images: HTMLImageElement[]) => images.map((image) => image.currentSrc));
+      expect(sources.every((source) => source.includes('-portrait'))).toBe(true);
+      // The sill in viewport coordinates, from the drawn picture of the theme's still.
+      const sill = await page.locator('img[data-still]').evaluateAll((images: HTMLImageElement[], { theme, fraction }) => {
+        const image = images.find((candidate) => candidate.currentSrc.includes(`window-${theme}-portrait`))!;
+        const rect = image.getBoundingClientRect();
+        const scale = Math.max(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
+        const drawn = image.naturalHeight * scale;
+        return rect.top + (rect.height - drawn) / 2 + drawn * fraction;
+      }, { theme, fraction: SILL });
+      const brand = (await page.getByTestId('home-window-brand').boundingBox())!;
+      expect(brand.y).toBeGreaterThanOrEqual(sill);
+      await expect(page.getByRole('figure', { name: /Paste a Spotify, Apple Music, or Deezer link/ })).toBeHidden();
+      expect(errors).toEqual([]);
+    });
+  }
+}
 
 test('home window scene follows the system theme', async ({ page }) => {
   const errors = await openWindow(page, 'light');

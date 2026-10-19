@@ -1,8 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type Ref, type RefObject } from 'react';
-import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
+import Image, { getImageProps } from 'next/image';
 import { useTheme } from 'next-themes';
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
@@ -23,6 +22,10 @@ const other = (theme: Theme): Theme => (theme === 'dark' ? 'light' : 'dark');
 type Layout = 'landscape' | 'portrait';
 const WIDE = '(min-width: 1024px)';
 const MEDIA = { landscape: '/videos/home-window', portrait: '/videos/home-window/portrait' } satisfies Record<Layout, string>;
+const STILLS = {
+  dark: { landscape: '/images/home-concepts/window-dark.jpg', portrait: '/images/home-concepts/window-dark-portrait.jpg' },
+  light: { landscape: '/images/home-concepts/window-light.jpg', portrait: '/images/home-concepts/window-light-portrait.jpg' },
+} satisfies Record<Theme, Record<Layout, string>>;
 const subscribeToLayout = (onChange: () => void) => {
   const query = window.matchMedia(WIDE);
   query.addEventListener('change', onChange);
@@ -43,10 +46,10 @@ const REPEAT_FROM = 1;
 // rain would run upward.
 // The portrait moves push into the glass and pull back out on the other
 // side, joined on out-of-focus glass, so the camera never turns in the room.
-// Phones measure the headline band, which sits higher than the desktop column.
+// Phones measure the copy band under the window sill.
 const SWITCH_AT = {
   landscape: { light: 2.52, dark: 1.95 },
-  portrait: { light: 5.46, dark: 1.21 },
+  portrait: { light: 4.77, dark: 1.77 },
 } satisfies Record<Layout, Record<Theme, number>>;
 
 const once = (target: EventTarget, event: string) =>
@@ -346,26 +349,31 @@ function LinkCard() {
   );
 }
 
-function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
+// One still per theme; the browser fetches only the layout's picture.
+function Still({ theme, className }: { theme: Theme; className: string }) {
+  const picture = (layout: Layout) => getImageProps({ alt: '', src: STILLS[theme][layout], fill: true, sizes: '100vw', loading: 'eager', fetchPriority: 'high' }).props;
+  const landscape = picture('landscape');
+  return (
+    <picture>
+      <source media={WIDE} srcSet={landscape.srcSet} sizes={landscape.sizes} />
+      <img data-still {...picture('portrait')} alt="" className={className} />
+    </picture>
+  );
+}
+
+function WindowScene({ theme, scene, onScene, copyRef }: {
   theme: Theme | undefined;
   scene: Theme | undefined;
   onScene: (theme: Theme) => void;
   copyRef: RefObject<HTMLElement | null>;
-  // REVIEW ONLY: phones play the desktop set cropped to the window (pan) or the portrait set.
-  phonePan: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const driver = useRef<ReturnType<typeof createWindowScene>>(null);
-  const screen = useSyncExternalStore(subscribeToLayout, readLayout, () => undefined);
-  const layout = screen === 'portrait' && phonePan ? 'landscape' : screen;
-  // Pan mode: each theme has its own crop on phones, following the page's
-  // dark class, which changes at the click, so the crop pans with the move.
-  const crop = phonePan
-    ? 'object-cover object-right dark:object-[85%_50%] lg:object-right lg:dark:object-right'
-    : 'object-cover object-center lg:object-right';
-  const pan = phonePan ? 'object-position 3.5s ease-in-out' : '';
+  const layout = useSyncExternalStore(subscribeToLayout, readLayout, () => undefined);
+  const crop = 'object-cover object-center lg:object-right';
   const layerClass = `absolute inset-0 h-full w-full ${crop} opacity-0 motion-reduce:hidden`;
-  const layerTransition = pan ? { transition: pan } : undefined;
+  // Phones fetch the camera moves (about 2.6 MB) only on the first theme change.
+  const movePreload = layout === 'portrait' ? 'metadata' : 'auto';
 
   useEffect(() => {
     if (!layout) return;
@@ -377,32 +385,41 @@ function WindowScene({ theme, scene, onScene, copyRef, phonePan }: {
     if (theme) driver.current?.show(theme);
   }, [theme, layout]);
 
-  const still = (value: Theme, portrait: boolean) =>
-    cn(crop, phonePan ? '[transition:opacity_0.5s,object-position_3.5s_ease-in-out]' : 'transition-opacity duration-500', portrait ? (phonePan ? 'hidden' : 'lg:hidden') : (phonePan ? '' : 'hidden lg:block'), scene
-      ? scene === value ? 'opacity-100' : 'opacity-0'
-      : value === 'dark' ? 'opacity-0 dark:opacity-100' : 'opacity-100 dark:opacity-0');
+  const shown = (value: Theme) => scene
+    ? scene === value ? 'opacity-100' : 'opacity-0'
+    : value === 'dark' ? 'opacity-0 dark:opacity-100' : 'opacity-100 dark:opacity-0';
 
+  // Below lg the scene box is a fixed share of the viewport (`--scene`), so
+  // the copy keeps its place under the window sill on every screen height.
   return (
-    <div ref={rootRef} aria-hidden className="absolute inset-0 overflow-hidden bg-background">
+    <div ref={rootRef} aria-hidden className="absolute inset-x-0 top-0 h-[var(--scene)] overflow-hidden bg-background lg:bottom-0 lg:h-auto">
       <div className="absolute inset-0 isolate">
-        <Image data-still src="/images/home-concepts/window-dark.jpg" alt="" fill sizes="100vw" priority className={still('dark', false)} />
-        <Image data-still src="/images/home-concepts/window-light.jpg" alt="" fill sizes="100vw" priority className={still('light', false)} />
-        <Image data-still src="/images/home-concepts/window-dark-portrait.jpg" alt="" fill sizes="100vw" priority className={still('dark', true)} />
-        <Image data-still src="/images/home-concepts/window-light-portrait.jpg" alt="" fill sizes="100vw" priority className={still('light', true)} />
+        <Still theme="dark" className={cn(crop, 'transition-opacity duration-500', shown('dark'))} />
+        <Still theme="light" className={cn(crop, 'transition-opacity duration-500', shown('light'))} />
         {layout && (
           <Fragment key={layout}>
             <div data-layer data-idle="dark" className="absolute inset-0 isolate opacity-0 motion-reduce:hidden">
               {[0, 1].map((copy) => (
-                <video key={copy} src={`${MEDIA[layout]}/idle-dark.mp4`} muted playsInline preload="auto" className={cn('absolute inset-0 h-full w-full opacity-0 data-[current]:opacity-100', crop, phonePan ? '[transition:opacity_1.2s_linear,object-position_3.5s_ease-in-out]' : 'transition-opacity duration-[1200ms] ease-linear')} />
+                <video key={copy} src={`${MEDIA[layout]}/idle-dark.mp4`} muted playsInline preload="auto" className={cn('absolute inset-0 h-full w-full opacity-0 transition-opacity duration-[1200ms] ease-linear data-[current]:opacity-100', crop)} />
               ))}
             </div>
-            <video data-layer data-idle="light" src={`${MEDIA[layout]}/idle-light.mp4`} muted playsInline loop preload="auto" className={layerClass} style={layerTransition} />
-            <video data-layer data-move="light" src={`${MEDIA[layout]}/move-to-light.mp4`} muted playsInline preload="auto" className={layerClass} style={layerTransition} />
-            <video data-layer data-move="dark" src={`${MEDIA[layout]}/move-to-dark.mp4`} muted playsInline preload="auto" className={layerClass} style={layerTransition} />
+            <video data-layer data-idle="light" src={`${MEDIA[layout]}/idle-light.mp4`} muted playsInline loop preload="auto" className={layerClass} />
+            <video data-layer data-move="light" src={`${MEDIA[layout]}/move-to-light.mp4`} muted playsInline preload={movePreload} className={layerClass} />
+            <video data-layer data-move="dark" src={`${MEDIA[layout]}/move-to-dark.mp4`} muted playsInline preload={movePreload} className={layerClass} />
           </Fragment>
         )}
       </div>
       <WindowDither key={layout} copyRef={copyRef} />
+      {(['dark', 'light'] as const).map((value) => (
+        <div
+          key={value}
+          className={cn(
+            'pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-background via-background/50 to-transparent transition-opacity duration-200 lg:hidden',
+            value === 'dark' ? 'dark' : 'force-light',
+            shown(value),
+          )}
+        />
+      ))}
     </div>
   );
 }
@@ -414,7 +431,6 @@ export function HomeConceptWindow() {
   const theme = resolvedTheme === 'dark' || resolvedTheme === 'light' ? resolvedTheme : undefined;
   const [scene, setScene] = useState<Theme>();
   const copyRef = useRef<HTMLDivElement>(null);
-  const phonePan = useSearchParams().get('phone') !== 'portrait';
   const wide = useSyncExternalStore(subscribeToLayout, () => readLayout() === 'landscape', () => false);
   const rise = (order: number) => ({
     initial: still ? false : { opacity: 0, y: 10 },
@@ -443,29 +459,20 @@ export function HomeConceptWindow() {
 
   return (
     <div className="relative min-h-svh">
-      <section data-scene={scene} className="relative -mt-16 flex min-h-svh overflow-hidden [--wall:calc(100vw_-_0.424_*_max(100vw,_100svh_*_16_/_9))]">
-        <WindowScene theme={theme} scene={scene} onScene={setScene} copyRef={copyRef} phonePan={phonePan} />
+      {/* Below lg the portrait picture fills the width of a scene box 75% of
+          the viewport tall and is cropped top and bottom. Its window sill sits
+          57% down the picture, so the copy starts at 0.57 * (16 / 9) * 100vw
+          less half the crop; on a screen narrow enough to fit the picture by
+          height the sill is 57% of the box instead. */}
+      <section data-scene={scene} className="relative -mt-16 flex min-h-svh overflow-hidden [--wall:calc(100vw_-_0.424_*_max(100vw,_100svh_*_16_/_9))] [--scene:75svh] [--sill:max(0.57_*_var(--scene),_12.4vw_+_var(--scene)_/_2)]">
+        <WindowScene theme={theme} scene={scene} onScene={setScene} copyRef={copyRef} />
         <div className={cn('relative z-10 flex w-full text-foreground transition-colors duration-200', scene === 'dark' && 'dark', scene === 'light' && 'force-light')}>
-          {!phonePan && (['dark', 'light'] as const).map((value) => (
-            <div
-              key={value}
-              aria-hidden
-              className={cn(
-                'pointer-events-none absolute inset-x-0 transition-opacity duration-200 lg:hidden',
-                phonePan
-                  ? 'top-0 h-[60%] bg-gradient-to-b from-background from-45% via-background/80 to-transparent [@media(max-height:720px)]:h-[75%]'
-                  : 'bottom-0 bg-gradient-to-t h-[55%] from-background/70 via-background/30 to-transparent [@media(max-height:720px)]:h-[75%] [@media(max-height:720px)]:from-background/85',
-                value === 'dark' ? 'dark' : 'force-light',
-                scene ? scene === value ? 'opacity-100' : 'opacity-0' : value === 'dark' ? 'opacity-0 dark:opacity-100' : 'opacity-100 dark:opacity-0',
-              )}
-            />
-          ))}
           <div
             aria-hidden
             className={cn('pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_40%_55%_at_calc(var(--wall)_/_2)_52%,hsl(var(--background)/0.5),transparent)] transition-opacity duration-500 lg:block', scene === 'dark' ? 'opacity-100' : 'opacity-0')}
           />
           <MotionConfig reducedMotion="user">
-            <div className={cn('relative mx-auto flex w-full max-w-7xl flex-col items-start px-5 pb-12 sm:px-8 lg:mx-0 lg:w-[var(--wall)] lg:max-w-none lg:items-center lg:px-0 lg:pb-16 lg:pt-28', expanded ? 'lg:h-svh lg:justify-start' : 'lg:justify-center', phonePan ? 'justify-start pt-20' : 'justify-end pt-28')}>
+            <div className={cn('relative mx-auto flex w-full max-w-7xl flex-col items-start justify-start px-5 pb-10 pt-[calc(var(--sill)_+_0.5rem)] sm:px-8 lg:mx-0 lg:w-[var(--wall)] lg:max-w-none lg:items-center lg:px-0 lg:pb-16 lg:pt-28', expanded ? 'lg:h-svh lg:justify-start' : 'lg:justify-center')}>
               <div ref={copyRef} className={cn('w-full max-w-[560px] lg:w-[min(520px,calc(100%_-_64px))]', expanded && 'pb-2')}>
                 <motion.div
                   ref={brandRef}
@@ -508,7 +515,7 @@ export function HomeConceptWindow() {
                 </motion.div>
                 <AnimatePresence mode="popLayout">
                   {!expanded && (
-                    <Departing key="link-card" {...intro(4)} className="pt-3 [@media(max-height:760px)]:hidden">
+                    <Departing key="link-card" {...intro(4)} className="hidden pt-3 [@media(min-width:1024px)_and_(min-height:761px)]:block">
                       <LinkCard />
                     </Departing>
                   )}

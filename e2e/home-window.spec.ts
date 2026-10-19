@@ -105,12 +105,12 @@ test('home window search opens in the wall and closes on Escape', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('home window scene plays the portrait set on a phone', async ({ page }) => {
+test('home window scene crossfades the portrait idle loops on a phone', async ({ page }) => {
   const errors = await openWindow(page, 'light', { width: 390, height: 844 });
-  await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('src', /\/portrait\/move-to-dark\.mp4$/);
-  await expect(page.locator('video[data-move="dark"]')).toHaveAttribute('preload', 'metadata');
+  await expect(page.locator('video[data-idle="light"]')).toHaveAttribute('src', /\/portrait\/idle-light\.mp4$/);
+  await expect(page.locator('video[data-move]')).toHaveCount(0);
   await switchTheme(page, 'dark');
-  await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['light', 'move-dark'], scene: 'light' });
+  await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['dark', 'light'], playingMoves: 0 });
   await expectAtRest(page, 'dark');
   expect(errors).toEqual([]);
 });

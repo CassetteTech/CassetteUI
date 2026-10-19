@@ -473,8 +473,9 @@ const toPostByIdResponse = (post: FixturePost) => ({
     tracks: post.tracks || [],
   },
   metadata: {
-    albumName: '',
+    albumName: post.albumName ?? '',
     releaseDate: post.releaseDate || null,
+    duration: post.duration,
   },
   platforms: {
     spotify: post.convertedUrls?.spotify ? { url: post.convertedUrls.spotify } : undefined,

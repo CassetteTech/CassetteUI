@@ -101,7 +101,7 @@ function DiscoverFeed() {
       />
 
       {isInitialLoading ? (
-        <PostGridSkeleton />
+        <PostGridSkeleton heading />
       ) : !hasExploreContent ? (
         <div className="mx-auto max-w-md border-2 border-foreground bg-card px-6 py-10 text-center shadow-flat-6">
           <p className="font-teko text-3xl uppercase">Nothing public yet</p>

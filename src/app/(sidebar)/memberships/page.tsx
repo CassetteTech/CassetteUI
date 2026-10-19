@@ -151,6 +151,11 @@ function MyMemberships() {
             {empty ? 'The curators you support.' : 'The curators you support. Open a pass to visit their page.'}
           </p>
         </div>
+        {query.isPending && (
+          <div aria-hidden className="flex h-[1.875rem] items-center">
+            <Skeleton className="h-6 w-28" />
+          </div>
+        )}
         {query.data && query.data.length > 0 && (
           <p className="text-sm text-muted-foreground">
             <span className="font-teko text-3xl font-bold leading-none tabular-nums text-foreground">{activeCount}</span>
@@ -162,8 +167,9 @@ function MyMemberships() {
         {query.isPending ? (
           <>
             <output className="sr-only">Loading memberships…</output>
-            <Skeleton className="h-52 w-full rounded-lg" aria-hidden />
-            <Skeleton className="h-52 w-full rounded-lg" aria-hidden />
+            {/* The height of a MembershipPass for an active membership. */}
+            <Skeleton className="h-[238.5px] w-full rounded-lg" aria-hidden />
+            <Skeleton className="h-[238.5px] w-full rounded-lg" aria-hidden />
           </>
         ) : query.isError ? (
           <Empty className="sm:col-span-2">

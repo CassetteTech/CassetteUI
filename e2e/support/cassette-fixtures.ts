@@ -106,6 +106,9 @@ export interface FixturePost {
   };
   trackCount?: number;
   releaseDate?: string | null;
+  /** Bridge sends both for every track post; the label head shows them as its meta line. */
+  duration?: string;
+  albumName?: string;
   genres?: string[];
   tracks?: Array<{
     title: string;

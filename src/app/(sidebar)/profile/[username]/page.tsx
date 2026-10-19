@@ -28,7 +28,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
-import { PublicCuratorPage } from '@/components/features/curator/curator-page';
+import { CuratorPageSkeleton, PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { CuratorFollowConfirmation, CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
 import { useCuratorPage } from '@/hooks/use-curator';
 import { useCuratorFollow } from '@/hooks/use-curator-follow';
@@ -231,6 +231,11 @@ export default function ProfilePage() {
   }, [userBio, user]);
 
   const showHeaderSkeleton = isLoadingBio && !userBio;
+  // The back control belongs to other people's profiles; the route names whose profile loads.
+  const showBack = userBio
+    ? !isCurrentUser
+    : showHeaderSkeleton && !isEditMode && userIdentifier !== user?.id
+      && user?.username?.toLowerCase() !== userIdentifier?.toLowerCase();
 
   if (isEditMode && !user) {
     return (
@@ -317,7 +322,7 @@ export default function ProfilePage() {
       />
     );
   } else if (noCuratorPage) {
-    content = userBio && (
+    content = !userBio ? isLoadingBio && <ActivitySkeleton count={6} /> : (
       <ProfileMusic
         views={plainType ? ['all', plainType] : ['all']}
         view={plainType ?? 'all'}
@@ -334,7 +339,7 @@ export default function ProfilePage() {
       />
     );
   } else if (curatorQuery.isPending || !userBio) {
-    content = <ActivitySkeleton count={6} />;
+    content = <CuratorPageSkeleton />;
   } else {
     content = (
       <PublicCuratorPage
@@ -358,7 +363,7 @@ export default function ProfilePage() {
       )}
       <div className="bg-background lg:hidden">
         <div className="mx-auto max-w-4xl">
-          {!isCurrentUser && userBio && (
+          {showBack && (
             <div className="px-4 pt-4">
               <BackButton fallbackRoute="/explore" />
             </div>
@@ -371,7 +376,7 @@ export default function ProfilePage() {
         </div>
       </div>
       <ProfileTabStrip
-        showBack={!isCurrentUser && Boolean(userBio)}
+        showBack={showBack}
         activeTab={activeTab}
         onTabChange={changeTab}
         showLikedTab={likedSectionVisible}

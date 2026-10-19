@@ -199,19 +199,35 @@ export function CreatorCard({ user }: { user: ExploreUser }) {
   );
 }
 
-export function PostGridSkeleton() {
-  return (
+/** PostCard's tiles; with `heading`, a SectionHeading line above them, as Explore's sections have. */
+export function PostGridSkeleton({ heading = false }: { heading?: boolean }) {
+  const grid = (
     <div className={POST_GRID} data-testid="post-grid-skeleton">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex flex-col">
           <Skeleton className="aspect-square w-full rounded-none" />
-          <div className="min-h-24 pt-3">
-            <Skeleton className="h-5 w-4/5" />
-            <Skeleton className="mt-2 h-3 w-3/5" />
-            <Skeleton className="mt-3 h-3 w-1/3" />
+          <div className={TILE_BODY}>
+            <div className="flex h-[1.425rem] items-center">
+              <Skeleton className="h-5 w-4/5" />
+            </div>
+            <div className="mt-1 flex h-4 items-center">
+              <Skeleton className="h-3 w-3/5" />
+            </div>
+            <div className="mt-auto flex h-6 items-center pt-2">
+              <Skeleton className="h-3 w-1/3" />
+            </div>
           </div>
         </div>
       ))}
+    </div>
+  );
+  if (!heading) return grid;
+  return (
+    <div>
+      <div className="mb-6 flex h-[1.875rem] items-center sm:h-10">
+        <Skeleton className="h-6 w-36 sm:h-7 sm:w-44" />
+      </div>
+      {grid}
     </div>
   );
 }

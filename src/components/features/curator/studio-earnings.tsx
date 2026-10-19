@@ -44,6 +44,8 @@ function nextPayout(balances: CuratorEarningsBalances) {
   return { value: 'None yet', hint: 'Nothing is waiting for payout' };
 }
 
+const summaryLabelWidths = ['w-12', 'w-14'];
+
 export function StudioEarnings() {
   const views = useContext(StudioStepsContext);
   const earnings = useCuratorLedger(true);
@@ -122,7 +124,22 @@ export function StudioEarnings() {
       </dl>
 
       {earnings.isPending ? (
-        <Skeleton className="mt-6 h-56 w-full" />
+        <>
+          <Skeleton className="mt-6 h-56 w-full" />
+          {/* The summary row under the chart; the chart legend is left out because only a period with earnings has one. */}
+          <div aria-hidden className="mt-5 flex gap-x-8 border-t border-border pt-4">
+            {summaryLabelWidths.map((width) => (
+              <div key={width}>
+                <div className="flex h-4 items-center">
+                  <Skeleton className={cn('h-2.5', width)} />
+                </div>
+                <div className="mt-0.5 flex h-5 items-center">
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       ) : period && (
         <>
           {period.earned + period.paid === 0 ? (

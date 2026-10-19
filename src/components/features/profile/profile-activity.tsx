@@ -330,10 +330,17 @@ export function ActivitySkeleton({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, index) => (
         <div key={index} className="flex items-start gap-4 py-4">
           <Skeleton className={rowArtwork} />
-          <div className="flex-1 space-y-2.5 pt-1">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-3.5 w-1/3" />
-            <Skeleton className="h-3.5 w-3/4" />
+          {/* MusicPostCard's line boxes: the title row holds the Share button, then the details and a note. */}
+          <div className="min-w-0 flex-1">
+            <div className="flex h-6 items-center">
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <div className="mt-0.5 flex h-5 items-center">
+              <Skeleton className="h-3.5 w-1/3" />
+            </div>
+            <div className="mt-1 flex h-5 items-center">
+              <Skeleton className="h-3.5 w-3/4" />
+            </div>
           </div>
         </div>
       ))}

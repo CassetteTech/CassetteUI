@@ -311,6 +311,7 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
       ]
     : conversions;
 
+  const skeletonCells = 4 + conversions.length;
   const showPlatformBreakdown = (insights?.platformBreakdown.length ?? 0) > 0;
   const showTrend = (insights?.trend ?? []).some((point) => point.views > 0 || point.destinationOpens > 0);
 
@@ -319,11 +320,29 @@ function InsightsSections({ postId, conversionSuccessCount }: { postId: string; 
       <section>
         <SectionHeading>Insights</SectionHeading>
         {status === 'loading' ? (
-          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-5">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i}>
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="mt-2 h-7 w-14" />
+          // MetricGrid's cells: the four lifetime metrics, then Conversions when the post has a count.
+          // Destination opens always carries a hint line.
+          <div aria-hidden className="mt-1 grid grid-cols-2 gap-x-6">
+            {Array.from({ length: skeletonCells }, (_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'min-w-0 py-3',
+                  i >= 2 && 'border-t border-border/70',
+                  i === skeletonCells - 1 && skeletonCells % 2 === 1 && 'col-span-2',
+                )}
+              >
+                <div className="flex h-4 items-center">
+                  <Skeleton className="h-2.5 w-16" />
+                </div>
+                <div className="mt-1 flex h-[1.875rem] items-center">
+                  <Skeleton className="h-6 w-12" />
+                </div>
+                {i === 2 && (
+                  <div className="mt-1 flex h-4 items-center">
+                    <Skeleton className="h-2.5 w-20" />
+                  </div>
+                )}
               </div>
             ))}
           </div>

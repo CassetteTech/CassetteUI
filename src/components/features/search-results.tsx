@@ -31,7 +31,8 @@ interface SearchResultsProps {
 const TITLE_WIDTHS = [72, 58, 81, 64, 76, 52] as const;
 const ARTIST_WIDTHS = [44, 60, 38, 52, 41, 66] as const;
 
-function ResultRowSkeletons({ rows = 6 }: { rows?: number }) {
+/** Results come up to 50 at a time, so the loaded list fills its scroll box; this many rows fill it too on most screens. */
+function ResultRowSkeletons({ rows = 14 }: { rows?: number }) {
   return (
     <div>
       {Array.from({ length: rows }, (_, i) => (

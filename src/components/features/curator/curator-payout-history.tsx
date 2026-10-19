@@ -2,7 +2,7 @@
 
 import { useContext } from 'react';
 import { eventTitle, transferStatus, transferTone } from '@/components/features/curator/curator-earnings-card';
-import { StudioSection, StudioStat, StudioStepsContext, studioToneText } from '@/components/features/curator/studio-shell';
+import { StudioSection, StudioStat, StudioStepsContext, studioFigureClassName, studioToneText } from '@/components/features/curator/studio-shell';
 import { useCuratorLedger } from '@/components/features/curator/use-curator-ledger';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
@@ -36,6 +36,62 @@ function payoutsByMonth(transfers: Transfer[]) {
   });
 }
 
+const statLabelWidths = ['w-14', 'w-24', 'w-14'];
+
+/** The loaded history's line boxes: the balance figures, then the Payouts heading over two sent payouts. */
+function PayoutHistorySkeleton() {
+  return (
+    <div aria-hidden>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {statLabelWidths.map((width, index) => (
+          <div key={index} className={studioFigureClassName}>
+            <div className="flex h-4 items-center">
+              <Skeleton className={cn('h-2.5', width)} />
+            </div>
+            <div className="mt-1 flex h-[1.875rem] items-center">
+              <Skeleton className="h-6 w-20" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 border-t border-border/70 pt-5">
+        <div className="flex h-12 items-end">
+          <div>
+            <div className="flex h-5 items-center">
+              <Skeleton className="h-3.5 w-16" />
+            </div>
+            <div className="flex h-4 items-center">
+              <Skeleton className="h-2.5 w-12" />
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 divide-y divide-border/60">
+          {[0, 1].map((row) => (
+            <div key={row} className="flex justify-between gap-4 py-3">
+              <div>
+                <div className="flex h-5 items-center">
+                  <Skeleton className="h-3.5 w-24" />
+                </div>
+                <div className="mt-0.5 flex h-4 items-center">
+                  <Skeleton className="h-2.5 w-20" />
+                </div>
+              </div>
+              <div className="flex flex-col items-end">
+                <div className="flex h-5 items-center">
+                  <Skeleton className="h-3.5 w-12" />
+                </div>
+                <div className="mt-0.5 flex h-4 items-center">
+                  <Skeleton className="h-2.5 w-8" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
   const views = useContext(StudioStepsContext);
   const query = useCuratorLedger(enabled);
@@ -59,12 +115,7 @@ export function CuratorPayoutHistory({ enabled }: { enabled: boolean }) {
       ) : query.isPending ? (
         <>
           <output className="sr-only">Loading payout history…</output>
-          <div aria-hidden className="space-y-3">
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="mt-6 h-32 w-full" />
-          </div>
+          <PayoutHistorySkeleton />
         </>
       ) : query.isError || !ledger || !balances ? (
         <div className="space-y-3">

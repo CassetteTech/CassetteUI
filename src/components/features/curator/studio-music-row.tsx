@@ -346,10 +346,17 @@ export function StudioMusicRowSkeleton() {
   return (
     <li className={rowGrid}>
       <Skeleton className={cn('aspect-square w-full rounded-md', rowArtwork)} />
-      <div className="space-y-2.5 pt-1">
-        <Skeleton className="h-4 w-1/2" />
-        <Skeleton className="h-3.5 w-1/3" />
-        <Skeleton className="h-3.5 w-3/4" />
+      {/* The row's line boxes: the title, the details, and the note button. */}
+      <div className="min-w-0">
+        <div className="flex h-[1.2890625rem] items-center">
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+        <div className="mt-0.5 flex h-5 items-center">
+          <Skeleton className="h-3.5 w-1/3" />
+        </div>
+        <div className="mt-1.5 flex h-6 items-center">
+          <Skeleton className="h-3.5 w-3/4" />
+        </div>
       </div>
       <Skeleton className={cn('h-8 w-44', rowTools)} />
     </li>

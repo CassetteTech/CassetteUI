@@ -11,7 +11,7 @@ import { ConversionBeam } from '@/components/features/conversion/conversion-beam
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { PostLabelHead, bandColor } from '@/components/features/post/post-label-head';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
-import { TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
+import { COLLAPSED_MAX_HEIGHT_PX, TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
 import { ACTIVE_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
 import {
   curatorLinkCaption,
@@ -91,6 +91,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
     sourceLabel,
     showTracklist: post.contentType === 'album' || post.contentType === 'playlist',
     perServiceLinks: post.contentType !== 'playlist',
+    showReleaseLines: post.contentType !== 'playlist' && post.contentType !== 'artist',
     showAuthor: post.showAuthor,
     ownPost: post.ownPost,
     onCancel,
@@ -339,6 +340,8 @@ interface SkeletonLayoutProps {
   settled: boolean;
   growing: boolean;
   perServiceLinks: boolean;
+  /** The post's label head names the artist and the release details (track duration and album, album release date) for tracks and albums only. */
+  showReleaseLines: boolean;
   sourceLabel?: string;
   showTracklist: boolean;
   showAuthor: boolean;
@@ -461,8 +464,9 @@ const LabelHead: React.FC<{
   settled: boolean;
   band: ArtworkBand;
   next: () => number;
+  showReleaseLines: boolean;
   compact?: boolean;
-}> = ({ blueprint, staged, settled, band, next, compact }) => {
+}> = ({ blueprint, staged, settled, band, next, showReleaseLines, compact }) => {
   const source = staged?.source;
   if (source?.title && band.ready) {
     const typeLabel = source.elementType
@@ -500,13 +504,18 @@ const LabelHead: React.FC<{
           box={compact ? 'h-8' : 'h-10'}
           bar={cn(compact ? 'h-5 w-40' : 'h-7 w-3/5', ink)}
         />
-        <TextLine
-          draft={early}
-          order={next()}
-          delay={240}
-          box={compact ? 'mt-2 h-5' : 'mt-2 h-6'}
-          bar={cn('h-3.5 w-28', ink)}
-        />
+        {showReleaseLines && (
+          <>
+            <TextLine
+              draft={early}
+              order={next()}
+              delay={240}
+              box={compact ? 'mt-2 h-5' : 'mt-2 h-6'}
+              bar={cn('h-3.5 w-28', ink)}
+            />
+            <TextLine draft={early} order={next()} delay={280} box="mt-3 h-5" bar={cn('h-3 w-36', ink)} />
+          </>
+        )}
       </div>
       <DitherEdge
         color="var(--band)"
@@ -647,12 +656,13 @@ const AuthorRow: React.FC<{ blueprint: Blueprint; next: () => number }> = ({ blu
     <>
       <div className="flex items-start gap-2.5">
         <Part draft={late} order={next()} delay={200} className="h-8 w-8 shrink-0 rounded-full" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-40" />
           <TextLine draft={late} order={next()} delay={240} box="h-5" bar="h-3 w-48" />
         </div>
       </div>
-      <Part draft={late} order={next()} delay={260} className="h-7 w-28 self-start rounded-full" />
+      {/* PostEngagementBar: a pill of two buttons, taller from the sm breakpoint. */}
+      <Part draft={late} order={next()} delay={260} className="h-[26px] w-28 self-start rounded-full sm:h-[34px]" />
     </>
   );
 };
@@ -686,16 +696,31 @@ const TracklistCard: React.FC<{
       </div>
     );
   }
+  const rule = late ? 'border-dotted border-foreground/30' : 'border-border/70';
+  // Copies the loaded card: most playlists and albums are long enough for TrackList to collapse
+  // to COLLAPSED_MAX_HEIGHT_PX of two-line rows above its Show all row.
   return (
     <div {...draftProps(late, next(), 120, 'card-ink overflow-hidden')}>
-      <div className="flex items-center justify-between gap-3 px-5 py-4">
+      <div className={cn('flex items-center justify-between gap-3 border-b', compact ? 'px-4 py-3' : 'px-5 py-4', rule)}>
         <TextLine draft={late} order={next()} delay={160} box="h-5" bar="h-3.5 w-20" />
         <TextLine draft={late} order={next()} delay={180} box="h-5" bar="h-3 w-24" />
       </div>
-      <div className="space-y-1 px-5 pb-4">
+      <div className="overflow-hidden" style={{ height: COLLAPSED_MAX_HEIGHT_PX }}>
         {Array.from({ length: TRACK_ROW_COUNT }, (_, i) => (
-          <TextLine key={i} draft={late} order={next()} delay={200 + i * 40} box="h-12" bar="h-3.5 w-2/3" />
+          <div key={i} className={cn('flex items-center gap-3 border-b px-3 sm:px-4', compact ? 'py-2' : 'py-2.5', rule)}>
+            <div className="flex w-7 justify-end pr-1">
+              <Part draft={late} order={next()} delay={200 + i * 40} className="h-2.5 w-3.5" />
+            </div>
+            <div className="min-w-0 flex-1 pl-1">
+              <TextLine draft={late} order={next()} delay={200 + i * 40} box="h-5" bar="h-3 w-2/5" />
+              <TextLine draft={late} order={next()} delay={220 + i * 40} box="mt-0.5 h-[19.5px]" bar="h-2.5 w-1/4" />
+            </div>
+            <TextLine draft={late} order={next()} delay={220 + i * 40} box="h-[16.5px] max-sm:hidden" bar="h-2.5 w-7" />
+          </div>
         ))}
+      </div>
+      <div className={cn('flex justify-center border-t py-2.5', rule)}>
+        <TextLine draft={late} order={next()} delay={460} box="h-[19.5px]" bar="h-3 w-28" />
       </div>
     </div>
   );
@@ -774,6 +799,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
   showAuthor,
   ownPost,
   perServiceLinks,
+  showReleaseLines,
   onCancel
 }) => {
   const next = drawOrder();
@@ -828,7 +854,14 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
                   early ? 'border-dotted border-foreground/30' : 'border-border/70'
                 )}
               >
-                <LabelHead blueprint={blueprint} staged={staged} settled={settled} band={band} next={next} />
+                <LabelHead
+                  blueprint={blueprint}
+                  staged={staged}
+                  settled={settled}
+                  band={band}
+                  next={next}
+                  showReleaseLines={showReleaseLines}
+                />
                 <ListenLinks
                   blueprint={blueprint}
                   staged={staged}
@@ -867,6 +900,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   showAuthor,
   ownPost,
   perServiceLinks,
+  showReleaseLines,
   onCancel
 }) => {
   const next = drawOrder();
@@ -907,7 +941,15 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
           </div>
 
           <div {...draftProps(early, next(), 0, 'card-ink overflow-hidden')}>
-            <LabelHead blueprint={blueprint} staged={staged} settled={settled} band={band} next={next} compact />
+            <LabelHead
+              blueprint={blueprint}
+              staged={staged}
+              settled={settled}
+              band={band}
+              next={next}
+              showReleaseLines={showReleaseLines}
+              compact
+            />
             <ListenLinks
               blueprint={blueprint}
               staged={staged}

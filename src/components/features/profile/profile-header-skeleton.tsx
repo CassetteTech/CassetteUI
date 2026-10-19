@@ -2,46 +2,30 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface ProfileHeaderSkeletonProps {
-  isSmallScreen?: boolean;
-  isLargeScreen?: boolean;
-}
-
-export function ProfileHeaderSkeleton({
-  isSmallScreen = false,
-  isLargeScreen = false
-}: ProfileHeaderSkeletonProps) {
-  const avatarSize = isSmallScreen ? 'w-12 h-12' : isLargeScreen ? 'w-24 h-24 lg:w-32 lg:h-32' : 'w-16 h-16';
-  const padding = isSmallScreen ? 'p-3' : isLargeScreen ? 'p-4' : 'p-3';
-
+/**
+ * ProfileHeader's line boxes: the avatar beside the name, handle, and likes count,
+ * then one bio line, in the same card.
+ */
+export function ProfileHeaderSkeleton() {
   return (
-    <div className={`text-card-foreground ${padding} lg:bg-transparent lg:p-0`}>
-      <div className="flex flex-col gap-3 bg-transparent p-4 lg:p-0 rounded-lg lg:rounded-none">
-        <div className="flex items-start gap-4 lg:gap-6">
-          <Skeleton className={`${avatarSize} rounded-full flex-shrink-0`} />
-
-          <div className="flex-1 min-w-0 flex flex-col">
-            <div className="flex items-center gap-2 mb-1">
-              <Skeleton className={`h-7 w-40 ${isLargeScreen ? 'h-9 w-56' : ''}`} />
+    <div aria-hidden className="px-3 pt-3 sm:px-4 sm:pt-4">
+      <div className="card-quiet flex flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex items-start gap-4">
+          <Skeleton className="size-[4.5rem] shrink-0 rounded-full sm:size-24" />
+          <div className="min-w-0 flex-1">
+            <div className="flex h-[1.875rem] items-center sm:h-10">
+              <Skeleton className="h-6 w-40 sm:h-7 sm:w-48" />
             </div>
-            <Skeleton className="h-5 w-24 mb-2" />
+            <div className="flex h-4 items-center">
+              <Skeleton className="h-2.5 w-24" />
+            </div>
+            <div className="mt-2 flex h-[1.875rem] items-center">
+              <Skeleton className="h-6 w-16" />
+            </div>
           </div>
         </div>
-
-        <div className="min-h-[48px] lg:min-h-[56px]">
-          <Skeleton className="h-4 w-full mb-2" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-
-        <div className="flex items-center mb-4 gap-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="w-6 h-6 rounded-full" />
-          ))}
-        </div>
-
-        <div className="flex gap-3 lg:flex-col lg:gap-4">
-          <Skeleton className={`${isLargeScreen ? 'w-[200px] h-12' : isSmallScreen ? 'w-[120px] h-8' : 'w-[132px] h-9'} rounded-md`} />
-          <Skeleton className={`${isLargeScreen ? 'w-[200px] h-12' : isSmallScreen ? 'w-[120px] h-8' : 'w-[132px] h-9'} rounded-md`} />
+        <div className="flex h-[1.421875rem] items-center sm:h-6">
+          <Skeleton className="h-3.5 w-3/4" />
         </div>
       </div>
     </div>

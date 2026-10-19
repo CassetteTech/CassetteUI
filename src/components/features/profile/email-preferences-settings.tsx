@@ -301,8 +301,9 @@ export function EmailPreferencesSettings() {
           row={model.productUpdates}
           isLoading={model.isLoading}
         >
+          {/* The switches draw skeletons in place; the status is for screen readers only, so the rows keep their height. */}
           {model.isLoading && (
-            <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+            <p className="sr-only" aria-live="polite">
               Loading email preferences…
             </p>
           )}

@@ -35,8 +35,11 @@ import {
   type MembershipSubscription,
 } from '@/services/membership';
 import { captureClientEvent } from '@/lib/analytics/client';
+import { cn } from '@/lib/utils';
 import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
 import { Button } from '@/components/ui/button';
+import { listTabsRowClassName } from '@/components/ui/list-tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CuratorMembershipCard, MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
@@ -563,9 +566,21 @@ function CuratorLoadError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function CuratorPageSkeleton() {
+const TAB_LABEL_WIDTHS = ['w-4', 'w-14', 'w-11', 'w-12'];
+
+export function CuratorPageSkeleton() {
   return (
     <div aria-label="Loading curator">
+      {/* ProfileMusic's ListTabs: a curator with more than one type of post gets the type filter. */}
+      <div aria-hidden className="mb-5 border-b border-border">
+        <div className={cn(listTabsRowClassName, '-mb-px')}>
+          {TAB_LABEL_WIDTHS.map((width) => (
+            <div key={width} className="flex h-9 items-center px-1">
+              <Skeleton className={cn('h-3.5', width)} />
+            </div>
+          ))}
+        </div>
+      </div>
       <ActivitySkeleton count={6} />
     </div>
   );

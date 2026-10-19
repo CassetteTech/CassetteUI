@@ -6,7 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { appLogger } from '@/lib/observability/logger';
 
 const ROW_HEIGHT_PX = 52;
-const COLLAPSED_MAX_HEIGHT_PX = ROW_HEIGHT_PX * 6.5;
+export const COLLAPSED_MAX_HEIGHT_PX = ROW_HEIGHT_PX * 6.5;
 export const EXPANDABLE_MIN_TRACKS = 9;
 
 const parseDurationSeconds = (duration?: string): number | null => {

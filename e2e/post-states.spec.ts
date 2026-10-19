@@ -74,14 +74,15 @@ test('keeps mobile post cover art at a stable size', async ({ page }) => {
     await expect(artwork).toHaveCSS('height', `${size}px`);
   };
 
-  await expectArtworkSize(260);
+  // The artwork spans the column: 390 wide, less the page and frame padding.
+  await expectArtworkSize(342);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await page.reload();
-    await expectArtworkSize(260);
+    await expectArtworkSize(342);
   }
 
   await page.setViewportSize({ width: 390, height: 900 });
-  await expectArtworkSize(260);
+  await expectArtworkSize(342);
 
   await page.setViewportSize({ width: 640, height: 900 });
   await expectArtworkSize(340);

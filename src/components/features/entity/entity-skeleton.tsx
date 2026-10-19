@@ -448,7 +448,7 @@ const Artwork: React.FC<{
           src={artworkUrl}
           alt=""
           fill
-          sizes={size === 'desktop' ? '352px' : '(max-width: 639px) 260px, 340px'}
+          sizes={size === 'desktop' ? '352px' : '(max-width: 639px) calc(100vw - 48px), 340px'}
           className="object-cover"
           unoptimized
           priority
@@ -931,9 +931,9 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   const { early, late } = blueprint;
 
   return (
-    <div className="mx-auto max-w-lg px-4 pb-2 pt-16 sm:px-6 sm:pb-8 md:px-8">
+    <div className="mx-auto max-w-lg px-4 pb-6 pt-16 sm:px-6 sm:pb-8 md:px-8">
       <section className="flex min-h-[calc(100svh-6.5rem)] flex-col">
-        <div className="w-full shrink-0 pb-2 pt-2.5 sm:pb-4 sm:pt-4">
+        <div className="w-full shrink-0 pb-3 pt-2.5 sm:pb-4 sm:pt-4">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div className="justify-self-start">
               <BackButton onClick={onCancel} fallbackRoute="/explore" />
@@ -941,9 +941,9 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
             <Part draft={late} order={next()} className="h-9 w-24 rounded-md" />
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-1.5 sm:gap-6">
+        <div className="flex flex-1 flex-col gap-3 sm:gap-6">
           <div className="flex flex-1 items-center justify-center">
-            <div className={cn('relative', growTargetClass(growing))} inert={growing || undefined}>
+            <div className={cn('relative w-full sm:w-auto', growTargetClass(growing))} inert={growing || undefined}>
               <CropMarks drafting={early} label={sourceLabel} />
               <ConversionBeam active={blueprint.beam === 'artwork'} borderRadius={6}>
                 <div
@@ -956,7 +956,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
                       staged={staged}
                       order={next()}
                       size="mobile"
-                      className="h-[260px] w-[260px] rounded-sm sm:h-[340px] sm:w-[340px]"
+                      className="aspect-square w-full rounded-sm sm:h-[340px] sm:w-[340px]"
                     />
                   </div>
                 </div>
@@ -992,7 +992,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
         </div>
       </section>
 
-      <div className="mt-2 space-y-2 text-center sm:mt-6 sm:space-y-6">
+      <div className="mt-3 space-y-3 text-center sm:mt-6 sm:space-y-6">
         {showTracklist && <TracklistCard blueprint={blueprint} staged={staged} settled={settled} next={next} compact />}
         <Foot blueprint={blueprint} next={next} offer={!ownPost} />
       </div>

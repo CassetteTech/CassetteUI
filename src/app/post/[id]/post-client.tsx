@@ -1358,9 +1358,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
               </div>
             </div>
         ) : (
-          <div className="px-4 sm:px-6 md:px-8 pb-2 sm:pb-8 pt-16 max-w-lg mx-auto">
+          <div className="px-4 sm:px-6 md:px-8 pb-6 sm:pb-8 pt-16 max-w-lg mx-auto">
             <section className="flex flex-col min-h-[calc(100svh-6.5rem)]">
-            <div className="pt-2.5 pb-2 sm:pt-4 sm:pb-4 w-full shrink-0">
+            <div className="pt-2.5 pb-3 sm:pt-4 sm:pb-4 w-full shrink-0">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                 <div className="justify-self-start">
                   <BackButton route={backRoute} fallbackRoute="/explore" />
@@ -1393,17 +1393,17 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 </div>
               </div>
             </div>
-            <div className="text-center flex flex-col flex-1 gap-1.5 sm:gap-6">
-              {/* Album Art — fixed by width so browser height changes cannot resize it. */}
+            <div className="text-center flex flex-col flex-1 gap-3 sm:gap-6">
+              {/* Album Art — sized by width so browser height changes cannot resize it. */}
               <div className="flex flex-1 items-center justify-center">
-                <div className="relative rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10">
+                <div className="relative w-full rounded-md bg-card p-2 elev-3 ring-1 ring-foreground/10 sm:w-auto">
                   <ArtworkImage
                     src={imageError || !metadata.artwork ? '/images/cassette_logo.svg' : metadata.artwork}
                     alt={metadata.title}
                     width={340}
                     height={340}
-                    sizes="(max-width: 639px) 260px, 340px"
-                    className="block h-[260px] w-[260px] rounded-sm object-cover sm:h-[340px] sm:w-[340px]"
+                    sizes="(max-width: 639px) calc(100vw - 48px), 340px"
+                    className="block aspect-square h-auto w-full rounded-sm object-cover sm:h-[340px] sm:w-[340px]"
                     priority
                     decoding="sync"
                     onError={() => setImageError(true)}
@@ -1470,7 +1470,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
             </div>
             </section>
 
-            <div className="mt-2 sm:mt-6 text-center space-y-2 sm:space-y-6">
+            <div className="mt-3 sm:mt-6 text-center space-y-3 sm:space-y-6">
               {showTracks && (
                 <div className="card-ink overflow-hidden">
                   <div className="px-4 py-3 border-b border-border flex items-baseline justify-between gap-3">

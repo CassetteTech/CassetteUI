@@ -138,9 +138,12 @@ test('home window search opens as a full-screen sheet on a phone', async ({ page
   await expect(results).toBeVisible();
   await expect.poll(barTop).toBeLessThan(80);
   expect(await sheet.boundingBox()).toMatchObject({ x: 0, y: 0, width: 390, height: 844 });
-  const bar = (await input.boundingBox())!;
-  const panel = (await results.boundingBox())!;
-  expect(panel.y).toBeGreaterThan(bar.y + bar.height);
+  // The bar rises past the list once its glide settles, and stays above it.
+  await expect.poll(async () => {
+    const bar = (await input.boundingBox())!;
+    const panel = (await results.boundingBox())!;
+    return panel.y > bar.y + bar.height;
+  }).toBe(true);
   await expect(input).toBeFocused();
   await expect(sheet).toHaveAttribute('aria-modal', 'true');
 

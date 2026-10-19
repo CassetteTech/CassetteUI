@@ -46,34 +46,46 @@ const scenarios: Array<{ name: string; gaps: number[] }> = [
   { name: 'change at the end of a move', gaps: [0, MOVE_MS - 100] },
 ];
 
-for (const { name, gaps } of scenarios) {
-  test(`home window scene settles after ${name}`, async ({ page }) => {
-    const errors = await openWindow(page, 'light');
-    let theme: Theme = 'light';
-    for (const gap of gaps) {
-      if (gap) await page.waitForTimeout(gap);
-      theme = other(theme);
-      await switchTheme(page, theme);
-    }
-    await expectAtRest(page, theme);
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  for (const { name, gaps } of scenarios) {
+    test(`home window scene settles after ${name} at ${viewport.width}px`, async ({ page }) => {
+      const errors = await openWindow(page, 'light', viewport);
+      let theme: Theme = 'light';
+      for (const gap of gaps) {
+        if (gap) await page.waitForTimeout(gap);
+        theme = other(theme);
+        await switchTheme(page, theme);
+      }
+      await expectAtRest(page, theme);
+      await expect.poll(() => page.evaluate((value) => {
+        const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
+        return colour('[data-theme-fill]') === colour(`[data-theme-probe="${value}"]`);
+      }, theme)).toBe(true);
+      expect(errors).toEqual([]);
+    });
+  }
+}
+
+// The theme menu changes the theme inside a document view transition, which
+// the storage event used elsewhere does not.
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  test(`home window scene makes a full round trip from the theme menu at ${viewport.width}px`, async ({ page }) => {
+    const errors = await openWindow(page, 'light', viewport);
+    const menu = page.getByRole('button', { name: 'Toggle theme' }).first();
+
+    await menu.click();
+    await page.getByRole('menuitem', { name: 'Dark' }).click();
+    await expect.poll(() => sceneState(page)).toMatchObject(viewport.width >= 1024
+      ? { visible: ['light', 'move-dark'], theme: 'dark', scene: 'light' }
+      : { visible: ['dark', 'light'], playingMoves: 0, theme: 'dark' });
+    await expectAtRest(page, 'dark');
+
+    await menu.click();
+    await page.getByRole('menuitem', { name: 'Light' }).click();
+    await expectAtRest(page, 'light');
     expect(errors).toEqual([]);
   });
 }
-
-test('home window scene makes a full round trip from the theme menu', async ({ page }) => {
-  const errors = await openWindow(page, 'light');
-  const menu = page.getByRole('button', { name: 'Toggle theme' }).first();
-
-  await menu.click();
-  await page.getByRole('menuitem', { name: 'Dark' }).click();
-  await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['light', 'move-dark'], theme: 'dark', scene: 'light' });
-  await expectAtRest(page, 'dark');
-
-  await menu.click();
-  await page.getByRole('menuitem', { name: 'Light' }).click();
-  await expectAtRest(page, 'light');
-  expect(errors).toEqual([]);
-});
 
 test('home window search opens in the wall and closes on Escape', async ({ page }) => {
   const errors = await openWindow(page, 'light');
@@ -110,14 +122,37 @@ test('home window scene crossfades the portrait idle loops on a phone', async ({
   await expect(page.locator('video[data-idle="light"]')).toHaveAttribute('src', /\/portrait\/idle-light\.mp4$/);
   await expect(page.locator('video[data-move]')).toHaveCount(0);
   await switchTheme(page, 'dark');
-  // Early in the fade the incoming loop is translucent and the copy still wears the old theme.
+  // Early in the fade the incoming loop is translucent, the hero's fill is
+  // between the two theme colours, the dark scrim is on its way in, and the
+  // copy still wears the old theme.
   const early = await page.waitForFunction(() => {
-    const opacity = Number(getComputedStyle(document.querySelector('[data-idle="dark"]')!).opacity);
-    return opacity > 0 && opacity < 0.5 ? { opacity, scene: document.querySelector('[data-scene]')?.getAttribute('data-scene') } : null;
+    const style = (selector: string) => getComputedStyle(document.querySelector(selector)!);
+    const loop = Number(style('[data-idle="dark"]').opacity);
+    return loop > 0 && loop < 0.5
+      ? {
+          loop,
+          scrim: Number(style('[data-theme-layer="dark"]').opacity),
+          fill: style('[data-theme-fill]').backgroundColor,
+          light: style('[data-theme-probe="light"]').backgroundColor,
+          dark: style('[data-theme-probe="dark"]').backgroundColor,
+          scene: document.querySelector('[data-scene]')?.getAttribute('data-scene'),
+        }
+      : null;
   });
-  expect(await early.jsonValue()).toMatchObject({ scene: 'light' });
+  // SAFETY: waitForFunction resolves only once the predicate returned this object.
+  const snapshot = (await early.jsonValue()) as { loop: number; scrim: number; fill: string; light: string; dark: string; scene: string };
+  expect(snapshot.scene).toBe('light');
+  expect(snapshot.scrim).toBeGreaterThan(0);
+  expect(snapshot.scrim).toBeLessThan(1);
+  expect(snapshot.fill).not.toBe(snapshot.light);
+  expect(snapshot.fill).not.toBe(snapshot.dark);
   await expect.poll(() => sceneState(page)).toMatchObject({ visible: ['dark', 'light'], playingMoves: 0 });
   await expectAtRest(page, 'dark');
+  await expect(page.locator('[data-theme-layer="dark"]').first()).toHaveCSS('opacity', '1');
+  await expect.poll(() => page.evaluate(() => {
+    const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
+    return colour('[data-theme-fill]') === colour('[data-theme-probe="dark"]');
+  })).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -164,6 +199,39 @@ test('home window search opens as a full-screen sheet on a phone', async ({ page
   await expect(results).toBeHidden();
   await expect(sheet).not.toHaveAttribute('data-open', 'true');
   await expect.poll(barTop).toBe(restTop);
+  expect(errors).toEqual([]);
+});
+
+test('home window scene waits for a slow idle loop before it dresses the hero', async ({ page }) => {
+  // The light loop takes 1.2 s to start playing.
+  await page.addInitScript(() => {
+    // oxlint-disable-next-line typescript/unbound-method -- the original play runs with each element as `this` below.
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      const delay = this.getAttribute('src')?.includes('idle-light') ? 1200 : 0;
+      return new Promise<void>((resolve, reject) => setTimeout(() => play.call(this).then(resolve, reject), delay));
+    };
+  });
+  const errors = await openWindow(page, 'dark', { width: 390, height: 844 });
+  // The first request starts the slow loop; the quick ones that follow must
+  // join that startup rather than dress the hero while the loop is not playing.
+  for (const theme of ['light', 'dark', 'light'] as const) {
+    await switchTheme(page, theme);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => {
+    const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
+    return {
+      fillIsDark: colour('[data-theme-fill]') === colour('[data-theme-probe="dark"]'),
+      lightLoop: Number(getComputedStyle(document.querySelector('[data-idle="light"]')!).opacity),
+    };
+  })).toEqual({ fillIsDark: true, lightLoop: 0 });
+  await expectAtRest(page, 'light');
+  await expect.poll(() => page.evaluate(() => {
+    const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).backgroundColor;
+    return colour('[data-theme-fill]') === colour('[data-theme-probe="light"]');
+  })).toBe(true);
   expect(errors).toEqual([]);
 });
 

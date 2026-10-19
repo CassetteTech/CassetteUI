@@ -35,8 +35,19 @@ const subscribeToLayout = (onChange: () => void) => {
 const readLayout = (): Layout => (window.matchMedia(WIDE).matches ? 'landscape' : 'portrait');
 const MOVE_RATE = 1.8;
 const SETTLE_MS = 350;
-// Phones crossfade the idle loops instead of playing a camera move.
+// Phones crossfade the idle loops instead of playing a camera move. The
+// hero's background fill, scrims and paper edge change with the loops, from
+// the moment the incoming loop starts, through the Web Animations API like
+// the loops, because the theme provider suppresses CSS transitions at the
+// click. The fill is one opaque layer whose colour animates, so the page
+// behind never shows through; the scrims and the paper edge are a pair per
+// theme that crossfade over opaque content. Only the copy switches halfway
+// through, where its contrast is safe.
 const FADE_MS = 800;
+const THEMES = ['dark', 'light'] as const;
+const THEME_CLASS = { dark: 'dark', light: 'force-light' } satisfies Record<Theme, string>;
+// A theme layer's tokens, and its opacity until the driver takes over.
+const dressed = (value: Theme) => value === 'dark' ? 'dark opacity-0 dark:opacity-100' : 'force-light opacity-100 dark:opacity-0';
 // The dark idle loop does not end on its first frame, so two copies of it
 // take turns: the next copy fades in on top shortly before the current one
 // ends. Repeats skip the first second, which still looks like the still.
@@ -77,9 +88,26 @@ async function startAt(video: HTMLVideoElement, time: number) {
 
 interface Idle {
   layer: HTMLElement;
+  // Resolves once the loop plays: a request during a startup joins it, and a
+  // request after one resolves at once.
   start: () => Promise<void>;
   stop: () => void;
-  running: () => boolean;
+}
+
+// One startup at a time, kept until reset() so a started loop answers at once.
+function startOnce(begin: () => Promise<void>) {
+  let pending: Promise<void> | null = null;
+  return {
+    start() {
+      if (!pending) {
+        const startup = begin();
+        startup.catch(() => { if (pending === startup) pending = null; });
+        pending = startup;
+      }
+      return pending;
+    },
+    reset() { pending = null; },
+  };
 }
 
 // The dark idle loop: two copies of one clip take turns, so it has no seam.
@@ -107,30 +135,31 @@ function blendLoop(layer: HTMLElement, signal: AbortSignal): Idle {
       }, () => {});
     }, { signal });
   }
+  const startup = startOnce(async () => {
+    active = true;
+    const [first, second] = copies;
+    current = first;
+    second.pause();
+    await startAt(first, 0);
+    if (current !== first) return first.pause();
+    // The first copy appears at once; only the handovers between copies fade.
+    for (const copy of copies) copy.style.transition = 'none';
+    delete second.dataset.current;
+    first.dataset.current = '';
+    first.style.zIndex = '1';
+    second.style.zIndex = '0';
+    void first.offsetWidth;
+    for (const copy of copies) copy.style.transition = '';
+  });
   return {
     layer,
-    async start() {
-      active = true;
-      const [first, second] = copies;
-      current = first;
-      second.pause();
-      await startAt(first, 0);
-      if (current !== first) return first.pause();
-      // The first copy appears at once; only the handovers between copies fade.
-      for (const copy of copies) copy.style.transition = 'none';
-      delete second.dataset.current;
-      first.dataset.current = '';
-      first.style.zIndex = '1';
-      second.style.zIndex = '0';
-      void first.offsetWidth;
-      for (const copy of copies) copy.style.transition = '';
-    },
+    start: () => startup.start(),
     stop() {
       active = false;
       current = null;
+      startup.reset();
       for (const copy of copies) copy.pause();
     },
-    running: () => active,
   };
 }
 
@@ -139,12 +168,32 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const pick = <T extends Element>(selector: string) => root.querySelector<T>(selector)!;
   const lightVideo = pick<HTMLVideoElement>('[data-idle="light"]');
+  const lightStartup = startOnce(() => startAt(lightVideo, 0));
   const idles = {
     dark: blendLoop(pick('[data-idle="dark"]'), abort.signal),
-    light: { layer: lightVideo, start: () => startAt(lightVideo, 0), stop: () => lightVideo.pause(), running: () => !lightVideo.paused },
+    light: { layer: lightVideo, start: () => lightStartup.start(), stop: () => { lightStartup.reset(); lightVideo.pause(); } },
   } satisfies Record<Theme, Idle>;
   const moves = switchAt && { light: pick<HTMLVideoElement>('[data-move="light"]'), dark: pick<HTMLVideoElement>('[data-move="dark"]') };
   const layers = [...root.querySelectorAll<HTMLElement>('[data-layer]')];
+  const themeLayers = [...root.querySelectorAll<HTMLElement>('[data-theme-layer]')];
+  const fill = pick<HTMLElement>('[data-theme-fill]');
+  const fillColour = (theme: Theme) => getComputedStyle(pick(`[data-theme-probe="${theme}"]`)).backgroundColor;
+  // Each animation starts from the value on screen and ends on an inline
+  // value set beforehand, so no finished animation holds a layer.
+  const dress = (theme: Theme, duration: number) => {
+    const fillFrom = getComputedStyle(fill).backgroundColor;
+    const fillTo = fillColour(theme);
+    for (const animation of fill.getAnimations()) animation.cancel();
+    fill.style.backgroundColor = fillTo;
+    if (duration > 0 && fillFrom !== fillTo) fill.animate([{ backgroundColor: fillFrom }, { backgroundColor: fillTo }], { duration, easing: 'ease-out' });
+    for (const layer of themeLayers) {
+      const target = layer.dataset.themeLayer === theme ? 1 : 0;
+      const from = Number(getComputedStyle(layer).opacity);
+      for (const animation of layer.getAnimations()) animation.cancel();
+      layer.style.opacity = String(target);
+      if (duration > 0 && from !== target) layer.animate([{ opacity: from }, { opacity: target }], { duration, easing: 'ease-out' });
+    }
+  };
 
   let target: Theme | undefined;
   let latest = 0;
@@ -163,6 +212,7 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   const stillsOnly = (theme: Theme) => {
     stills = true;
     onScene(theme);
+    dress(theme, 0);
     for (const layer of layers) setOpacity(layer, 0);
     stopAll();
   };
@@ -176,7 +226,7 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
 
   async function rest(theme: Theme, run: number) {
     const idle = idles[theme];
-    if (!idle.running()) await idle.start();
+    await idle.start();
     if (run !== latest) return overtaken();
     raise(idle.layer);
     setOpacity(idle.layer, 1);
@@ -191,6 +241,7 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
     move.playbackRate = MOVE_RATE;
     await startAt(move, 0);
     if (run !== latest) return overtaken();
+    dress(theme, FADE_MS);
     raise(move);
     setOpacity(move, 1);
     idles[other(theme)].stop();
@@ -213,16 +264,18 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
   async function settle(theme: Theme, run: number, duration = SETTLE_MS, flipAfter = 0) {
     if (!flipAfter) onScene(theme);
     const idle = idles[theme];
-    if (!idle.running()) await idle.start();
+    await idle.start();
     if (run !== latest) return overtaken();
     if (flipAfter) setTimeout(() => { if (run === latest) onScene(theme); }, flipAfter);
     const onTop = Number(idle.layer.style.zIndex) === highestLayer;
     const from = onTop ? Number(getComputedStyle(idle.layer).opacity) : 0;
+    const fadeMs = duration * (1 - from);
+    dress(theme, fadeMs);
     raise(idle.layer);
     // The fade runs over its end value, so no finished animation holds the layer:
     // Chromium can keep a cancelled `fill: 'forwards'` value after the inline style changes.
     idle.layer.style.opacity = '1';
-    const fade = idle.layer.animate([{ opacity: from }, { opacity: 1 }], { duration: duration * (1 - from), easing: 'ease-out' });
+    const fade = idle.layer.animate([{ opacity: from }, { opacity: 1 }], { duration: fadeMs, easing: 'ease-out' });
     await fade.finished.catch(() => {});
     if (run !== latest) return;
     await rest(theme, run);
@@ -246,7 +299,10 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
       const first = target === undefined;
       target = theme;
       const run = ++latest;
-      if (first || reducedMotion.matches) onScene(theme);
+      if (first || reducedMotion.matches) {
+        onScene(theme);
+        dress(theme, 0);
+      }
       if (reducedMotion.matches) return;
       const wasAtRest = atRest;
       atRest = false;
@@ -416,7 +472,12 @@ function WindowScene({ theme, scene, onScene, copyRef }: {
   // Below lg the scene box is a fixed share of the viewport (`--scene`), so
   // the copy keeps its place under the window sill on every screen height.
   return (
-    <div ref={rootRef} aria-hidden className="absolute inset-x-0 top-0 h-[var(--scene)] overflow-hidden bg-background lg:bottom-0 lg:h-auto">
+    <div ref={rootRef} aria-hidden className="absolute inset-0">
+      {THEMES.map((value) => (
+        <div key={value} data-theme-probe={value} className={cn('hidden bg-background', THEME_CLASS[value])} />
+      ))}
+      <div data-theme-fill className="absolute inset-0 bg-background" />
+      <div className="absolute inset-x-0 top-0 h-[var(--scene)] overflow-hidden lg:bottom-0 lg:h-auto">
       <div className="absolute inset-0 isolate">
         <Still theme="dark" className={cn(crop, 'transition-opacity duration-500', shown('dark'))} />
         <Still theme="light" className={cn(crop, 'transition-opacity duration-500', shown('light'))} />
@@ -438,16 +499,21 @@ function WindowScene({ theme, scene, onScene, copyRef }: {
         )}
       </div>
       <WindowDither key={layout} copyRef={copyRef} />
-      {(['dark', 'light'] as const).map((value) => (
+      {THEMES.map((value) => (
         <div
           key={value}
-          className={cn(
-            'pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-background via-background/50 to-transparent transition-opacity duration-400 lg:hidden',
-            value === 'dark' ? 'dark' : 'force-light',
-            shown(value),
-          )}
+          data-theme-layer={value}
+          className={cn('pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-background via-background/50 to-transparent lg:hidden', dressed(value))}
         />
       ))}
+      </div>
+      <div className="absolute inset-x-0 bottom-0">
+        {THEMES.map((value) => (
+          <div key={value} data-theme-layer={value} className={cn('absolute inset-x-0 bottom-0', dressed(value))}>
+            <DitherEdge color="hsl(var(--background))" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -508,13 +574,13 @@ export function HomeConceptWindow() {
           57% down the picture, so the copy starts at 0.57 * (16 / 9) * 100vw
           less half the crop; on a screen narrow enough to fit the picture by
           height the sill is 57% of the box instead. */}
-      {/* The section carries the scene's theme, so everything in the hero (its
-          background under the scene box, the scrims, the paper edge, the copy)
-          changes colour with the scene, not at the click. */}
+      {/* The section carries the scene's theme for the copy, which switches
+          colour when the scene does. The scene's theme layers (background,
+          scrims, paper edge) crossfade with the loops from the click. */}
       <section
         data-scene={scene}
         className={cn(
-          'relative -mt-16 flex min-h-svh overflow-hidden bg-background transition-colors duration-400 [--wall:calc(100vw_-_0.424_*_max(100vw,_100svh_*_16_/_9))] [--scene:75svh] [--sill:max(0.57_*_var(--scene),_12.4vw_+_var(--scene)_/_2)]',
+          'relative -mt-16 flex min-h-svh overflow-hidden [--wall:calc(100vw_-_0.424_*_max(100vw,_100svh_*_16_/_9))] [--scene:75svh] [--sill:max(0.57_*_var(--scene),_12.4vw_+_var(--scene)_/_2)]',
           scene === 'dark' && 'dark',
           scene === 'light' && 'force-light',
         )}
@@ -641,9 +707,6 @@ export function HomeConceptWindow() {
               </AnimatePresence>
             </div>
           </MotionConfig>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 z-[5]">
-          <DitherEdge color="hsl(var(--background))" />
         </div>
       </section>
 

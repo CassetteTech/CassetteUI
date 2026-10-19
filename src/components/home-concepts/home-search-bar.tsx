@@ -118,7 +118,7 @@ export function HomeSearchResults({
 }: {
   search: HomeSearch;
   className?: string;
-  chrome?: 'ink' | 'bare';
+  chrome?: 'ink' | 'flat' | 'bare';
 }) {
   if (search.isConverting) return null;
   return (
@@ -134,29 +134,5 @@ export function HomeSearchResults({
       chrome={chrome}
       className={cn('max-w-none px-0 mb-0', className)}
     />
-  );
-}
-
-export function HomeSearchDropdown({ className, ...bar }: HomeSearchBarProps) {
-  const { search } = bar;
-  const open = search.isSearchActive && !search.isConverting;
-  return (
-    <div className={cn('relative', className)}>
-      <HomeSearchBar {...bar} closeOnBlur />
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="home-search-dropdown"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="absolute inset-x-0 top-full z-30 mt-2"
-          >
-            <HomeSearchResults search={search} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 }

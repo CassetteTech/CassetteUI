@@ -7,9 +7,10 @@ import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, 
 import { ArrowDown } from 'lucide-react';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
 import { EASE_OUT_QUART } from '@/lib/motion';
+import { useSheetViewportPin } from '@/hooks/use-sheet-viewport-pin';
 import { cn } from '@/lib/utils';
 import { useHomeSearch } from './use-home-search';
-import { HomeSearchBar, HomeSearchDropdown, HomeSearchResults } from './home-search-bar';
+import { HomeSearchBar, HomeSearchResults } from './home-search-bar';
 import { HomeBrand, STREAMING_SERVICES, StartPageLink } from './home-brand';
 import { HomeHowItWorks } from './home-how-it-works';
 import { CuratorMembershipSection } from './curator-membership-section';
@@ -269,6 +270,7 @@ function createWindowScene(root: HTMLElement, onScene: (theme: Theme) => void, s
 const PLACEHOLDER = 'Paste a link, or search for music';
 const SEARCH_MOVE = { duration: 0.38, ease: EASE_OUT_QUART };
 const SEARCH_FADE = { duration: 0.2, ease: EASE_OUT_QUART };
+const SHEET_SPRING = { type: 'spring', damping: 28, stiffness: 260 } as const;
 const BRAND_SCALE = 0.55;
 
 function Departing({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<HTMLDivElement> }) {
@@ -443,6 +445,11 @@ export function HomeConceptWindow() {
     transition: { duration: 0.45, delay: 0.25 + 0.07 * order, ease: EASE_OUT_QUART },
   });
   const expanded = wide && (search.isSearchActive || search.isConverting);
+  // Phones: searching and converting take over the viewport in one fixed
+  // sheet, so the same input stays mounted (the keyboard stays up) and the
+  // bar glides between its hero and sheet positions as one element.
+  const sheet = !wide && (search.isSearchActive || search.isConverting);
+  const sheetRef = useSheetViewportPin(!wide && search.isSearchActive);
   const [hasOpened, setHasOpened] = useState(false);
   if (expanded && !hasOpened) setHasOpened(true);
   const { dismiss } = search;
@@ -481,7 +488,7 @@ export function HomeConceptWindow() {
         )}
       >
         <WindowScene theme={theme} scene={scene} onScene={setScene} copyRef={copyRef} />
-        <div className="relative z-10 flex w-full text-foreground transition-colors duration-200">
+        <div className={cn('relative flex w-full text-foreground transition-colors duration-200', sheet ? 'z-[60]' : 'z-10')}>
           <div
             aria-hidden
             className={cn('pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_40%_55%_at_calc(var(--wall)_/_2)_52%,hsl(var(--background)/0.5),transparent)] transition-opacity duration-500 lg:block', scene === 'dark' ? 'opacity-100' : 'opacity-0')}
@@ -523,11 +530,55 @@ export function HomeConceptWindow() {
                     </Departing>,
                   ]}
                 </AnimatePresence>
-                <motion.div {...barRise} layout="position" transition={{ ...barRise.transition, layout: { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } }} className="w-full pt-5 lg:relative lg:z-10 lg:pt-6">
-                  {wide
-                    ? <HomeSearchBar search={search} closeOnBlur size="sm" placeholder={PLACEHOLDER} />
-                    : <HomeSearchDropdown search={search} size="sm" placeholder={PLACEHOLDER} />}
-                </motion.div>
+                <div
+                  ref={sheetRef}
+                  data-testid="home-search-sheet"
+                  data-open={sheet || undefined}
+                  className={cn(
+                    // z-[60] clears the fixed navbar (z-50): the sheet is modal.
+                    sheet ? 'fixed inset-0 z-[60] flex flex-col' : 'relative w-full pt-5 lg:z-10 lg:pt-6',
+                    sheet && search.isConverting && 'justify-center px-6',
+                  )}
+                  style={{ overscrollBehavior: 'contain' }}
+                >
+                  <AnimatePresence>
+                    {sheet && (
+                      <motion.div
+                        key="home-search-sheet-backdrop"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="fixed inset-0 -z-10 bg-background"
+                      />
+                    )}
+                  </AnimatePresence>
+                  {/* The glide lives on its own element: a layout animation and an
+                      animated transform on one node fight over the transform. */}
+                  <motion.div
+                    layout="position"
+                    transition={{ layout: wide ? { ...SEARCH_MOVE, delay: expanded ? 0.06 : 0 } : SHEET_SPRING }}
+                    className={cn('w-full', sheet && !search.isConverting && 'px-5 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2')}
+                  >
+                    <motion.div {...barRise}>
+                      <HomeSearchBar search={search} closeOnBlur={wide} size="sm" placeholder={PLACEHOLDER} />
+                    </motion.div>
+                  </motion.div>
+                  {sheet && !search.isConverting && (
+                    <motion.div
+                      key="home-search-sheet-results"
+                      initial={{ opacity: 0, y: 24 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      // The list arrives once the bar has nearly reached the top.
+                      transition={{ ...SHEET_SPRING, delay: 0.14 }}
+                      className="min-h-0 flex-1 overflow-y-auto px-5 pb-4"
+                      style={{ overscrollBehavior: 'contain' }}
+                      onPointerDown={(event) => { if (event.target === event.currentTarget) search.close(); }}
+                    >
+                      <HomeSearchResults search={search} chrome="flat" />
+                    </motion.div>
+                  )}
+                </div>
                 <AnimatePresence mode="popLayout">
                   {!expanded && (
                     <Departing key="link-card" {...intro(4)} className="hidden pt-3 [@media(min-width:1024px)_and_(min-height:761px)]:block">

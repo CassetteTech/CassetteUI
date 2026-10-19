@@ -115,6 +115,39 @@ test('home window scene crossfades the portrait idle loops on a phone', async ({
   expect(errors).toEqual([]);
 });
 
+test('home window search opens as a full-screen sheet on a phone', async ({ page }) => {
+  const errors = await openWindow(page, 'light', { width: 390, height: 844 });
+  const input = page.getByTestId('home-search-input');
+  const results = page.getByTestId('search-results');
+  const sheet = page.getByTestId('home-search-sheet');
+  const barTop = async () => Math.round((await input.boundingBox())!.y);
+  // The bar's entrance is still running when the scene comes to rest.
+  let restTop = -1;
+  await expect.poll(async () => {
+    const top = await barTop();
+    const settled = top === restTop;
+    restTop = top;
+    return settled;
+  }, { intervals: [250, 250, 250, 250, 250, 250, 250, 250] }).toBe(true);
+  expect(restTop).toBeGreaterThan(400);
+
+  await input.focus();
+  await expect(sheet).toHaveAttribute('data-open', 'true');
+  await expect(results).toBeVisible();
+  await expect.poll(barTop).toBeLessThan(80);
+  expect(await sheet.boundingBox()).toMatchObject({ x: 0, y: 0, width: 390, height: 844 });
+  const bar = (await input.boundingBox())!;
+  const panel = (await results.boundingBox())!;
+  expect(panel.y).toBeGreaterThan(bar.y + bar.height);
+  await expect(input).toBeFocused();
+
+  await page.getByRole('button', { name: 'Close search results' }).click();
+  await expect(results).toBeHidden();
+  await expect(sheet).not.toHaveAttribute('data-open', 'true');
+  await expect.poll(barTop).toBe(restTop);
+  expect(errors).toEqual([]);
+});
+
 // The portrait stills keep the window and the desk objects in the top 57% of
 // the picture, so the copy must start below that line on every phone and tablet.
 const SILL = 0.57;

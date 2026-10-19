@@ -387,6 +387,10 @@ function PostStudioContent({
 }: PostStudioContentProps & { eyebrowAs?: ElementType; action?: ReactNode }) {
   const visibility = visibilityOf(privacy);
   const updatePost = useUpdatePost();
+  // The headline fades in when the visibility changes, not when the post first shows.
+  const [initialPrivacy] = useState(privacy);
+  const [privacyChanged, setPrivacyChanged] = useState(false);
+  if (!privacyChanged && privacy !== initialPrivacy) setPrivacyChanged(true);
 
   const choose = (next: OwnerVisibility) => {
     if (next === privacy || updatePost.isPending) return;
@@ -408,7 +412,10 @@ function PostStudioContent({
         </div>
         <h2
           key={privacy}
-          className="mt-5 whitespace-nowrap font-teko text-4xl font-bold uppercase leading-[0.8] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280"
+          className={cn(
+            'mt-5 whitespace-nowrap font-teko text-4xl font-bold uppercase leading-[0.8] tracking-tight text-foreground',
+            privacyChanged && 'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-280',
+          )}
         >
           {visibility?.label ?? 'Visibility'}
         </h2>

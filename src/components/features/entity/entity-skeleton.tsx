@@ -9,8 +9,9 @@ import { BackButton } from '@/components/ui/back-button';
 import { ArtworkImage } from '@/components/ui/artwork-image';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { DitherEdge } from '@/components/features/marketing/dither-edge';
-import { PostLabelHead, bandColor } from '@/components/features/post/post-label-head';
+import { PostLabelHead, bandColor, postLabelMeta, type PostLabelDetails } from '@/components/features/post/post-label-head';
 import { StreamingLinks, streamingServices } from '@/components/features/entity/streaming-links';
+import { CASSETTE_SPOTIFY_COPY_CAPTION } from '@/components/features/entity/cassette-spotify-copy-link';
 import { COLLAPSED_MAX_HEIGHT_PX, TrackList, formatTrackListStats, type TrackListItem } from '@/components/features/entity/track-list';
 import { ACTIVE_PLATFORM_UI_KEYS, type PlatformUiKey } from '@/lib/platforms';
 import {
@@ -30,11 +31,17 @@ export interface StagedConversion {
     artists: string[];
     artworkUrl?: string | null;
     tracks?: TrackListItem[];
+    /** The label's meta line, once the finished post is read. */
+    details?: PostLabelDetails;
   };
   sourceLink?: { platform: PlatformUiKey; url: string };
   /** Add music: the owner's own playlist links, which open as listen rows as on the post. */
   curatorLinks?: { handle: string | null; links: Partial<Record<PlatformUiKey, string>> };
   links: Partial<Record<PlatformUiKey, string>>;
+  /** The finished post is read: `links` is the post's own set, so no row waits for a match. */
+  linksFinal?: boolean;
+  /** A playlist's shared Spotify copy, from the finished post. */
+  cassetteSpotifyCopyUrl?: string | null;
   ready: boolean;
   postId?: string;
 }
@@ -72,7 +79,8 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
   const staged = conversion ?? carried;
   const settled = !conversion && Boolean(carried);
   const post = {
-    contentType: contentType ?? staged?.source?.elementType ?? continued?.contentType,
+    // Bridge's element type, once read, wins over the link's guess (a short link reads as a track).
+    contentType: staged?.source?.elementType ?? contentType ?? continued?.contentType,
     showAuthor: showAuthor ?? continued?.showAuthor ?? true,
     ownPost: ownPost ?? continued?.ownPost ?? false,
   };
@@ -479,6 +487,16 @@ const LabelHead: React.FC<{
           kicker={typeLabel && <span>{typeLabel}</span>}
           title={source.title}
           artist={source.artists.length > 0 && source.elementType !== 'artist' ? source.artists.join(', ') : undefined}
+          meta={
+            source.details
+              ? postLabelMeta(source.elementType, source.details)
+              // Holds the post's meta line until the post is read, so the rows below do not move.
+              : showReleaseLines && (
+                <span aria-hidden className="flex h-5 items-center">
+                  <span className="h-3 w-36 rounded-sm bg-current opacity-25" />
+                </span>
+              )
+          }
           tint={band.tint}
         />
       </div>
@@ -564,14 +582,21 @@ const ListenLinks: React.FC<{
   next: () => number;
   className: string;
 }> = ({ blueprint, staged, settled, perService, next, className }) => {
-  // A playlist opens its original and the owner's own links, in the post's order.
+  // A playlist's rows follow the post's rules, in its order: the post's own links (once it is
+  // read), the original, Cassette's shared Spotify copy, then the owner's own links.
   const playlistLinks: Partial<Record<PlatformUiKey, string>> = {};
   const playlistCaptions: Partial<Record<PlatformUiKey, string>> = {};
   const source = staged?.sourceLink;
   if (source) {
+    Object.assign(playlistLinks, staged.links);
     playlistLinks[source.platform] = source.url;
     playlistCaptions[source.platform] = 'Original playlist';
-    for (const [platform, url] of curatorListenRows(source.platform, staged.curatorLinks?.links)) {
+    const ownLinks = staged.curatorLinks?.links ?? {};
+    if (staged.cassetteSpotifyCopyUrl && sharesCassetteSpotifyCopy(source.platform) && !staged.links.spotify && !ownLinks.spotify) {
+      playlistLinks.spotify = staged.cassetteSpotifyCopyUrl;
+      playlistCaptions.spotify = CASSETTE_SPOTIFY_COPY_CAPTION;
+    }
+    for (const [platform, url] of curatorListenRows(source.platform, ownLinks)) {
       playlistLinks[platform] = url;
       playlistCaptions[platform] = curatorLinkCaption(staged.curatorLinks?.handle);
     }
@@ -582,7 +607,7 @@ const ListenLinks: React.FC<{
       <div className="grid gap-2.5">
         {perService ? (
           staged
-            ? ACTIVE_PLATFORM_UI_KEYS.map((platform, i) => {
+            ? ACTIVE_PLATFORM_UI_KEYS.filter((platform) => !staged.linksFinal || staged.links[platform]).map((platform, i) => {
                 const url = staged.links[platform];
                 return url ? (
                   <StreamingLinks

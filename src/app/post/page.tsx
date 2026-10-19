@@ -9,6 +9,7 @@ import { clearConversionHandoff, growthBox, readConversionHandoff } from '@/lib/
 import { returnAddMusicDraft } from '@/lib/add-music-draft';
 import { playErrorTone } from '@/lib/sounds';
 import { savePrefetchedPost } from '@/lib/post-prefetch';
+import { parsePostResponse, type PostPageData } from '@/services/post-response';
 import { getPlatformDefinition } from '@/lib/platforms';
 import { detectContentType, getPlatformDisplayName } from '@/utils/content-type-detection';
 import { BackButton } from '@/components/ui/back-button';
@@ -26,6 +27,8 @@ function PostPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [apiComplete, setApiComplete] = useState(false);
   const [createdPostId, setCreatedPostId] = useState<string | null>(null);
+  // The finished post, read before the hand-off: the skeleton settles to what the post shows.
+  const [readPost, setReadPost] = useState<PostPageData | null>(null);
 
   const postIdParam = searchParams.get('id');
   const fromParam = searchParams.get('from');
@@ -56,12 +59,24 @@ function PostPageContent() {
   const sourceLinkPlatform = getPlatformDefinition(contentInfo.platform)?.uiKey;
   const conversion = useMemo<StagedConversion>(() => {
     const links: StagedConversion['links'] = {};
-    if (sourceLinkPlatform && currentUrl) links[sourceLinkPlatform] = currentUrl;
-    for (const [platform, url] of Object.entries(partialResult?.platforms ?? {})) {
-      const key = getPlatformDefinition(platform)?.uiKey;
-      if (key && url) links[key] = url;
+    if (readPost) {
+      // The finished post's own links: one that landed after the last poll shows before the
+      // hand-off, and one Bridge dropped after reporting it leaves.
+      Object.assign(links, readPost.convertedUrls);
+    } else {
+      if (sourceLinkPlatform && currentUrl) links[sourceLinkPlatform] = currentUrl;
+      for (const [platform, url] of Object.entries(partialResult?.platforms ?? {})) {
+        const key = getPlatformDefinition(platform)?.uiKey;
+        if (key && url) links[key] = url;
+      }
     }
+    const readCuratorLinks = readPost?.curatorLinks && Object.keys(readPost.curatorLinks).length > 0
+      ? { handle: readPost.username ?? null, links: readPost.curatorLinks }
+      : undefined;
     const source = partialResult?.source;
+    const details = readPost
+      ? { duration: readPost.metadata.duration, albumName: readPost.albumName, releaseDate: readPost.releaseDate }
+      : undefined;
     return {
       stageLabel,
       source: source?.title
@@ -75,15 +90,30 @@ function PostPageContent() {
               artists: track.artists,
               duration: track.duration ?? undefined,
             })),
+            details,
           }
-        : undefined,
+        : readPost
+          // No poll reported the source (a reused job can be ready at once): settle to the post.
+          ? {
+              elementType: readPost.metadata.type,
+              title: readPost.metadata.title,
+              artists: readPost.metadata.artist ? [readPost.metadata.artist] : [],
+              artworkUrl: readPost.metadata.artwork || null,
+              tracks: readPost.tracks,
+              details,
+            }
+          : undefined,
       sourceLink: sourceLinkPlatform && currentUrl ? { platform: sourceLinkPlatform, url: currentUrl } : undefined,
-      curatorLinks: handedOff?.curatorLinks,
+      // Once read, the finished post's own links win over the Add music draft (Bridge can reuse a
+      // job whose stored links differ), even when the post has none.
+      curatorLinks: readPost ? readCuratorLinks : handedOff?.curatorLinks,
       links,
+      linksFinal: Boolean(readPost),
+      cassetteSpotifyCopyUrl: readPost?.cassetteSpotifyCopyUrl,
       ready: apiComplete,
       postId: createdPostId ?? undefined,
     };
-  }, [partialResult, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform, handedOff?.curatorLinks]);
+  }, [partialResult, readPost, stageLabel, apiComplete, createdPostId, currentUrl, sourceLinkPlatform, handedOff?.curatorLinks]);
 
   const hasConvertedRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
@@ -113,6 +143,7 @@ function PostPageContent() {
         const response = await apiService.fetchPostById(postId);
         if (response?.success) {
           savePrefetchedPost(postId, response);
+          if (isMountedRef.current) setReadPost(parsePostResponse(response, postId));
           return true;
         }
       } catch (error) {
@@ -289,16 +320,18 @@ function PostPageContent() {
     );
   }
 
+  // Bridge's element type, once read, wins over the link's guess (a short link reads as a track).
+  const elementType = partialResult?.source?.elementType ?? contentInfo.type;
   const sourceLabel = contentInfo.platform === 'unknown'
-    ? contentInfo.type
-    : `${getPlatformDisplayName(contentInfo.platform)} · ${contentInfo.type}`;
+    ? elementType
+    : `${getPlatformDisplayName(contentInfo.platform)} · ${elementType}`;
 
   return (
     <EntitySkeleton
       conversion={isConverting || urlParam ? conversion : undefined}
       growFrom={growFrom}
       sourceLabel={sourceLabel}
-      contentType={contentInfo.type}
+      contentType={elementType}
       showAuthor={!anonymous}
       ownPost={!anonymous}
       onCancel={() => router.back()}

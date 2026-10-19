@@ -2,6 +2,7 @@
 
 import { expect, test, type Request } from '@playwright/test';
 import { fixturePosts, fixtureUsers, type FixturePost } from './support/cassette-fixtures';
+import { holdRoute } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { dispatchPaste } from './support/paste';
 
@@ -113,4 +114,46 @@ test('sends the links set in Add music with the playlist and shows them on the p
   await expect(page).toHaveURL(/\/post\/post-created-playlist(\?.*)?$/);
   await expect(page.getByRole('link', { name: /Apple Music.*Added by @miagroove/ })).toHaveAttribute('href', ownAppleCopy);
   expect(conversions).toEqual([expect.objectContaining({ platformLinks: { applemusic: ownAppleCopy } })]);
+});
+
+test("settles the conversion to the finished post's own links before it lands", async ({ page }) => {
+  const sourceUrl = 'https://www.deezer.com/playlist/908622996';
+  const storedAppleCopy = 'https://music.apple.com/us/playlist/night-shift/pl.u-stored-copy';
+  await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    convertTemplates: [{
+      ...deezerPlaylist,
+      postId: 'post-reused-playlist',
+      originalUrl: sourceUrl,
+      convertedUrls: { deezer: sourceUrl },
+    }],
+  });
+  // Bridge can reuse a job whose stored links differ from this draft's. Held, so Add music
+  // hands off to the staged post first.
+  const releaseConversion = await holdRoute(page, '**/api/v1/convert');
+  await page.route('**/api/v1/convert', (route) => route.fallback({
+    postData: JSON.stringify({ ...route.request().postDataJSON(), platformLinks: { applemusic: storedAppleCopy } }),
+  }));
+  const releaseLanding = await holdRoute(
+    page,
+    (url) => url.pathname === '/post/post-reused-playlist',
+    (request) => request.headers()['rsc'] === '1',
+  );
+
+  await page.goto('/studio/music/new');
+  await dispatchPaste(page, 'add-music-input', sourceUrl);
+  await page.locator('[data-testid="add-music-playlist-links"]:visible').click();
+  await page.getByRole('textbox', { name: 'Apple Music' }).filter({ visible: true }).fill(ownAppleCopy);
+  await page.locator('[data-testid="add-music-submit"]:not([disabled]):visible').click();
+
+  const apple = page.getByRole('link', { name: /Apple Music.*Added by @miagroove/ }).filter({ visible: true });
+  await expect(page).toHaveURL(/\/post\?url=/);
+  await expect(apple).toHaveAttribute('href', ownAppleCopy);
+
+  releaseConversion();
+  await expect(apple).toHaveAttribute('href', storedAppleCopy);
+
+  releaseLanding();
+  await expect(page).toHaveURL(/\/post\/post-reused-playlist(\?.*)?$/);
+  await expect(apple).toHaveAttribute('href', storedAppleCopy);
 });

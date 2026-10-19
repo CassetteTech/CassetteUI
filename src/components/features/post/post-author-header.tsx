@@ -2,11 +2,13 @@
 
 import { ProfileLink } from '@/components/features/profile/profile-link';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { useUserBio } from '@/hooks/use-profile';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils/format-date';
+
+/** An avatar photo that loads within this time shows without its initial showing first. */
+const AVATAR_FALLBACK_DELAY_MS = 600;
 
 interface PostAuthorHeaderProps {
   username: string;
@@ -37,16 +39,20 @@ export function PostAuthorHeader({
   return (
     <div className={cn('flex', wrapperGap, hasCaption ? 'items-start' : 'items-center', className)}>
       <ProfileLink username={username} className="flex-shrink-0">
-        {profileLoading ? (
-          <Skeleton className={cn(avatarSize, 'rounded-full')} />
-        ) : (
-          <Avatar className={cn(avatarSize, 'ring-1 ring-border')}>
-            <AvatarImage src={avatarUrl} alt={`@${username}`} className="object-cover" />
-            <AvatarFallback className="bg-muted text-muted-foreground font-atkinson font-bold text-sm tracking-wide">
-              {initial}
-            </AvatarFallback>
-          </Avatar>
-        )}
+        {/* The author's profile answers after the post; the avatar's circle holds still until then. */}
+        <Avatar className={cn(avatarSize, 'bg-muted ring-1 ring-border')}>
+          {!profileLoading && (
+            <>
+              <AvatarImage src={avatarUrl} alt={`@${username}`} className="object-cover" />
+              <AvatarFallback
+                delayMs={avatarUrl ? AVATAR_FALLBACK_DELAY_MS : 0}
+                className="bg-muted text-muted-foreground font-atkinson font-bold text-sm tracking-wide"
+              >
+                {initial}
+              </AvatarFallback>
+            </>
+          )}
+        </Avatar>
       </ProfileLink>
 
       <div className={cn('min-w-0 flex-1 flex flex-col', stackGap)}>

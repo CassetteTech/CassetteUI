@@ -37,11 +37,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AnimatedColorBackground } from '@/components/ui/animated-color-background';
-import { PostLabelHead, bandTone } from '@/components/features/post/post-label-head';
+import { PostLabelHead, postLabelMeta, bandTone } from '@/components/features/post/post-label-head';
 import { ColorExtractor, ColorPalette } from '@/services/color-extractor';
 import { MainContainer } from '@/components/ui/container';
 import { HeadlineText, BodyText } from '@/components/ui/typography';
-import { ArtworkImage } from '@/components/ui/artwork-image';
+import { ArtworkImage, preloadArtwork } from '@/components/ui/artwork-image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
@@ -126,6 +126,16 @@ interface PostClientPageProps {
   initialMetadata?: PublicPostPageMetadata | null;
 }
 
+/**
+ * How long a loaded post waits for its artwork to decode and its palette to resolve, so it
+ * paints once, with the artwork in place and the label band in the artwork's color. Both
+ * start as the page mounts (the server already knows the cover), so the wait is usually zero.
+ */
+const POST_VISUALS_WAIT_MS = 400;
+
+/** How long after the owner column mounts it re-centers without a glide (see centerOnPostCard). */
+const COLUMN_SETTLE_MS = 800;
+
 type PostLoadError = {
   kind: 'unavailable' | 'session' | 'error';
 };
@@ -193,6 +203,25 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   const [palette, setPalette] = useState<ColorPalette | null>(null);
+  const preparedVisuals = useRef(new Map<string, Promise<ColorPalette>>());
+  const prepareVisuals = useCallback((artworkUrl: string) => {
+    let prepared = preparedVisuals.current.get(artworkUrl);
+    if (!prepared) {
+      prepared = Promise.all([
+        preloadArtwork(artworkUrl),
+        ColorExtractor.extractPalette(artworkUrl).catch(() => ColorExtractor.getBrandPalette()),
+      ]).then(([, extracted]) => extracted);
+      // Holds only a preparation in flight; a finished one lives on in the artwork and palette
+      // caches, and a failed one is tried again.
+      preparedVisuals.current.set(artworkUrl, prepared);
+      void prepared.finally(() => preparedVisuals.current.delete(artworkUrl));
+    }
+    return prepared;
+  }, []);
+  const initialArtwork = initialMetadata?.imageUrl;
+  useEffect(() => {
+    if (initialArtwork) void prepareVisuals(initialArtwork);
+  }, [initialArtwork, prepareVisuals]);
   const handleSignupClick = () => router.push('/auth/signup');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [imageError, setImageError] = useState(false);
@@ -597,9 +626,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           throw new Error('Post is still finalizing. Please try again in a moment.');
         }
 
-        const applyResponse = (payload: PostByIdResponse) => {
-          setError(null);
+        const applyResponse = async (payload: PostByIdResponse) => {
           const data = parsePostResponse(payload, postId);
+          // After a conversion, the skeleton has usually shown the artwork already, so this is instant.
+          const visuals = data.metadata.artwork
+            ? await Promise.race([prepareVisuals(data.metadata.artwork), sleep(POST_VISUALS_WAIT_MS).then(() => null)])
+            : null;
+          if (isCancelled) return;
+          setError(null);
           sourceUrlRef.current = data.originalUrl || sourceUrlRef.current;
           sourcePlatformRef.current = data.sourcePlatform || sourcePlatformRef.current;
           setPostData(data);
@@ -607,7 +641,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           const repostedFromLocal = Boolean(readRepostedPosts(user?.id)[payload.postId || postId]);
           setHasReposted(repostedByApi || repostedFromLocal);
 
-          if (data.metadata.artwork) {
+          if (visuals) {
+            setPalette(visuals);
+          } else if (data.metadata.artwork) {
             extractColorFromArtwork(data.metadata.artwork);
           }
         };
@@ -616,7 +652,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           throw new Error('Invalid response format');
         }
 
-        applyResponse(response);
+        await applyResponse(response);
 
       } catch (e) {
         if (isCancelled) return;
@@ -635,7 +671,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     return () => {
       isCancelled = true;
     };
-  }, [postId, user?.id, isAuthenticated, loadAttempt]);
+  }, [postId, user?.id, isAuthenticated, loadAttempt, prepareVisuals]);
 
   useEffect(() => {
     if (isLoading || !postData) {
@@ -729,8 +765,12 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const centerOnPostCard = useCallback((column: HTMLElement | null) => {
     const card = postCardRef.current;
     if (!column || !card) return;
+    const mountedAt = performance.now();
     const observer = new ResizeObserver(() => {
-      if (column.style.marginTop) column.dataset.recentered = '';
+      // The column's own reads (plans, Curator Pro) answer just after it mounts; it takes
+      // that size in place. Later changes, such as a visibility switch, glide.
+      // ponytail: a time window, not the reads' state; a read slower than this still glides.
+      if (column.style.marginTop && performance.now() - mountedAt > COLUMN_SETTLE_MS) column.dataset.recentered = '';
       column.style.marginTop = `${Math.max(0, (card.offsetHeight - column.offsetHeight) / 2)}px`;
     });
     observer.observe(card);
@@ -1056,16 +1096,11 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         </span>
       ))
     : metadata.artist;
-  const labelMeta = isTrack && (metadata.duration || postData?.albumName)
-    ? (
-        <>
-          {metadata.duration && <span className="tabular-nums">{metadata.duration}</span>}
-          {postData?.albumName && <span>{postData.albumName}</span>}
-        </>
-      )
-    : isAlbum && postData?.releaseDate
-      ? <span>Released {postData.releaseDate}</span>
-      : undefined;
+  const labelMeta = postLabelMeta(metadata.type, {
+    duration: metadata.duration,
+    albumName: postData?.albumName,
+    releaseDate: postData?.releaseDate,
+  });
 
   return (
     <div className="min-h-svh relative">

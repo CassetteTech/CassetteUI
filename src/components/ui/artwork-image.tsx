@@ -13,6 +13,26 @@ import { cn } from '@/lib/utils';
  */
 const shownArtwork = new Set<string>();
 
+/**
+ * Loads and decodes artwork before it is shown, then marks it as shown so it renders at
+ * once, without the blur-up. Resolves when the image is ready or failed; never rejects.
+ */
+export function preloadArtwork(src: string): Promise<void> {
+  const normalizedSrc = src.trim();
+  if (!normalizedSrc || shownArtwork.has(normalizedSrc)) return Promise.resolve();
+  const image = new window.Image();
+  const loaded = new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error('artwork failed to load'));
+  });
+  image.src = normalizedSrc;
+  // decode() also waits for the pixels; a browser without it stops at the load event.
+  return loaded.then(() => image.decode?.()).then(
+    () => { shownArtwork.add(normalizedSrc); },
+    () => {},
+  );
+}
+
 type ArtworkImageProps = Omit<ImageProps, 'src' | 'alt'> & {
   src?: string | null;
   alt: string;

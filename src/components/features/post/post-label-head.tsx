@@ -8,6 +8,26 @@ export const bandColor = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0
 export const bandInk = (tint = 'hsl(var(--primary))') => `oklch(from ${tint} 0.96 0.02 h)`;
 export const bandTone = (tint?: string) => `oklch(from ${bandColor(tint)} var(--band-tone-lightness) c h)`;
 
+export interface PostLabelDetails {
+  duration?: string;
+  albumName?: string | null;
+  releaseDate?: string | null;
+}
+
+/** The label head's meta line: a track's duration and album, an album's release date. */
+export function postLabelMeta(elementType: string | undefined, details: PostLabelDetails): ReactNode | undefined {
+  if (elementType === 'track' && (details.duration || details.albumName)) {
+    return (
+      <>
+        {details.duration && <span className="tabular-nums">{details.duration}</span>}
+        {details.albumName && <span>{details.albumName}</span>}
+      </>
+    );
+  }
+  if (elementType === 'album' && details.releaseDate) return <span>Released {details.releaseDate}</span>;
+  return undefined;
+}
+
 interface PostLabelHeadProps {
   kicker?: ReactNode;
   title: string;

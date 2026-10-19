@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fixtureConvertTemplates, fixtureUsers } from './support/cassette-fixtures';
+import { holdRoute } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
 import { dispatchPaste } from './support/paste';
 
@@ -210,5 +211,107 @@ test.describe('home conversion funnel', () => {
     releaseConversion();
     await expect(page).toHaveURL(/\/post\/post-home-converted$/);
     await expect(page.getByRole('link', { name: 'Deezer' }).filter({ visible: true })).toBeVisible();
+  });
+
+  test('settles the staged post to the finished post before it lands', async ({ page }) => {
+    const track = { ...fixtureConvertTemplates.homeTrack, duration: '4:03', albumName: "Hurry Up, We're Dreaming" };
+    await mockCassetteApp(page, { convertTemplates: [track] });
+    let releaseConversion = () => {};
+    const conversionHeld = new Promise<void>((resolve) => {
+      releaseConversion = resolve;
+    });
+    await page.route('**/api/v1/convert', async (route) => {
+      await conversionHeld;
+      await route.fallback();
+    });
+    // The last poll knew the source and Apple Music; Deezer landed after it.
+    const source = { elementType: 'track', title: track.title, artists: [track.artist], platform: 'spotify' };
+    await page.route('**/api/v1/convert/jobs/by-key/**', (route) => route.fulfill({
+      status: 202,
+      json: {
+        success: false,
+        status: 'processing',
+        jobId: 'job_settle',
+        stage: 'finalizing',
+        partialResult: { source, platforms: { applemusic: track.convertedUrls.appleMusic } },
+      },
+    }));
+    // Holds the post route, so the hand-off skeleton stays on screen.
+    const releaseLanding = await holdRoute(
+      page,
+      (url) => url.pathname === `/post/${track.postId}`,
+      (request) => request.headers()['rsc'] === '1',
+    );
+
+    await page.goto('/');
+    await dispatchPaste(page, 'home-search-input', track.originalUrl);
+    await expect(page.getByRole('link', { name: 'Apple Music' }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Deezer' })).toHaveCount(0);
+
+    releaseConversion();
+    await expect(page.getByRole('link', { name: 'Deezer' }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByText('4:03', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByText(track.albumName, { exact: true }).filter({ visible: true })).toBeVisible();
+
+    releaseLanding();
+    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+  });
+
+  test('stops reading the conversion job once it is ready', async ({ page }) => {
+    const track = fixtureConvertTemplates.homeTrack;
+    await mockCassetteApp(page);
+    await page.route('**/api/v1/convert', () => {});
+    let jobReads = 0;
+    await page.route('**/api/v1/convert/jobs/by-key/**', (route) => {
+      jobReads += 1;
+      return route.fulfill({ json: { success: true, status: 'ready', jobId: 'job_done', postId: track.postId } });
+    });
+
+    await page.goto('/');
+    await dispatchPaste(page, 'home-search-input', track.originalUrl);
+    await expect.poll(() => jobReads).toBe(1);
+    await page.waitForTimeout(1500);
+    expect(jobReads).toBe(1);
+  });
+
+  test('lays out a short link by the element type Bridge reads', async ({ page }) => {
+    const shortUrl = 'https://spotify.link/cassetteShortPlaylist';
+    const tracks = [
+      { title: 'Blue Monday', artists: ['New Order'], duration: '7:29' },
+      { title: 'Nightcall', artists: ['Kavinsky'], duration: '4:18' },
+    ];
+    await mockCassetteApp(page, {
+      convertTemplates: [{
+        ...fixtureConvertTemplates.homeTrack,
+        postId: 'post-short-playlist',
+        musicElementId: 'playlist-short-1',
+        elementType: 'Playlist',
+        title: 'Short Drives',
+        artist: '',
+        originalUrl: shortUrl,
+        convertedUrls: { spotify: shortUrl },
+        trackCount: tracks.length,
+        tracks,
+      }],
+    });
+    await page.route('**/api/v1/convert', () => {});
+    const source = { elementType: 'playlist', title: 'Short Drives', artists: [], platform: 'spotify', tracks };
+    await page.route('**/api/v1/convert/jobs/by-key/**', (route) => route.fulfill({
+      status: 202,
+      json: {
+        success: false,
+        status: 'processing',
+        jobId: 'job_short',
+        stage: 'matching_tracks',
+        tracksProcessed: 1,
+        tracksTotal: 2,
+        partialResult: { source },
+      },
+    }));
+
+    await page.goto(`/post?url=${encodeURIComponent(shortUrl)}`);
+
+    await expect(page.getByText('2 tracks, 12 min', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByText('Spotify · playlist', { exact: true }).filter({ visible: true })).toBeVisible();
   });
 });

@@ -66,6 +66,8 @@ export function useConversionStage(
             prev && prev.processed === next.processed && prev.total === next.total ? prev : next
           );
         }
+        // A finished job reports nothing more; the last stage and partial result stay.
+        if (job.status === 'ready' || job.status === 'failed') return;
       } else {
         consecutiveMisses += 1;
         if (consecutiveMisses >= MAX_CONSECUTIVE_MISSES) {

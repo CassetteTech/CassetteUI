@@ -79,6 +79,12 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  // The wash fades in after the first frame, also when the palette is known as the page mounts.
+  const [painted, setPainted] = React.useState(false);
+  React.useEffect(() => {
+    const frame = requestAnimationFrame(() => setPainted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const alphaCap = palette && palette.confidence < 0.4 ? 0.4 : 0.6;
 
@@ -135,7 +141,7 @@ export const AnimatedColorBackground: React.FC<AnimatedColorBackgroundProps> = (
         className="absolute inset-0 transition-opacity ease-in-out motion-reduce:transition-none"
         style={{
           backgroundImage: meshBackground,
-          opacity: palette ? 1 : 0,
+          opacity: palette && painted ? 1 : 0,
           transitionDuration: `${duration}ms`,
           filter: 'url(#post-gradient-dither)',
         }}

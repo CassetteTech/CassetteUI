@@ -42,7 +42,7 @@ export const PostShareButton = forwardRef<HTMLButtonElement, PostShareButtonProp
       animate={copyState === 'copied' ? { scale: [1, 1.03, 1] } : {}}
       transition={{ duration: 0.2 }}
     >
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         {copyState === 'copied' ? (
           <motion.span
             key="copied"

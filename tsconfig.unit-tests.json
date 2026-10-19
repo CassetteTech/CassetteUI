@@ -51,6 +51,8 @@
     "src/lib/server/__tests__/fetch-post.test.ts",
     "src/lib/server/proxy-fetch.ts",
     "src/lib/server/__tests__/proxy-fetch.test.ts",
+    "src/lib/server/posthog-ingest-forwarding.ts",
+    "src/lib/server/__tests__/posthog-ingest-forwarding.test.ts",
     "src/lib/observability/**/*.ts"
   ],
   "exclude": ["node_modules"]

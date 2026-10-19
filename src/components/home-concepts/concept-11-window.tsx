@@ -273,16 +273,17 @@ const SEARCH_FADE = { duration: 0.2, ease: EASE_OUT_QUART };
 const SHEET_SPRING = { type: 'spring', damping: 28, stiffness: 260 } as const;
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-// The open sheet is modal: Tab stays inside it and Escape closes it.
-function containSheetFocus(event: KeyboardEvent, root: HTMLElement, close: () => void) {
-  if (event.key === 'Escape') return close();
+// The open sheet is modal: Tab stays inside it and Escape closes it. While a
+// conversion runs the sheet has no controls of its own (the input is still
+// leaving for a moment), so focus parks on the sheet itself.
+function containSheetFocus(event: KeyboardEvent, root: HTMLElement, converting: boolean, close: () => void) {
+  if (event.key === 'Escape') return converting ? undefined : close();
   if (event.key !== 'Tab') return;
   const focusable = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
   const active = document.activeElement;
-  // While a conversion runs the sheet has no controls; focus parks on the sheet itself.
-  if (!first) {
+  if (converting || !first) {
     event.preventDefault();
     return root.focus();
   }
@@ -471,13 +472,13 @@ export function HomeConceptWindow() {
   const sheet = !wide && (search.isSearchActive || search.isConverting);
   const sheetRef = useSheetViewportPin(!wide && search.isSearchActive);
   const { close } = search;
+  const converting = search.isConverting;
   useEffect(() => {
     if (!sheet) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (sheetRef.current) containSheetFocus(event, sheetRef.current, close); };
+    const onKeyDown = (event: KeyboardEvent) => { if (sheetRef.current) containSheetFocus(event, sheetRef.current, converting, close); };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [sheet, close, sheetRef]);
-  const converting = search.isConverting;
+  }, [sheet, converting, close, sheetRef]);
   useEffect(() => {
     if (sheet && converting) sheetRef.current?.focus();
   }, [sheet, converting, sheetRef]);

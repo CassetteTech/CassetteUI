@@ -41,7 +41,7 @@ const getNotificationText = (item: NotificationItem) => {
 const getNotificationHref = (item: NotificationItem) => {
   if (item.targetUrl) return item.targetUrl;
   if (item.postId) return `/post/${item.postId}`;
-  return '/profile';
+  return '/studio';
 };
 
 export function NotificationMenu({ className }: { className?: string }) {

@@ -127,7 +127,7 @@ export default function OnboardingPage() {
       }
       if (user.isOnboarded) {
         if (!consumeOnboardingDestination()) {
-          router.replace('/profile');
+          router.replace('/studio');
         }
         return;
       }

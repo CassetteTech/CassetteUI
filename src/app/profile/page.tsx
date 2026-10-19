@@ -21,8 +21,8 @@ export default function ProfileRedirect() {
         appLogger.debug('profile_redirect_onboarding', { user_id: user.id });
         router.replace('/onboarding');
       } else if (user.username) {
-        appLogger.debug('profile_redirect_studio', { user_id: user.id });
-        router.replace('/studio');
+        appLogger.debug('profile_redirect_public_profile', { user_id: user.id });
+        router.replace(`/profile/${user.username}`);
       } else {
         appLogger.warn('profile_redirect_missing_username', { user_id: user.id });
         router.replace('/auth/signin');

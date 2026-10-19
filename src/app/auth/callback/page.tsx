@@ -51,7 +51,7 @@ export default function OAuthCallbackPage() {
           return;
         }
 
-        router.replace('/profile');
+        router.replace('/studio');
       })
       .catch((err: Error) => {
         appLogger.error('auth_callback_session_failed', { error: err, route: '/auth/callback' });

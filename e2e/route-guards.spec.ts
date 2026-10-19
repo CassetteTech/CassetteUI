@@ -61,7 +61,7 @@ test.describe('route guards and auth redirects', () => {
     await expect(secondTab).toHaveURL('/promote/new');
   });
 
-  test('sends onboarded Google callback users to their profile when no redirect is stored', async ({
+  test('sends onboarded Google callback users to Curator Studio when no redirect is stored', async ({
     page,
   }) => {
     await mockCassetteApp(page, {
@@ -69,7 +69,7 @@ test.describe('route guards and auth redirects', () => {
     });
 
     await page.goto('/auth/google/callback');
-    await expect(page).toHaveURL(/\/profile\/miagroove(?:\?tab=playlists)?$/);
+    await expect(page).toHaveURL('/studio/music');
   });
 
   test('sends newcomer Google callback users into onboarding', async ({ page }) => {

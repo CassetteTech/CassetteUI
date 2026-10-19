@@ -120,7 +120,7 @@ export default function ResetPasswordPage() {
     setClientError(null);
     updatePassword(password, {
       onSuccess: () => {
-        router.replace('/profile');
+        router.replace('/studio');
       },
     });
   };

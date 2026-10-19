@@ -67,7 +67,7 @@ export default function GoogleCallbackPage() {
           return;
         }
 
-        router.push('/profile');
+        router.push('/studio');
       };
 
       try {

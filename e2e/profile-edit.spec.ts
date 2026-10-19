@@ -16,9 +16,9 @@ test('redirects /profile and persists profile edits and music service preference
     currentUser: fixtureUsers.member,
   });
 
-  // The own-profile shortcut is Curator Studio, the curator's home.
+  // The own-profile shortcut is the public profile; Curator Studio has its own links.
   await page.goto('/profile');
-  await expect(page).toHaveURL('/studio/music');
+  await expect(page).toHaveURL('/profile/miagroove');
 
   await page.goto('/profile/miagroove/edit');
   const profileMain = page.getByRole('main').last();

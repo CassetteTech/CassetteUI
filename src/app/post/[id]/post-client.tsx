@@ -19,7 +19,7 @@ import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
-import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
+import { OPEN_COMMENTS_PARAMETER, PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
 import { PostStudioColumn, PostStudioSheet } from '@/components/features/post/post-studio-panel';
 import { EditPostModal, type PostChanges } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
@@ -60,6 +60,7 @@ import { captureUiException } from '@/lib/observability/error-reporting';
 import { ApiConnectionError } from '@/utils/api-connection-error';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
 import { tryStorage } from '@/lib/best-effort';
+import { removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { listProgress, statsSlideUnderLid, titleUnder, trackCounterText, trackStatsUnderLid } from '@/components/features/post/toolbar-scroll';
 
 function PostFoot({
@@ -230,6 +231,12 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   // Outlasts the sheet's `data-[state=closed]:duration-280` slide-out, so the
   // outgoing panel finishes before the incoming one starts.
   const PANEL_SWITCH_DELAY_MS = 320;
+
+  useEffect(() => {
+    if (searchParams.get(OPEN_COMMENTS_PARAMETER) !== '1') return;
+    removeQueryParametersFromRouter(OPEN_COMMENTS_PARAMETER);
+    setCommentsSheetOpen(true);
+  }, [searchParams]);
 
   const handleOpenComments = useCallback(() => {
     if (panelSwitchTimeoutRef.current) {

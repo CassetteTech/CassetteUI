@@ -175,6 +175,29 @@ test('Follow from the post follows once and hands focus to the Following label',
   expect(followReads(state)).toEqual([]);
 });
 
+for (const cachedFollowing of [true, false]) {
+  test(`a fresh post summary replaces a cached follow state that says ${cachedFollowing ? 'following' : 'not following'}`, async ({ page }) => {
+    const { state } = await mockCassetteApp(page, {
+      currentUser: fixtureUsers.viewer,
+      curatorPage: fixtureCuratorPage,
+      membershipStatus: fixtureNoMembershipStatus,
+      curatorFollows: cachedFollowing ? [CURATOR_ID] : [],
+      posts: [{ ...postBy(curator), postId: 'post-curator-public' }],
+    });
+    await page.goto(CURATOR_PATH);
+    await expect(cachedFollowing ? following(page) : followButton(page)).toBeVisible();
+
+    // Another tab changes the follow; the curator page's cached state is now stale.
+    if (cachedFollowing) state.curatorFollows.delete(CURATOR_ID);
+    else state.curatorFollows.add(CURATOR_ID);
+    await page.locator('h3:visible').filter({ hasText: 'Sunday Morning Selects' }).first().click();
+    await expect(page).toHaveURL(/\/post\/post-curator-public/);
+
+    await expect(cachedFollowing ? followButton(page) : following(page)).toBeVisible();
+    await expect(cachedFollowing ? following(page) : followButton(page)).toHaveCount(0);
+  });
+}
+
 test('a signed-out Follow returns to the post and follows once', async ({ page }) => {
   const { state } = await mockCassetteApp(page, { posts: [postBy(curator)] });
   await page.goto(POST_PATH);

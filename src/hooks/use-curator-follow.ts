@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
@@ -76,10 +76,18 @@ export function useCuratorFollow(
     queryKey: curatorFollowQueryKey(curatorId, viewerId),
     queryFn: ({ signal }) => fetchCuratorFollow(curatorId, signal),
     enabled: curatorId !== '' && viewerId !== null && !isOwner && reportedRelationship === undefined,
-    placeholderData: reportedRelationship ?? undefined,
     staleTime: 0,
     retry: 1,
   });
+  // Each new report replaces the cached relationship once, so it wins over an older cached read
+  // (from another page, before a change in another tab), and a later Follow or Unfollow wins over it.
+  const [appliedReport, setAppliedReport] = useState<CuratorFollowState | null>(null);
+  const unappliedReport = reportedRelationship && reportedRelationship !== appliedReport ? reportedRelationship : null;
+  useLayoutEffect(() => {
+    if (!unappliedReport || viewerId === null) return;
+    queryClient.setQueryData(curatorFollowQueryKey(curatorId, viewerId), unappliedReport);
+    setAppliedReport(unappliedReport);
+  }, [curatorId, queryClient, unappliedReport, viewerId]);
   const write = useMutation({
     mutationFn: ({ following }: { following: boolean; viewerId: string }) => setCuratorFollow(curatorId, following),
     onSuccess: async (state, { viewerId: startedBy }) => {
@@ -97,7 +105,7 @@ export function useCuratorFollow(
   const { mutate } = write;
 
   const returnHandled = useRef(false);
-  const knownRelationship = relationship.data;
+  const knownRelationship = unappliedReport ?? relationship.data;
   useEffect(() => {
     if (!returning || returnHandled.current || curatorId === '' || authLoading) return;
     if (!viewerId) {

@@ -204,3 +204,59 @@ test('restores a reply to a nested comment, with its thread open, after sign-in'
   await expect(sheet.locator('p', { hasText: 'Welcome to the club.' })).toBeVisible();
   expect(await storedDrafts(page)).toBe(0);
 });
+
+test('keeps a failed main comment, not the open reply editor, through sign-in', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, { currentUser: fixtureUsers.member, posts: [fixturePosts.publicTrack] });
+  await serveComments(page, [existingComment], 1);
+
+  await page.goto(POST_PATH);
+  await page.getByRole('button', { name: /Open comments/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Comments' });
+  await sheet.locator('.group', { hasText: 'This one is on repeat.' }).getByRole('button', { name: 'Reply' }).click();
+  await expect(sheet.getByPlaceholder('Reply to cratekeeper...')).toBeVisible();
+  const composer = sheet.getByPlaceholder('Share your thoughts...');
+  await composer.fill('My main thought.');
+  await sheet.getByRole('button', { name: 'Comment', exact: true }).click();
+  await expect(sheet.getByRole('alert')).toBeVisible();
+  await expect(sheet.getByPlaceholder('Reply to cratekeeper...')).toBeVisible();
+  await composer.fill('My main thought, edited.');
+
+  await signInAgain(page, state, fixtureUsers.member);
+  await expect(composer).toHaveValue('My main thought, edited.');
+  await expect(sheet.getByPlaceholder('Reply to cratekeeper...')).toHaveCount(0);
+});
+
+test('drops a late 401 when the page changes account before it arrives', async ({ page }) => {
+  await page.clock.install();
+  const { state } = await mockCassetteApp(page, { currentUser: fixtureUsers.member, posts: [fixturePosts.publicTrack] });
+  let release = () => {};
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(/\/api\/v1\/social\/posts\/[^/]+\/comments$/, async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    await held;
+    return route.fulfill({ status: 401, json: { message: 'Unauthorized' } });
+  });
+
+  await page.goto(POST_PATH);
+  await page.getByRole('button', { name: /Open comments/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Comments' });
+  const composer = sheet.getByPlaceholder('Share your thoughts...');
+  await composer.fill('A note only Mia should see.');
+  // Ages the session check first, so the request's own timeout does not fire during the jump.
+  await page.clock.fastForward(61_000);
+  const failed = page.waitForResponse((response) => response.request().method() === 'POST'
+    && new URL(response.url()).pathname.endsWith('/comments'));
+  await sheet.getByRole('button', { name: 'Comment', exact: true }).click();
+
+  state.currentUser = fixtureUsers.viewer;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.getByTestId('navbar-account-link')).toHaveAccessibleName(/Sam Loops/);
+
+  release();
+  expect((await failed).status()).toBe(401);
+  await page.waitForTimeout(500);
+  await expect(composer).toHaveValue('');
+  await expect(sheet.getByRole('alert')).toHaveCount(0);
+  await expect(sheet.getByText('A note only Mia should see.')).toHaveCount(0);
+  expect(await storedDrafts(page)).toBe(0);
+});

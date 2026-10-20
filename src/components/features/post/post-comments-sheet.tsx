@@ -38,6 +38,7 @@ import { z } from 'zod';
 import { appLogger } from '@/lib/observability/logger';
 import { ignoreFailure, tryStorage } from '@/lib/best-effort';
 import { browserHandoffPath } from '@/utils/profile-action-intent';
+import { isCurrentAccount } from '@/stores/auth-store';
 
 const COMMENT_MAX_LENGTH = 2000;
 const CHAR_WARNING_THRESHOLD = 200;
@@ -74,8 +75,8 @@ export function PostCommentsSheet({
   const signInHref = browserHandoffPath(`${pathname}?${OPEN_COMMENTS_PARAMETER}=1`);
   const signedIn = Boolean(currentUserId);
   const [sessionEnded, setSessionEnded] = useState(false);
-  // The account whose unposted text is kept in storage until it posts.
-  const [draftOwner, setDraftOwner] = useState<string | null>(null);
+  // The failed comment or reply whose text is kept in storage, for its account, until it posts.
+  const [recovery, setRecovery] = useState<{ userId: string; parentCommentId: string | null } | null>(null);
 
   const [comments, setComments] = useState<PostComment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -370,13 +371,13 @@ export function PostCommentsSheet({
   }, [hasLoaded, loadComments]);
 
   // A comment written when the session ends waits here through sign-in.
-  const keepDraft = useCallback(() => {
+  const keepDraft = useCallback((userId: string | undefined, parentCommentId: string | null) => {
     setSessionEnded(true);
-    setDraftOwner(currentUserId ?? null);
-  }, [currentUserId]);
+    setRecovery(userId ? { userId, parentCommentId } : null);
+  }, []);
   const forgetDraft = useCallback(() => {
     setSessionEnded(false);
-    setDraftOwner(null);
+    setRecovery(null);
     tryStorage(() => sessionStorage.removeItem(draftKey(postId)), undefined);
   }, [postId]);
 
@@ -387,7 +388,8 @@ export function PostCommentsSheet({
     previousAccount.current = currentUserId;
     draftChecked.current = false;
     setSessionEnded(false);
-    setDraftOwner(null);
+    setRecovery(null);
+    setComments((prev) => prev.filter((c) => !c.commentId.startsWith('temp-')));
     setNewComment('');
     setReplyingToCommentId(null);
     setReplyContent('');
@@ -406,8 +408,8 @@ export function PostCommentsSheet({
       return;
     }
     const draft = parsed.data;
-    setDraftOwner(currentUserId);
     const target = comments.find((c) => c.commentId === draft.parentCommentId);
+    setRecovery({ userId: currentUserId, parentCommentId: target ? target.commentId : null });
     if (!target) {
       setNewComment(draft.content);
       return;
@@ -429,12 +431,14 @@ export function PostCommentsSheet({
     setVisibleRepliesCount((prev) => ({ ...prev, ...counts }));
   }, [comments, currentUserId, hasLoaded, postId]);
 
-  const recoveryContent = replyingToCommentId ? replyContent : newComment;
+  const recoveryContent = !recovery ? ''
+    : recovery.parentCommentId === null ? newComment
+      : recovery.parentCommentId === replyingToCommentId ? replyContent : '';
   useEffect(() => {
-    if (!draftOwner || !recoveryContent.trim()) return;
-    const draft = { userId: draftOwner, content: recoveryContent, parentCommentId: replyingToCommentId };
+    if (!recovery || recovery.userId !== currentUserId || !recoveryContent.trim()) return;
+    const draft = { ...recovery, content: recoveryContent };
     tryStorage(() => sessionStorage.setItem(draftKey(postId), JSON.stringify(draft)), undefined);
-  }, [draftOwner, postId, recoveryContent, replyingToCommentId]);
+  }, [currentUserId, postId, recovery, recoveryContent]);
 
   const handleCreate = useCallback(async () => {
     const content = newComment.trim();
@@ -442,6 +446,7 @@ export function PostCommentsSheet({
     if (!content) return;
     if (content.length > COMMENT_MAX_LENGTH) { toast.error(`Comments can be up to ${COMMENT_MAX_LENGTH} characters.`); return; }
 
+    const startedBy = currentUserId;
     const optimisticId = `temp-${Date.now()}`;
     const optimisticComment: PostComment = {
       commentId: optimisticId, postId, parentCommentId: null,
@@ -457,14 +462,16 @@ export function PostCommentsSheet({
     try {
       const created = await apiService.createPostComment(postId, content);
       setComments((prev) => prev.map((item) => (item.commentId === optimisticId ? created : item)));
+      if (!isCurrentAccount(startedBy)) return;
       forgetDraft();
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } catch (error) {
       setComments((prev) => prev.filter((item) => item.commentId !== optimisticId));
+      if (!isCurrentAccount(startedBy)) return;
       if (error instanceof ApiError && error.status === 403) toast.error('Comments are turned off for this post.');
       else if (error instanceof ApiError && error.status === 401) {
         setNewComment((current) => current || content);
-        keepDraft();
+        keepDraft(startedBy, null);
       }
       else toast.error('Failed to add comment.');
     } finally {
@@ -480,6 +487,7 @@ export function PostCommentsSheet({
     if (!content) return;
     if (content.length > COMMENT_MAX_LENGTH) { toast.error(`Replies can be up to ${COMMENT_MAX_LENGTH} characters.`); return; }
 
+    const startedBy = currentUserId;
     const optimisticId = `temp-reply-${Date.now()}`;
     const optimisticReply: PostComment = {
       commentId: optimisticId, postId: parentComment.postId, parentCommentId: parentComment.commentId,
@@ -500,15 +508,17 @@ export function PostCommentsSheet({
     try {
       const created = await apiService.replyToPostComment(parentComment.commentId, content);
       setComments((prev) => prev.map((item) => (item.commentId === optimisticId ? created : item)));
+      if (!isCurrentAccount(startedBy)) return;
       forgetDraft();
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } catch (error) {
       setComments((prev) => prev.filter((item) => item.commentId !== optimisticId));
+      if (!isCurrentAccount(startedBy)) return;
       if (error instanceof ApiError && error.status === 403) toast.error('Comments are turned off for this post.');
       else if (error instanceof ApiError && error.status === 401) {
         setReplyingToCommentId(parentComment.commentId);
         setReplyContent(content);
-        keepDraft();
+        keepDraft(startedBy, parentComment.commentId);
       }
       else toast.error('Failed to add reply.');
     } finally {

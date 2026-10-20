@@ -46,6 +46,8 @@ import { ArtworkImage, preloadArtwork } from '@/components/ui/artwork-image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
 import { refusedMembersOnlyPostSchema } from '@/services/profile';
+import { authRedirectService, buildAuthPath } from '@/utils/auth-redirect';
+import { pendingActionService } from '@/utils/pending-action';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { AlertCircle, MoreVertical, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react';
@@ -226,7 +228,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   useEffect(() => {
     if (initialArtwork) void prepareVisuals(initialArtwork);
   }, [initialArtwork, prepareVisuals]);
-  const handleSignupClick = () => router.push('/auth/signup');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [imageError, setImageError] = useState(false);
 
@@ -500,6 +501,31 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       ? normalizedPrivacy
       : 'public';
   const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && (isPublicPost || hasReposted));
+  const returnPath = `/post/${encodeURIComponent(postData?.postId || postId)}`;
+
+  // Sign-up returns to this post. An ownerless post, such as a signed-out
+  // conversion, is also saved to the account the visitor signs in with.
+  const handleSignupClick = () => {
+    if (!hasOwner) {
+      pendingActionService.save(pendingActionService.createAddToProfileAction(postData?.postId || postId));
+    }
+    router.push(buildAuthPath('/auth/signup', returnPath));
+  };
+
+  // After sign-up, the save selected while signed out runs once, for this post
+  // only. It is consumed before it runs, so a reload or a later account in this
+  // tab cannot repeat it; the existing pending action expires after 10 minutes.
+  const saveResumeAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (saveResumeAttemptedRef.current || !postData?.postId || !user?.isOnboarded) return;
+    const pendingAction = pendingActionService.get();
+    if (pendingAction?.type !== 'add_to_profile' || pendingAction.postId !== postData.postId) return;
+
+    saveResumeAttemptedRef.current = true;
+    pendingActionService.clear();
+    if (authRedirectService.get() === pendingAction.returnUrl) authRedirectService.clear();
+    if (showAddToProfile) handleAddToProfile();
+  }, [handleAddToProfile, postData?.postId, showAddToProfile, user?.isOnboarded]);
 
   const handleToggleLike = useCallback(async () => {
     const currentPostId = postData?.postId || postId;
@@ -1565,6 +1591,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onOpenChange={setLikeAuthPromptOpen}
         title="Sign in to like posts"
         description="Create an account or sign in to like posts and keep track of your favorites."
+        returnPath={returnPath}
       />
 
       {postData?.username && hasPostOwner && (

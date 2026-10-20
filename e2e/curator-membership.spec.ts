@@ -345,7 +345,7 @@ test('a return URL alone does not read the session again', async ({ page }) => {
   const sessionReads = trackSessionReads(page);
 
   await page.goto(`${CURATOR_PATH}?membership=return`);
-  await expect(joinControl(page)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Confirming your payment' }).filter({ visible: true })).toBeFocused();
   await page.clock.runFor(5_000);
   await page.waitForTimeout(300);
   expect(sessionReads).toHaveLength(1);

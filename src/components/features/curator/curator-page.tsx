@@ -40,7 +40,11 @@ import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
 import { Button } from '@/components/ui/button';
 import { listTabsRowClassName } from '@/components/ui/list-tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CuratorMembershipCard, MEMBERSHIP_OFFER_ID } from '@/components/features/curator/curator-membership-card';
+import {
+  CuratorMembershipCard,
+  MEMBERSHIP_OFFER_ID,
+  type UnlockedPost,
+} from '@/components/features/curator/curator-membership-card';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
 import { CarriedActionConfirmation } from '@/components/features/curator/carried-action-confirmation';
@@ -108,6 +112,8 @@ export function PublicCuratorPage({
   const viewerKey = authLoading ? null : (user?.id ?? 'anonymous');
   const query = useCuratorPage(username, viewerKey, curatorPageFilterOf(view));
   const page = query.data?.pages[0];
+  const [activated, setActivated] = useState(false);
+  const unlocked = useCuratorPage(username, activated ? viewerKey : null, curatorPageFilterOf('members'));
   const [interval, setBillingInterval] = useState(initialInterval);
   const [pollStatus, setPollStatus] = useState(membershipFlow === 'return' || membershipFlow === 'portal-return');
   const [notice, setNotice] = useState<string | null>(
@@ -117,7 +123,6 @@ export function PublicCuratorPage({
   const [checkoutPending, setCheckoutPending] = useState(false);
   const [portalPending, setPortalPending] = useState(false);
   const [pollTimedOut, setPollTimedOut] = useState(false);
-  const [activated, setActivated] = useState(false);
   const pageViewCaptured = useRef(false);
   const flowHandled = useRef(false);
   const portalReturn = useRef<PortalReturnReference | null>(null);
@@ -416,12 +421,19 @@ export function PublicCuratorPage({
     void startCheckout(page.membership.planId, page.curator.id, checkoutInterval, sourcePostId);
   };
 
+  const unlockedPosts = unlocked.data?.pages[0].posts.items.flatMap((item): UnlockedPost[] => item.kind === 'post' ? [{
+    postId: item.post.redirectPostId || item.post.postId,
+    title: item.post.title.trim() || `${item.post.elementType} post`,
+    elementType: item.post.elementType,
+    imageUrl: item.post.imageUrl,
+    createdAt: item.post.createdAt,
+  }] : []) ?? null;
   const items = query.data.pages.flatMap((result) => result.posts.items).map((item): ProfileMusicItem =>
     item.kind === 'locked' ? item : { kind: 'post', post: toMusicCardPost(item.post) });
   const displayName = page.curator.displayName?.trim() || page.curator.username;
   const showMembership = Boolean(page.membership || statusQuery.data?.membership?.canManage);
-  const bannerInterval = checkoutIntervalAvailable ? checkoutInterval : 'month';
-  const bannerPrice = page.membership && (bannerInterval === 'year'
+  const joinInterval = checkoutIntervalAvailable ? checkoutInterval : 'month';
+  const joinPrice = page.membership && (joinInterval === 'year'
     ? formatCuratorPlanPrice(
         page.membership.annualAmountMinor ?? 0,
         page.membership.annualServiceFeeMinor ?? 0,
@@ -438,24 +450,6 @@ export function PublicCuratorPage({
       <h1 className="sr-only" id={curatorNameId}>{displayName}</h1>
 
       <div className="grid gap-6">
-        {page.membership && !page.viewer.isMember && (
-          <a
-            href={`#${membershipId}`}
-            data-testid="membership-banner"
-            className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 transition-colors hover:bg-primary/15 lg:hidden"
-          >
-            <span className="min-w-0 truncate text-sm font-semibold">
-              {page.membership.name}
-              <span className="font-normal tabular-nums text-muted-foreground">
-                {' · '}
-                {bannerPrice}/{bannerInterval}
-              </span>
-            </span>
-            <span className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
-              View membership
-            </span>
-          </a>
-        )}
         <ProfileMusic
           id={musicId}
           views={curatorMusicViews(page, view)}
@@ -481,12 +475,14 @@ export function PublicCuratorPage({
             displayName={displayName}
             membershipId={membershipId}
             feedHeadingId={musicId}
-            interval={bannerInterval}
+            interval={joinInterval}
             status={statusQuery.data ?? null}
             statusLoading={statusQuery.isPending}
             statusUnavailable={statusQuery.isError}
             authenticated={isAuthenticated}
             activated={activated}
+            confirming={membershipFlow === 'return' && pollStatus}
+            unlockedPosts={unlockedPosts}
             notice={notice}
             error={actionError}
             checkoutPending={checkoutPending}
@@ -515,9 +511,9 @@ export function PublicCuratorPage({
             onDismiss={() => setConfirmingJoin(false)}
             onConfirm={join}
             title={`Join ${displayName}?`}
-            description={`${page.membership.name} · ${bannerPrice}/${bannerInterval}. You review and pay on the next page.`}
+            description={`${page.membership.name} · ${joinPrice}/${joinInterval}. You review and pay on the next page.`}
             confirmLabel="Continue to payment"
-            returnFocusSelector='[data-testid="membership-join"]'
+            returnFocusSelector='[data-testid="membership-join"], [data-testid="membership-compact-join"]'
           />
         )}
       </div>
@@ -582,6 +578,28 @@ export function CuratorPageSkeleton() {
         </div>
       </div>
       <ActivitySkeleton count={6} />
+    </div>
+  );
+}
+
+/** The phone membership pass while the curator page loads: the plan line with Join, then Plan details. */
+export function MembershipPassSkeleton() {
+  return (
+    <div aria-hidden className="px-4 pt-4 sm:px-6 lg:hidden">
+      <div className="card-quiet p-4">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex h-[1.375rem] items-center"><Skeleton className="h-4 w-28" /></div>
+            <div className="flex h-[1.203125rem] items-center"><Skeleton className="h-3 w-44" /></div>
+          </div>
+          <Skeleton className="h-9 w-16 shrink-0" />
+        </div>
+        <div className="-mx-4 -mb-4 mt-4 border-t border-border/70">
+          <div className="flex h-11 items-center px-4">
+            <Skeleton className="h-3.5 w-24" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

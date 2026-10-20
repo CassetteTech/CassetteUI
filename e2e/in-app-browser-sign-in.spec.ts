@@ -27,6 +27,8 @@ const PHONE = { width: 390, height: 844 };
 const googleButton = (page: Page) => page.getByRole('button', { name: 'Continue with Google' });
 const inAppStep = (page: Page) => page.getByTestId('in-app-browser-sign-in').filter({ visible: true });
 const confirmation = (page: Page) => page.getByTestId('carried-action-confirmation');
+// On a phone the curator page shows the compact pass and its Join.
+const joinButton = (page: Page) => page.getByTestId('membership-compact-join');
 
 async function recordClipboard(page: Page) {
   await page.addInitScript(() => {
@@ -92,7 +94,7 @@ test.describe('inside the TikTok browser on Android', () => {
     });
 
     await page.goto(CURATOR_PATH);
-    await page.getByTestId('membership-join').click();
+    await joinButton(page).click();
 
     await expect(page).toHaveURL(/\/auth\/signin\?redirect=/);
     await expect(googleButton(page)).toHaveCount(0);
@@ -214,7 +216,7 @@ test.describe('in the device browser', () => {
     expect(state.membershipCheckoutRequests).toEqual([]);
 
     await confirmation(page).getByRole('button', { name: 'Not now' }).click();
-    await expect(page.getByTestId('membership-join')).toBeFocused();
+    await expect(joinButton(page)).toBeFocused();
     await page.getByRole('tab', { name: /Liked/ }).click();
     await page.getByRole('tab', { name: 'Music' }).click();
     await expect(page).toHaveURL(CURATOR_PATH);
@@ -244,13 +246,13 @@ test.describe('in the device browser', () => {
 
     await page.goto(`${CURATOR_PATH}?intent=join&interval=month`);
     await confirmation(page).getByRole('button', { name: 'Continue to payment' }).click();
-    const join = page.getByTestId('membership-join');
+    const join = joinButton(page);
     await expect(join).toHaveAttribute('aria-disabled', 'true');
     await expect(join).toBeFocused();
     await page.keyboard.press('Enter');
 
     release();
-    await expect(page.getByText('We could not start secure Checkout. Try again.')).toBeVisible();
+    await expect(page.getByText('We could not start secure Checkout. Try again.').filter({ visible: true })).toBeVisible();
     await expect(join).toBeFocused();
     expect(checkoutCalls).toBe(1);
   });

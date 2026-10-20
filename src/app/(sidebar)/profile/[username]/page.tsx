@@ -28,7 +28,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
-import { CuratorPageSkeleton, PublicCuratorPage } from '@/components/features/curator/curator-page';
+import { CuratorPageSkeleton, MembershipPassSkeleton, PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { CuratorFollowConfirmation, CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
 import { useCuratorPage } from '@/hooks/use-curator';
 import { useCuratorFollow } from '@/hooks/use-curator-follow';
@@ -382,19 +382,22 @@ export default function ProfilePage() {
         showLikedTab={likedSectionVisible}
       />
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:px-8 lg:pt-6 lg:pb-10">
-        <div className="min-w-0 px-4 py-6 sm:px-6 lg:p-0">
-          {content}
-        </div>
         {/* One pass in the rail: the membership pass by portal when the curator sells one, else
             the profile pass. The has() guard covers a lapsed member whose manage pass arrives late.
-            The top offset clears the sticky tab strip, so the pass holds still across tabs. */}
-        <div className="group lg:sticky lg:top-[5.25rem]">
+            The top offset clears the sticky tab strip, so the pass holds still across tabs. The rail
+            comes first in the document, so on a phone the pass sits above the posts in reading and
+            keyboard order; the grid places it in the right column on desktop. */}
+        <div className="group lg:sticky lg:top-[5.25rem] lg:col-start-2 lg:row-start-1">
           {curatorMusic && (
             <aside
               ref={setMembershipSlot}
               aria-label="Membership"
-              className="membership-slot empty:hidden px-4 pb-6 sm:px-6 sm:pb-8 lg:p-0"
+              className="membership-slot empty:hidden px-4 pt-4 sm:px-6 lg:p-0"
             />
+          )}
+          {/* The curator page renders the pass once the profile also loads; until then its box holds the place. */}
+          {curatorMusic && (curatorQuery.isPending || (Boolean(curatorPage?.membership) && !userBio)) && (
+            <MembershipPassSkeleton />
           )}
           {userBio && !showMembershipRail && (
             <ProfileIdentityPass
@@ -402,6 +405,9 @@ export default function ProfilePage() {
               className="hidden lg:block group-has-[.membership-slot:not(:empty)]:hidden"
             />
           )}
+        </div>
+        <div className="min-w-0 px-4 py-6 sm:px-6 lg:col-start-1 lg:row-start-1 lg:p-0">
+          {content}
         </div>
       </div>
     <CuratorFollowConfirmation />

@@ -23,6 +23,7 @@ import { SidebarAccountRow, SidebarAccountRowSkeleton } from '@/components/layou
 import { NotificationMenu } from '@/components/layout/notification-menu';
 import { usePathname } from 'next/navigation';
 import { AuthLink } from '@/components/auth/auth-link';
+import { pendingActionService } from '@/utils/pending-action';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import {
   addMusicHrefForPage,
@@ -229,7 +230,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <SidebarGroupContent>
               <div className="p-4 space-y-3">
                 <Button asChild className="w-full">
-                  <AuthLink authPath="/auth/signup">
+                  <AuthLink authPath="/auth/signup" onClick={() => pendingActionService.saveOwnerlessPostForSignup()}>
                     Sign Up
                   </AuthLink>
                 </Button>

@@ -503,12 +503,15 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && (isPublicPost || hasReposted));
   const returnPath = `/post/${encodeURIComponent(postData?.postId || postId)}`;
 
-  // Sign-up returns to this post. An ownerless post, such as a signed-out
-  // conversion, is also saved to the account the visitor signs in with.
+  // Sign-up from any entry point returns to this post. A loaded post with no owner,
+  // such as a signed-out conversion, is also saved to the account the visitor signs in with.
+  const ownerlessPostId = postData && !hasOwner ? postData.postId || postId : null;
+  useEffect(() => {
+    pendingActionService.setOwnerlessPostOnScreen(ownerlessPostId);
+    return () => pendingActionService.setOwnerlessPostOnScreen(null);
+  }, [ownerlessPostId]);
   const handleSignupClick = () => {
-    if (!hasOwner) {
-      pendingActionService.save(pendingActionService.createAddToProfileAction(postData?.postId || postId));
-    }
+    pendingActionService.saveOwnerlessPostForSignup();
     router.push(buildAuthPath('/auth/signup', returnPath));
   };
 

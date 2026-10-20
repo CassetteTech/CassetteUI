@@ -43,6 +43,9 @@ const storedActionSchema = z.discriminatedUnion('type', [
 
 const postReturnPath = (postId: string) => `/post/${encodeURIComponent(postId)}`;
 
+// The loaded post on screen that has no owner. Every sign-up entry point offers to save it.
+let ownerlessPostOnScreen: string | null = null;
+
 // The local path for a stored return URL. Playlist actions store the full
 // page URL, so a same-origin URL becomes its path; the sign-in redirect rules
 // then decide whether the path is safe.
@@ -115,6 +118,15 @@ export const pendingActionService = {
       returnUrl,
       timestamp: Date.now(),
     };
+  },
+
+  setOwnerlessPostOnScreen(postId: string | null): void {
+    ownerlessPostOnScreen = postId;
+  },
+
+  /** Records the save of the ownerless post on screen, if any, for the account about to sign up. */
+  saveOwnerlessPostForSignup(): void {
+    if (ownerlessPostOnScreen) this.save(this.createAddToProfileAction(ownerlessPostOnScreen));
   },
 
   createAddToProfileAction(postId: string): PendingAddToProfileAction {

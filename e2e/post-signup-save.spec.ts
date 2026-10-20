@@ -43,14 +43,8 @@ function trackPostCreates(page: Page) {
 
 const pendingAction = (page: Page) => page.evaluate((key) => sessionStorage.getItem(key), PENDING_ACTION_KEY);
 
-test('saves a signed-out conversion to the new account after onboarding and returns to the post', async ({ page }) => {
-  const creates = trackPostCreates(page);
-  await mockCassetteApp(page, { googleAuthUser: fixtureUsers.newcomer, posts: [anonymousConversion] });
-
-  await page.goto(POST_PATH);
-  await page.getByRole('button', { name: 'Sign up free' }).filter({ visible: true }).click();
-  await expect(page).toHaveURL(`/auth/signup?redirect=${encodeURIComponent(POST_PATH)}`);
-
+/** A new account from the sign-up page through the last onboarding step. */
+async function signUpThroughOnboarding(page: Page) {
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page).toHaveURL('/onboarding');
   await page.getByTestId('onboarding-start').click();
@@ -61,16 +55,71 @@ test('saves a signed-out conversion to the new account after onboarding and retu
   await page.getByTestId('avatar-crop-apply').click();
   await page.getByTestId('onboarding-avatar-next').click();
   await page.getByTestId('onboarding-finish-setup').click();
+}
 
+async function expectOneSave(page: Page, creates: string[]) {
   await expect(page).toHaveURL(POST_PATH);
   await expect(page.getByTestId('post-add-to-profile').filter({ visible: true })).toContainText('Added to Profile');
   expect(creates).toEqual([anonymousConversion.musicElementId]);
   expect(await pendingAction(page)).toBeNull();
+}
+
+test('saves a signed-out conversion to the new account after onboarding and returns to the post', async ({ page }) => {
+  const creates = trackPostCreates(page);
+  await mockCassetteApp(page, { googleAuthUser: fixtureUsers.newcomer, posts: [anonymousConversion] });
+
+  await page.goto(POST_PATH);
+  await page.getByRole('button', { name: 'Sign up free' }).filter({ visible: true }).click();
+  await expect(page).toHaveURL(`/auth/signup?redirect=${encodeURIComponent(POST_PATH)}`);
+
+  await signUpThroughOnboarding(page);
+  await expectOneSave(page, creates);
 
   // The intent was consumed: a reload saves nothing again.
   await page.reload();
   await expect(page.getByTestId('post-add-to-profile').filter({ visible: true })).toBeVisible();
   expect(creates).toHaveLength(1);
+});
+
+test('saves the conversion after sign-up from the header Sign Up button', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const creates = trackPostCreates(page);
+  await mockCassetteApp(page, { googleAuthUser: fixtureUsers.newcomer, posts: [anonymousConversion] });
+
+  await page.goto(POST_PATH);
+  await expect(page.getByTestId('post-add-to-profile')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sign up free' }).filter({ visible: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Sign Up', exact: true }).filter({ visible: true }).click();
+  await expect(page).toHaveURL(`/auth/signup?redirect=${encodeURIComponent(POST_PATH)}`);
+
+  await signUpThroughOnboarding(page);
+  await expectOneSave(page, creates);
+});
+
+test('saves the conversion after sign-up from the phone menu', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const creates = trackPostCreates(page);
+  await mockCassetteApp(page, { googleAuthUser: fixtureUsers.newcomer, posts: [anonymousConversion] });
+
+  await page.goto(POST_PATH);
+  await expect(page.getByRole('button', { name: 'Sign up free' }).filter({ visible: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.locator('#mobile-menu-panel').getByRole('link', { name: 'Sign Up', exact: true }).click();
+  await expect(page).toHaveURL(`/auth/signup?redirect=${encodeURIComponent(POST_PATH)}`);
+
+  await signUpThroughOnboarding(page);
+  await expectOneSave(page, creates);
+});
+
+test('records no save from the header Sign Up button on an owned post', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockCassetteApp(page, { posts: [fixturePosts.publicTrack] });
+
+  await page.goto('/post/post-public-track');
+  await expect(page.getByRole('button', { name: 'Like post' }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Sign Up', exact: true }).filter({ visible: true }).click();
+  await expect(page).toHaveURL(`/auth/signup?redirect=${encodeURIComponent('/post/post-public-track')}`);
+  expect(await pendingAction(page)).toBeNull();
 });
 
 test('saves once for an existing account that signs in from the sign-up offer', async ({ page }) => {

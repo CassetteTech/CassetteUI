@@ -15,6 +15,7 @@ import { NavigationLinks } from './navigation-links';
 import { cn } from '@/lib/utils';
 import { buildAuthPath, currentLocalPath } from '@/utils/auth-redirect';
 import { AuthLink } from '@/components/auth/auth-link';
+import { pendingActionService } from '@/utils/pending-action';
 import Image from 'next/image';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { NotificationMenu } from './notification-menu';
@@ -177,7 +178,10 @@ export function Navbar() {
                 </AuthLink>
                 <AnimatedPrimaryButton
                   text="Sign Up"
-                  onClick={() => window.location.href = buildAuthPath('/auth/signup', currentLocalPath())}
+                  onClick={() => {
+                    pendingActionService.saveOwnerlessPostForSignup();
+                    window.location.href = buildAuthPath('/auth/signup', currentLocalPath());
+                  }}
                   height={32}
                   width={80}
                   initialPos={2}

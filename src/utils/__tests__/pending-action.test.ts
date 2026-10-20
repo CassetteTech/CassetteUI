@@ -153,3 +153,21 @@ void test('a cleared action is not returned again', () => {
     assert.equal(pendingActionService.get(), null);
   });
 });
+
+void test('a sign-up entry point records only the ownerless post on screen', () => {
+  withSessionStorage((storage) => {
+    pendingActionService.saveOwnerlessPostForSignup();
+    assert.equal(storage.getItem(STORAGE_KEY), null, 'nothing on screen, nothing recorded');
+
+    pendingActionService.setOwnerlessPostOnScreen('post-1');
+    pendingActionService.saveOwnerlessPostForSignup();
+    const action = pendingActionService.get();
+    assert.equal(action?.type, 'add_to_profile');
+    assert.equal(action?.type === 'add_to_profile' ? action.postId : null, 'post-1');
+
+    pendingActionService.clear();
+    pendingActionService.setOwnerlessPostOnScreen(null);
+    pendingActionService.saveOwnerlessPostForSignup();
+    assert.equal(storage.getItem(STORAGE_KEY), null, 'a post that left the screen is not recorded');
+  });
+});

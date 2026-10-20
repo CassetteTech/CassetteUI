@@ -11,6 +11,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AuthLink } from '@/components/auth/auth-link';
+import { pendingActionService } from '@/utils/pending-action';
 import {
   addMusicHrefForPage,
   appNavOrder,
@@ -201,7 +202,10 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
             </AuthLink>
             <AuthLink
               authPath="/auth/signup"
-              onClick={onLinkClick}
+              onClick={() => {
+                pendingActionService.saveOwnerlessPostForSignup();
+                onLinkClick?.();
+              }}
               className={getItemClassName('account', false)}
             >
               <span>Sign Up</span>

@@ -674,16 +674,20 @@ const ListenLinks: React.FC<{
   );
 };
 
-const AuthorRow: React.FC<{ blueprint: Blueprint; next: () => number }> = ({ blueprint, next }) => {
+// Every poster has a curator page, so a visitor's author row ends in the compact Follow button,
+// and the narrower name row wraps "shared this" and the date onto a line of their own.
+const AuthorRow: React.FC<{ blueprint: Blueprint; next: () => number; follow: boolean }> = ({ blueprint, next, follow }) => {
   const { late } = blueprint;
   return (
     <>
       <div className="flex items-start gap-2.5">
         <Part draft={late} order={next()} delay={200} className="h-8 w-8 shrink-0 rounded-full" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-40" />
-          <TextLine draft={late} order={next()} delay={240} box="h-5" bar="h-3 w-48" />
+          <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-40 max-w-full" />
+          {follow && <TextLine draft={late} order={next()} delay={230} box="h-4" bar="h-2.5 w-24" />}
+          <TextLine draft={late} order={next()} delay={240} box="h-5" bar="h-3 w-48 max-w-full" />
         </div>
+        {follow && <Part draft={late} order={next()} delay={250} className="h-8 w-[84px] shrink-0 rounded-md" />}
       </div>
       {/* PostEngagementBar: a pill of two buttons, taller from the sm breakpoint. */}
       <Part draft={late} order={next()} delay={260} className="h-[26px] w-28 self-start rounded-full sm:h-[34px]" />
@@ -868,7 +872,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
                 </ConversionBeam>
                 {showAuthor && (
                   <div className="flex flex-1 flex-col gap-2.5 p-5">
-                    <AuthorRow blueprint={blueprint} next={next} />
+                    <AuthorRow blueprint={blueprint} next={next} follow={!ownPost} />
                   </div>
                 )}
               </div>
@@ -901,7 +905,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
           {ownPost && <OwnerColumn blueprint={blueprint} next={next} className="self-center max-[1279px]:hidden" />}
           <div className="min-w-0 space-y-6 min-[1280px]:col-start-1">
             {showTracklist && <TracklistCard blueprint={blueprint} staged={staged} settled={settled} next={next} />}
-            <Foot blueprint={blueprint} next={next} offer={!ownPost} />
+            <Foot blueprint={blueprint} next={next} offer={!showAuthor} />
           </div>
         </div>
       </div>
@@ -986,7 +990,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
 
           {showAuthor && (
             <div {...draftProps(late, next(), 180, 'card-ink flex flex-col gap-1.5 px-3 py-2.5 sm:gap-2.5 sm:p-4')}>
-              <AuthorRow blueprint={blueprint} next={next} />
+              <AuthorRow blueprint={blueprint} next={next} follow={!ownPost} />
             </div>
           )}
         </div>
@@ -994,7 +998,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
 
       <div className="mt-3 space-y-3 text-center sm:mt-6 sm:space-y-6">
         {showTracklist && <TracklistCard blueprint={blueprint} staged={staged} settled={settled} next={next} compact />}
-        <Foot blueprint={blueprint} next={next} offer={!ownPost} />
+        <Foot blueprint={blueprint} next={next} offer={!showAuthor} />
       </div>
     </div>
   );

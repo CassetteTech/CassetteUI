@@ -90,3 +90,29 @@ void test('non-numeric counts and track numbers take the missing-value fallbacks
   assert.deepEqual(parsed.tracks?.map((t) => t.trackNumber), [1, 7]);
   assert.equal(parsePostResponse(post({ likeCount: 4, details: { trackCount: 9 }, numberOfTracks: 12 }), 'post-1').trackCount, 9);
 });
+
+void test('the curator summary is kept when well formed and dropped when absent or malformed', () => {
+  const curator = {
+    curatorProfileId: 'cpr_curator',
+    userId: '5f0c6c1e-1111-4a8b-9d6e-0c1d2e3f4a5b',
+    username: 'nightcurator',
+    displayName: 'Night Curator',
+    avatarUrl: null,
+    membership: {
+      planName: 'Night Notes',
+      amountMinor: 500,
+      serviceFeeMinor: 50,
+      currency: 'USD',
+      membersOnlyPostCount: 3,
+      viewerIsMember: false,
+    },
+  };
+
+  assert.deepEqual(parsePostResponse(post({ curator }), 'requested').curator, curator);
+  assert.deepEqual(
+    parsePostResponse(post({ curator: { ...curator, membership: null } }), 'requested').curator,
+    { ...curator, membership: null },
+  );
+  assert.equal(parsePostResponse(post(), 'requested').curator, undefined);
+  assert.equal(parsePostResponse(post({ curator: { username: 'nightcurator' } }), 'requested').curator, undefined);
+});

@@ -105,11 +105,16 @@ const sourcePostIdPattern = /^p_\d{14}_[0-9a-z]{14}$/;
 export const sourcePostIdOf = (value: string | null | undefined): string | undefined =>
   value && sourcePostIdPattern.test(value) ? value : undefined;
 
-/** The curator's membership offer; a Join from a post carries that post for attribution. */
-export function curatorMembershipHref(username: string, sourcePostId?: string): string {
+/**
+ * The curator's membership offer; a Join from a post carries that post for attribution. With
+ * `confirmJoin`, the curator page opens its monthly Join confirmation, signing the fan in first.
+ */
+export function curatorMembershipHref(username: string, sourcePostId?: string, confirmJoin = false): string {
+  const query = new URLSearchParams(confirmJoin ? { intent: 'join', interval: 'month' } : {});
   const source = sourcePostIdOf(sourcePostId);
-  const query = source ? `?${new URLSearchParams({ [SOURCE_POST_PARAM]: source })}` : '';
-  return `/profile/${encodeURIComponent(username)}${query}#${MEMBERSHIP_OFFER_ID}`;
+  if (source) query.set(SOURCE_POST_PARAM, source);
+  const search = query.toString();
+  return `/profile/${encodeURIComponent(username)}${search ? `?${search}` : ''}#${MEMBERSHIP_OFFER_ID}`;
 }
 
 /** The membership Checkout request body; the source post is sent only when it is well formed. */

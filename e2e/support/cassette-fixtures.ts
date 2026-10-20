@@ -7,6 +7,7 @@ import type { CuratorPlan as FixtureCuratorPlan } from '../../src/services/curat
 import type { CuratorProStatus as FixtureCuratorProStatus } from '../../src/services/curator-pro';
 import type { CuratorMemberStats } from '../../src/services/curator-member-stats';
 import type { MembershipStatusView } from '../../src/services/membership';
+import type { PostCurator } from '../../src/services/post-response';
 
 export interface FixtureSearchResults {
   tracks: Array<{
@@ -76,6 +77,8 @@ export interface FixturePost {
   paidPromotionCampaignId?: string | null;
   curatorId?: string | null;
   isMemberView?: boolean;
+  /** Bridge's summary of the curator behind the content; absent when the owner has no curator page. */
+  curator?: PostCurator;
   musicElementId: string;
   elementType: 'Track' | 'Album' | 'Artist' | 'Playlist';
   title: string;

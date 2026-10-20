@@ -701,6 +701,7 @@ export interface PostByIdResponse {
   paidPromotionCampaignId?: string | null;
   curatorId?: string | null;
   isMemberView?: boolean;
+  curator?: unknown;
   isRepost?: boolean;
   originalPostId?: string | null;
   repostedByCurrentUser?: boolean;

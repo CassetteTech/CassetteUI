@@ -19,6 +19,7 @@ import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
+import { PostCuratorFollow, PostCuratorJoin, postCuratorName } from '@/components/features/post/post-curator';
 import { PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
 import { PostStudioColumn, PostStudioSheet } from '@/components/features/post/post-studio-panel';
 import { EditPostModal, type PostChanges } from '@/components/features/post/edit-post-modal';
@@ -964,7 +965,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     onPrivacyChange: (privacy: PostPrivacy) => setPostData((prev) => (prev ? { ...prev, privacy } : prev)),
     conversionSuccessCount: ownerVisibleConversionCount,
   };
-  const showSignupCTA = !isLoading && !isAuthenticated;
+  const showSignupCTA = !isLoading && !isAuthenticated && !postData?.curator;
   const filteredGenres = (postData?.genres ?? []).filter(
     (genre) => genre.toLowerCase() !== 'music',
   );
@@ -1285,6 +1286,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                               <div className="relative z-20 flex flex-1 flex-col gap-2.5 p-5">
                                 <PostAuthorHeader
                                   username={postData.username}
+                                  displayName={postData.curator && postCuratorName(postData.curator)}
+                                  action={<PostCuratorFollow curator={postData.curator} postId={postData.postId || postId} isOwner={isOwnPost} />}
                                   description={postData?.description || ''}
                                   createdAt={postData?.createdAt}
                                   compact
@@ -1306,6 +1309,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                   onOpenStudio={handleOpenStudio}
                                   className="self-start"
                                 />
+                                <PostCuratorJoin curator={postData.curator} postId={postData.postId || postId} isOwner={isOwnPost} />
                               </div>
                             )}
                           </div>
@@ -1445,6 +1449,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 <div className="px-3 py-2.5 sm:p-4 card-ink flex flex-col gap-1.5 sm:gap-2.5 text-left relative z-20">
                   <PostAuthorHeader
                     username={postData.username}
+                    displayName={postData.curator && postCuratorName(postData.curator)}
+                    action={<PostCuratorFollow curator={postData.curator} postId={postData.postId || postId} isOwner={isOwnPost} />}
                     description={postData?.description || ''}
                     createdAt={postData?.createdAt}
                   />
@@ -1465,6 +1471,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     onOpenStudio={handleOpenStudio}
                     className="self-start"
                   />
+                  <PostCuratorJoin curator={postData.curator} postId={postData.postId || postId} isOwner={isOwnPost} />
                 </div>
               )}
             </div>

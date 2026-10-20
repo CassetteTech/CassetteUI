@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { ProfileLink } from '@/components/features/profile/profile-link';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { VerificationBadge } from '@/components/ui/verification-badge';
@@ -12,6 +13,10 @@ const AVATAR_FALLBACK_DELAY_MS = 600;
 
 interface PostAuthorHeaderProps {
   username: string;
+  /** Shown in place of the username, such as a curator's name. */
+  displayName?: string;
+  /** Sits at the end of the row, such as Follow. */
+  action?: ReactNode;
   description?: string;
   createdAt?: string;
   className?: string;
@@ -20,6 +25,8 @@ interface PostAuthorHeaderProps {
 
 export function PostAuthorHeader({
   username,
+  displayName,
+  action,
   description,
   createdAt,
   className,
@@ -61,7 +68,7 @@ export function PostAuthorHeader({
             username={username}
             className="font-atkinson font-bold text-foreground text-sm tracking-wide flex items-center gap-1 hover:underline decoration-foreground/40 underline-offset-2"
           >
-            {username}
+            {displayName || username}
             <VerificationBadge accountType={profileData?.accountType} size="sm" />
           </ProfileLink>
           <span className="font-atkinson text-xs text-muted-foreground tracking-wide">shared this</span>
@@ -79,6 +86,7 @@ export function PostAuthorHeader({
           </p>
         )}
       </div>
+      {action}
     </div>
   );
 }

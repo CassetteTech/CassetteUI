@@ -41,11 +41,12 @@ function signInToFollow(
   router: ReturnType<typeof useRouter>,
   curator: { id: string; username: string },
   returnQuery: string,
+  returnPathname: string | undefined,
 ) {
   tryStorage(() => sessionStorage.setItem(`${followIntentPrefix}${curator.id}`, String(Date.now())), undefined);
   const query = new URLSearchParams(returnQuery);
   query.set('follow', '1');
-  const returnPath = `/profile/${encodeURIComponent(curator.username)}?${query}`;
+  const returnPath = `${returnPathname ?? `/profile/${encodeURIComponent(curator.username)}`}?${query}`;
   router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
 }
 
@@ -53,6 +54,8 @@ export function useCuratorFollow(
   curator: { id: string; username: string; displayName: string } | null,
   isOwner: boolean,
   returnQuery: string,
+  /** Where a signed-out Follow returns after sign-in; the curator page when omitted. */
+  returnPathname?: string,
 ): CuratorFollow | null {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -118,7 +121,7 @@ export function useCuratorFollow(
       if (sessionError) return;
       carriedHandled.current = true;
       removeQueryParametersFromRouter('intent');
-      signInToFollow(router, { id: curatorId, username: curatorUsername }, returnQuery);
+      signInToFollow(router, { id: curatorId, username: curatorUsername }, returnQuery, returnPathname);
       return;
     }
     if (!isOwner && !knownRelationship) return;
@@ -134,6 +137,7 @@ export function useCuratorFollow(
     curatorUsername,
     isOwner,
     knownRelationship,
+    returnPathname,
     returnQuery,
     router,
     sessionError,
@@ -148,7 +152,7 @@ export function useCuratorFollow(
       mutate({ following, viewerId });
       return;
     }
-    signInToFollow(router, curator, returnQuery);
+    signInToFollow(router, curator, returnQuery, returnPathname);
   };
 
   let state: CuratorFollow['state'];

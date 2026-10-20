@@ -446,6 +446,7 @@ const toPostByIdResponse = (post: FixturePost) => ({
   paidPromotionCampaignId: post.paidPromotionCampaignId ?? null,
   curatorId: post.curatorId ?? null,
   isMemberView: post.isMemberView ?? false,
+  curator: post.curator,
   repostedByCurrentUser: post.repostedByCurrentUser || false,
   elementType: post.elementType,
   musicElementId: post.musicElementId,

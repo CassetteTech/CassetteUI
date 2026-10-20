@@ -147,7 +147,7 @@ export function CuratorPayoutCard({ nextStep }: { nextStep?: LaunchStep }) {
       testId="curator-payout-card"
       description={payoutsActive
         ? undefined
-        : 'Free, and no business or website is needed. Stripe confirms your identity and connects your bank account. It asks for your Social Security number because Cassette sends you a 1099 tax form.'}
+        : 'Payouts are for curators with a US bank account. Free, and no business or website is needed. Stripe confirms your identity and connects your bank account. It asks for your Social Security number because Cassette sends you a 1099 tax form.'}
     >
       <StudioNotice
         testId="curator-payout-notice"

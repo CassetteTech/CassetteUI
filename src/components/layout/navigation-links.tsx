@@ -10,7 +10,7 @@ import { usePathname } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { buildAuthPath } from '@/utils/auth-redirect';
+import { AuthLink } from '@/components/auth/auth-link';
 import {
   addMusicHrefForPage,
   appNavOrder,
@@ -192,20 +192,20 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
         >
           <SectionHeading>Account</SectionHeading>
           <div className="divide-y divide-border/40">
-            <Link
-              href={buildAuthPath('/auth/signin', pathname)}
+            <AuthLink
+              authPath="/auth/signin"
               onClick={onLinkClick}
               className={getItemClassName('account', false)}
             >
               <span>Sign In</span>
-            </Link>
-            <Link
-              href={buildAuthPath('/auth/signup', pathname)}
+            </AuthLink>
+            <AuthLink
+              authPath="/auth/signup"
               onClick={onLinkClick}
               className={getItemClassName('account', false)}
             >
               <span>Sign Up</span>
-            </Link>
+            </AuthLink>
           </div>
         </section>
       )}

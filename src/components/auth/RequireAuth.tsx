@@ -4,7 +4,7 @@ import { useEffect, ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { AccountCheckError } from '@/components/auth/account-check';
-import { buildAuthPath } from '@/utils/auth-redirect';
+import { buildAuthPath, currentLocalPath } from '@/utils/auth-redirect';
 
 interface RequireAuthProps {
   children: ReactElement;
@@ -18,7 +18,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
   useEffect(() => {
     if (!isLoading && !sessionUnknown) {
       if (!user) {
-        router.replace(buildAuthPath('/auth/signin', `${window.location.pathname}${window.location.search}`));
+        router.replace(buildAuthPath('/auth/signin', currentLocalPath()));
       } else if (!user.isOnboarded) {
         router.replace('/onboarding');
       }

@@ -22,7 +22,7 @@ import { ThemeSegmentedControl } from '@/components/layout/theme-switcher';
 import { SidebarAccountRow, SidebarAccountRowSkeleton } from '@/components/layout/sidebar-account-row';
 import { NotificationMenu } from '@/components/layout/notification-menu';
 import { usePathname } from 'next/navigation';
-import { buildAuthPath } from '@/utils/auth-redirect';
+import { AuthLink } from '@/components/auth/auth-link';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import {
   addMusicHrefForPage,
@@ -229,14 +229,14 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <SidebarGroupContent>
               <div className="p-4 space-y-3">
                 <Button asChild className="w-full">
-                  <Link href={buildAuthPath('/auth/signup', pathname)}>
+                  <AuthLink authPath="/auth/signup">
                     Sign Up
-                  </Link>
+                  </AuthLink>
                 </Button>
                 <Button asChild variant="outline" className="w-full">
-                  <Link href={buildAuthPath('/auth/signin', pathname)}>
+                  <AuthLink authPath="/auth/signin">
                     Sign In
-                  </Link>
+                  </AuthLink>
                 </Button>
               </div>
             </SidebarGroupContent>

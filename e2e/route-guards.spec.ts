@@ -119,6 +119,50 @@ test.describe('route guards and auth redirects', () => {
     }
   });
 
+  test('returns to the page and its query after sign-in from the navbar', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mockCassetteApp(page, { googleAuthUser: fixtureUsers.member, posts: [fixturePosts.publicTrack] });
+    const postPath = '/post/post-public-track?from=%2Fexplore';
+
+    await page.goto(postPath);
+    await page.getByRole('link', { name: 'Sign In', exact: true }).filter({ visible: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === '/auth/signin' && url.searchParams.get('redirect') === postPath);
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+    await expect(page).toHaveURL(postPath);
+  });
+
+  test('returns to the page and its query after sign-in from the sidebar', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mockCassetteApp(page, { googleAuthUser: fixtureUsers.member });
+    const profilePath = '/profile/miagroove?tab=liked';
+
+    await page.goto(profilePath);
+    await expect(page.getByRole('link', { name: 'Sign Up', exact: true }).filter({ visible: true })).toHaveAttribute(
+      'href',
+      `/auth/signup?redirect=${encodeURIComponent(profilePath)}`,
+    );
+    await page.getByRole('link', { name: 'Sign In', exact: true }).filter({ visible: true }).click();
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+    await expect(page).toHaveURL(profilePath);
+  });
+
+  test('returns to the page and its query after sign-in from the phone menu', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mockCassetteApp(page, { googleAuthUser: fixtureUsers.member, posts: [fixturePosts.publicTrack] });
+    const postPath = '/post/post-public-track?from=%2Fexplore';
+
+    await page.goto(postPath);
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    const menu = page.locator('#mobile-menu-panel');
+    await expect(menu.getByRole('link', { name: 'Sign Up', exact: true })).toHaveAttribute(
+      'href',
+      `/auth/signup?redirect=${encodeURIComponent(postPath)}`,
+    );
+    await menu.getByRole('link', { name: 'Sign In', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+    await expect(page).toHaveURL(postPath);
+  });
+
   test('sends onboarded Google callback users to Curator Studio when no redirect is stored', async ({
     page,
   }) => {

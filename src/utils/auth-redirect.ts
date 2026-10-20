@@ -38,6 +38,9 @@ export const normalizeAuthRedirect = (value: string | null | undefined) => {
   return trimmed;
 };
 
+/** The current page's path and query, for a return path read at the moment of a click. */
+export const currentLocalPath = () => `${window.location.pathname}${window.location.search}`;
+
 // The home page and the auth and onboarding pages add no redirect, so the
 // default destination applies.
 export const buildAuthPath = (

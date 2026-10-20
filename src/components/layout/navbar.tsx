@@ -13,7 +13,8 @@ import { ChevronDown, AlertCircle } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
 import { NavigationLinks } from './navigation-links';
 import { cn } from '@/lib/utils';
-import { buildAuthPath } from '@/utils/auth-redirect';
+import { buildAuthPath, currentLocalPath } from '@/utils/auth-redirect';
+import { AuthLink } from '@/components/auth/auth-link';
 import Image from 'next/image';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { NotificationMenu } from './notification-menu';
@@ -168,15 +169,15 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <Link
-                  href={buildAuthPath('/auth/signin', pathname)}
+                <AuthLink
+                  authPath="/auth/signin"
                   className="hidden min-[400px]:inline-block whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-2 sm:px-3 py-2"
                 >
                   Sign In
-                </Link>
+                </AuthLink>
                 <AnimatedPrimaryButton
                   text="Sign Up"
-                  onClick={() => window.location.href = buildAuthPath('/auth/signup', pathname)}
+                  onClick={() => window.location.href = buildAuthPath('/auth/signup', currentLocalPath())}
                   height={32}
                   width={80}
                   initialPos={2}

@@ -4,12 +4,11 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react';
 import { EntitySkeleton, type StagedConversion } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
-import { useAuthState } from '@/hooks/use-auth';
 import { useConversionStage } from '@/hooks/use-conversion-stage';
 import { clearConversionHandoff, growthBox, readConversionHandoff } from '@/lib/conversion-handoff';
 import { returnAddMusicDraft } from '@/lib/add-music-draft';
 import { playErrorTone } from '@/lib/sounds';
-import { savePrefetchedPost } from '@/lib/post-prefetch';
+import { startPrefetchRead } from '@/lib/post-prefetch';
 import { parsePostResponse, type PostPageData } from '@/services/post-response';
 import { getPlatformDefinition } from '@/lib/platforms';
 import { detectContentType, getPlatformDisplayName } from '@/utils/content-type-detection';
@@ -52,7 +51,6 @@ function PostPageContent() {
   const anonymous = handedOff ? handedOff.anonymous : !fromAddMusic;
   // Add music writes the post under the signed-in person, where read lag has been seen.
   const addMusicWrite = fromAddMusic || Boolean(handedOff?.running);
-  const viewerId = useAuthState().user?.id ?? null;
   const [conversionKey, setConversionKey] = useState<string | null>(null);
   const polled = useConversionStage(conversionKey, { anonymous, intervalMs: 500 });
   const reported = handedOff?.running?.reported;
@@ -142,9 +140,10 @@ function PostPageContent() {
     for (let i = 0; i < backoffMs.length; i += 1) {
       if (!isMountedRef.current) return false;
       try {
+        const savePrefetched = startPrefetchRead(() => isMountedRef.current);
         const response = await apiService.fetchPostById(postId);
         if (response?.success) {
-          savePrefetchedPost(postId, response, viewerId);
+          savePrefetched(postId, response);
           if (isMountedRef.current) setReadPost(parsePostResponse(response, postId));
           return true;
         }
@@ -162,7 +161,7 @@ function PostPageContent() {
     }
     // Without the add-music lag, /post/[id] can load the post itself.
     return !addMusicWrite;
-  }, [addMusicWrite, viewerId]);
+  }, [addMusicWrite]);
 
   const resolvePostAndRender = useCallback(async (postId: string) => {
     const isReady = await waitForPostAvailability(postId);

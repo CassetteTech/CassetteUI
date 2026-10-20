@@ -252,7 +252,7 @@ test.describe('a post cached by a conversion for another account', () => {
     await page.addInitScript(([key, value]) => {
       if (sessionStorage.getItem('cache-seeded')) return;
       sessionStorage.setItem('cache-seeded', '1');
-      sessionStorage.setItem(key, value);
+      sessionStorage.setItem(key, JSON.stringify({ ...JSON.parse(value), savedAt: Date.now() }));
     }, [`cassette:prefetched-post:${memberPost.postId}`, JSON.stringify(entry)]);
     // Records any moment the cached content is on the page, so a brief flash also fails.
     await page.addInitScript((title) => {
@@ -271,16 +271,6 @@ test.describe('a post cached by a conversion for another account', () => {
     posts: [memberPost],
     users: [fixtureUsers.member],
   };
-
-  test('serves the account that cached it', async ({ page }) => {
-    await mockCassetteApp(page, memberOptions);
-    await seedMemberCache(page);
-
-    await page.goto(`/post/${memberPost.postId}`);
-
-    await expect(page.getByRole('heading', { name: CACHED_TITLE }).first()).toBeVisible();
-    expect(await cachedTitleSeen(page)).toBe(true);
-  });
 
   test('is not shown when the first session read fails, nor after the session ends', async ({ page }) => {
     const { state } = await mockCassetteApp(page, { ...memberOptions, sessionCookie: true });

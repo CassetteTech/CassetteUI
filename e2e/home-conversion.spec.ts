@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { fixtureConvertTemplates, fixtureUsers } from './support/cassette-fixtures';
 import { holdRoute } from './support/held-requests';
 import { mockCassetteApp } from './support/mock-cassette-app';
@@ -352,5 +352,164 @@ test.describe('home conversion funnel', () => {
 
     await expect(page.getByText('2 tracks, 12 min', { exact: true }).filter({ visible: true })).toBeVisible();
     await expect(page.getByText('Spotify · playlist', { exact: true }).filter({ visible: true })).toBeVisible();
+  });
+});
+
+test.describe('the post a conversion stashes for its post page', () => {
+  const CONVERTED_POST_PATH = '/api/v1/social/posts/post-home-converted';
+  const WRITES_KEY = 'e2e-prefetch-writes';
+  type PrefetchWrite = { key: string; viewerId: string | null };
+
+  // Records every stash the app writes and the account it is labelled with. The record lives in
+  // session storage, so it survives the move from the conversion page to the post page.
+  // With `agedBy`, each stash is written as if saved that many milliseconds earlier.
+  async function recordPrefetchWrites(page: Page, agedBy = 0) {
+    await page.addInitScript(([writesKey, ageMs]) => {
+      // oxlint-disable-next-line typescript/unbound-method -- the original setItem runs with each storage as `this` below.
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key: string, value: string) {
+        if (key.startsWith('cassette:prefetched-post:')) {
+          // SAFETY: the app writes this key only as a JSON stash entry with these fields.
+          const entry = JSON.parse(value) as { viewerId: string | null; savedAt: number };
+          // SAFETY: this recorder alone writes the writes key, as a JSON array.
+          const writes = JSON.parse(this.getItem(writesKey) ?? '[]') as unknown[];
+          writes.push({ key, viewerId: entry.viewerId });
+          setItem.call(this, writesKey, JSON.stringify(writes));
+          setItem.call(this, key, JSON.stringify({ ...entry, savedAt: entry.savedAt - ageMs }));
+          return;
+        }
+        setItem.call(this, key, value);
+      };
+    }, [WRITES_KEY, agedBy] as const);
+  }
+
+  // The page each post read was made from: the conversion page or the post page.
+  function trackPostReadPages(page: Page) {
+    const pages: string[] = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === CONVERTED_POST_PATH) pages.push(new URL(page.url()).pathname);
+    });
+    return { fromPostPage: () => pages.filter((pathname) => pathname === '/post/post-home-converted').length };
+  }
+
+  /** Waits for the post page itself, which alone shows Like, rather than the staged conversion. */
+  async function expectPostPage(page: Page) {
+    await expect(page).toHaveURL(/\/post\/post-home-converted$/);
+    await expect(page.getByRole('button', { name: 'Like post' }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Midnight City' }).first()).toBeVisible();
+  }
+
+  const prefetchWrites = (page: Page) =>
+    // SAFETY: the recorder above writes this key as a JSON array of PrefetchWrite.
+    page.evaluate((writesKey) => JSON.parse(sessionStorage.getItem(writesKey) ?? '[]') as PrefetchWrite[], WRITES_KEY);
+
+  const isSessionRead = (url: string) => new URL(url).pathname === '/api/auth/session';
+  const isPostRead = (url: string) => new URL(url).pathname === CONVERTED_POST_PATH;
+
+  /** A focus makes the app read the session again; the next read names `state.currentUser`. */
+  async function readSessionOnFocus(page: Page) {
+    const sessionRead = page.waitForResponse((response) => isSessionRead(response.url()));
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    expect((await sessionRead).status()).toBe(200);
+  }
+
+  test('labels the stash with the account that made the post read, after a change during the conversion', async ({ page }) => {
+    await recordPrefetchWrites(page);
+    await mockCassetteApp(page, { currentUser: fixtureUsers.member });
+    // The first session read fails, so the page starts with no known account.
+    let isFirstSessionRead = true;
+    await page.route('**/api/auth/session', async (route) => {
+      if (!isFirstSessionRead) return route.fallback();
+      isFirstSessionRead = false;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"success":false}' });
+    });
+    const releaseConversion = await holdRoute(page, '**/api/v1/convert');
+    const conversion = page.waitForRequest('**/api/v1/convert');
+    const reads = trackPostReadPages(page);
+
+    await page.goto(`/post?url=${encodeURIComponent(fixtureConvertTemplates.homeTrack.originalUrl)}`);
+    await conversion;
+    // While the conversion runs, the session resolves to the member.
+    await readSessionOnFocus(page);
+    const postRead = page.waitForRequest((request) => isPostRead(request.url()));
+    releaseConversion();
+    await postRead;
+
+    await expectPostPage(page);
+    expect(await prefetchWrites(page)).toEqual([
+      { key: 'cassette:prefetched-post:post-home-converted', viewerId: fixtureUsers.member.id },
+    ]);
+    // The post page used the stash for the same account, so it read the post no second time.
+    expect(reads.fromPostPage()).toBe(0);
+  });
+
+  test('stores nothing when the account changes while the post read waits', async ({ page }) => {
+    await page.clock.install();
+    await recordPrefetchWrites(page);
+    const { state } = await mockCassetteApp(page, { currentUser: fixtureUsers.viewer, users: [fixtureUsers.member] });
+    const releaseConversion = await holdRoute(page, '**/api/v1/convert');
+    const releasePostRead = await holdRoute(page, (url) => isPostRead(url.href));
+    const conversion = page.waitForRequest('**/api/v1/convert');
+    const postRead = page.waitForRequest((request) => isPostRead(request.url()));
+    const reads = trackPostReadPages(page);
+
+    const session = page.waitForResponse((response) => isSessionRead(response.url()));
+    await page.goto(`/post?url=${encodeURIComponent(fixtureConvertTemplates.homeTrack.originalUrl)}`);
+    await session;
+    await conversion;
+    // The session becomes stale (60 s) while the post read is 31 s old, under its 60 s timeout.
+    await page.clock.fastForward('00:30');
+    releaseConversion();
+    await postRead;
+    await page.clock.fastForward('00:31');
+    state.currentUser = { ...fixtureUsers.member };
+    await readSessionOnFocus(page);
+    const heldResponse = page.waitForResponse((response) => isPostRead(response.url()));
+    releasePostRead();
+    expect((await heldResponse).status()).toBe(200);
+
+    await expectPostPage(page);
+    expect(await prefetchWrites(page)).toEqual([]);
+    expect(reads.fromPostPage()).toBe(1);
+  });
+
+  test('drops an expired stash and reads the post again', async ({ page }) => {
+    await recordPrefetchWrites(page, 61_000);
+    await mockCassetteApp(page, { currentUser: fixtureUsers.viewer });
+    const reads = trackPostReadPages(page);
+    // The post read starts once the account is known, so the stash is written.
+    const releaseConversion = await holdRoute(page, '**/api/v1/convert');
+
+    const session = page.waitForResponse('**/api/auth/session');
+    await page.goto(`/post?url=${encodeURIComponent(fixtureConvertTemplates.homeTrack.originalUrl)}`);
+    await session;
+    releaseConversion();
+
+    await expectPostPage(page);
+    expect(await prefetchWrites(page)).toHaveLength(1);
+    expect(reads.fromPostPage()).toBe(1);
+    expect(await page.evaluate(() => Object.keys(sessionStorage).filter((key) => key.startsWith('cassette:prefetched-post:')))).toEqual([]);
+  });
+
+  test('stores nothing when the visitor leaves while the post read waits', async ({ page }) => {
+    await recordPrefetchWrites(page);
+    await mockCassetteApp(page);
+    const releasePostRead = await holdRoute(page, (url) => url.pathname === CONVERTED_POST_PATH);
+    const postRead = page.waitForRequest((request) => new URL(request.url()).pathname === CONVERTED_POST_PATH);
+
+    await page.goto('/');
+    await dispatchPaste(page, 'home-search-input', fixtureConvertTemplates.homeTrack.originalUrl);
+    await expect(page).toHaveURL(/\/post\?url=/);
+    await postRead;
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    const postResponse = page.waitForResponse((response) => new URL(response.url()).pathname === CONVERTED_POST_PATH);
+    releasePostRead();
+    await postResponse;
+    // Lets the abandoned read finish its handling before the check.
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 250)));
+
+    expect(await prefetchWrites(page)).toEqual([]);
+    expect(await page.evaluate(() => Object.keys(sessionStorage).filter((key) => key.startsWith('cassette:prefetched-post:')))).toEqual([]);
   });
 });

@@ -106,6 +106,7 @@ void test('the curator summary is kept when well formed and dropped when absent 
       membersOnlyPostCount: 3,
       viewerIsMember: false,
     },
+    viewerFollow: { isFollowing: true, hasExplicitFollow: true, hasActiveMembership: false },
   };
 
   assert.deepEqual(parsePostResponse(post({ curator }), 'requested').curator, curator);

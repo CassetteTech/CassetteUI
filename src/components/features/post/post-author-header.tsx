@@ -15,7 +15,7 @@ interface PostAuthorHeaderProps {
   username: string;
   /** Shown in place of the username, such as a curator's name. */
   displayName?: string;
-  /** Sits at the end of the row, such as Follow. */
+  /** Sits at the end of the row, such as Follow. The name then takes its own line, so the row keeps one height. */
   action?: ReactNode;
   description?: string;
   createdAt?: string;
@@ -63,21 +63,23 @@ export function PostAuthorHeader({
       </ProfileLink>
 
       <div className={cn('min-w-0 flex-1 flex flex-col', stackGap)}>
-        <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
+        <div className={cn('flex gap-x-2 gap-y-1', action ? 'flex-col' : 'items-center flex-wrap')}>
           <ProfileLink
             username={username}
-            className="font-atkinson font-bold text-foreground text-sm tracking-wide flex items-center gap-1 hover:underline decoration-foreground/40 underline-offset-2"
+            className="font-atkinson font-bold text-foreground text-sm tracking-wide flex min-w-0 items-center gap-1 hover:underline decoration-foreground/40 underline-offset-2"
           >
-            {displayName || username}
+            <span className={cn(action && 'truncate')}>{displayName || username}</span>
             <VerificationBadge accountType={profileData?.accountType} size="sm" />
           </ProfileLink>
-          <span className="font-atkinson text-xs text-muted-foreground tracking-wide">shared this</span>
-          {createdAt && (
-            <>
-              <span className="text-xs text-muted-foreground/70" aria-hidden>·</span>
-              <span className="font-atkinson text-xs text-muted-foreground tracking-wide tabular-nums">{formatRelativeTime(createdAt)}</span>
-            </>
-          )}
+          <span className={action ? 'flex items-center gap-x-2' : 'contents'}>
+            <span className="font-atkinson text-xs text-muted-foreground tracking-wide">shared this</span>
+            {createdAt && (
+              <>
+                <span className="text-xs text-muted-foreground/70" aria-hidden>·</span>
+                <span className="font-atkinson text-xs text-muted-foreground tracking-wide tabular-nums">{formatRelativeTime(createdAt)}</span>
+              </>
+            )}
+          </span>
         </div>
 
         {hasCaption && (

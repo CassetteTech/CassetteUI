@@ -34,6 +34,8 @@ const curator: PostCurator = {
     membersOnlyPostCount: 12,
     viewerIsMember: false,
   },
+  // The mock fills in the viewer's follow state, as Bridge does.
+  viewerFollow: null,
 };
 
 const postBy = (summary: PostCurator | undefined): FixturePost => ({
@@ -53,6 +55,9 @@ const joinLink = (page: Page) => page.getByRole('link', { name: `Join ${NAME}`, 
 const signUp = (page: Page) => page.getByRole('button', { name: 'Sign up free' }).filter({ visible: true });
 const following = (page: Page) => page.getByText('Following', { exact: true }).filter({ visible: true });
 const authorName = (page: Page) => page.getByRole('link', { name: NAME, exact: true }).filter({ visible: true });
+
+const followReads = (state: { curatorFollowRequests: Array<{ method: string }> }) =>
+  state.curatorFollowRequests.filter(({ method }) => method === 'GET');
 
 const VIEWPORTS = [
   { label: 'phone', width: 390, height: 844 },
@@ -85,7 +90,7 @@ for (const viewport of VIEWPORTS) {
     });
 
     test('signed in, following, not a member: Following and Join', async ({ page }) => {
-      await mockCassetteApp(page, {
+      const { state } = await mockCassetteApp(page, {
         currentUser: fixtureUsers.viewer,
         posts: [postBy(curator)],
         membershipStatus: fixtureNoMembershipStatus,
@@ -97,12 +102,14 @@ for (const viewport of VIEWPORTS) {
       // Unfollow stays on the curator page.
       await expect(page.getByRole('button', { name: `Unfollow ${NAME}`, exact: true })).toHaveCount(0);
       await expect(joinLink(page)).toBeVisible();
+      // The post read carries the follow state; the page does not read it again.
+      expect(followReads(state)).toEqual([]);
       await expectNoHorizontalOverflow(page);
       await capture(page, `non-member-${viewport.label}`);
     });
 
     test('member: no Follow, the membership and a link to the member posts', async ({ page }) => {
-      await mockCassetteApp(page, {
+      const { state } = await mockCassetteApp(page, {
         currentUser: fixtureUsers.member,
         posts: [postBy({ ...curator, membership: { ...curator.membership!, viewerIsMember: true } })],
         membershipStatus: fixtureActiveMembershipStatus,
@@ -114,6 +121,7 @@ for (const viewport of VIEWPORTS) {
         .toHaveAttribute('href', `${CURATOR_PATH}?filter=members`);
       await expect(joinLink(page)).toHaveCount(0);
       await expect(page.getByTestId('curator-follow')).toHaveCount(0);
+      expect(followReads(state)).toEqual([]);
       await capture(page, `member-${viewport.label}`);
     });
 
@@ -164,6 +172,7 @@ test('Follow from the post follows once and hands focus to the Following label',
 
   await expect(following(page)).toBeFocused();
   expect(writes(state)).toEqual(['PUT']);
+  expect(followReads(state)).toEqual([]);
 });
 
 test('a signed-out Follow returns to the post and follows once', async ({ page }) => {
@@ -180,6 +189,7 @@ test('a signed-out Follow returns to the post and follows once', async ({ page }
 
   await expect(following(page)).toBeVisible();
   expect(writes(state)).toEqual(['PUT']);
+  expect(followReads(state)).toEqual([]);
   await expect(page).toHaveURL(POST_PATH);
 });
 

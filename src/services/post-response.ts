@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { fromBridgePlatformLinks } from '@/lib/playlist-copy-placement';
 import { detectContentType } from '@/utils/content-type-detection';
+import { curatorFollowStateSchema } from '@/services/curator';
 
 const postCuratorSchema = z.object({
   curatorProfileId: z.string().min(1),
@@ -23,6 +24,8 @@ const postCuratorSchema = z.object({
     membersOnlyPostCount: z.number().int().nonnegative(),
     viewerIsMember: z.boolean(),
   }).nullable(),
+  /** The follow endpoint's state for a signed-in viewer other than the owner; null otherwise. */
+  viewerFollow: curatorFollowStateSchema.nullable(),
 });
 
 /** The curator behind a post's content; absent when the owner has no curator page or Bridge predates it. */

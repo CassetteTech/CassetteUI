@@ -773,6 +773,8 @@ export interface PublicPostPageMetadata {
   imageUrl?: string | null;
   canonicalUrl: string;
   elementType: string;
+  /** Layout facts for the loading skeleton's author card; absent from an older Bridge. */
+  author?: { hasCuratorPage: boolean; hasLivePlan: boolean; hasCaption: boolean } | null;
 }
 
 export interface PostViewerStateResponse {

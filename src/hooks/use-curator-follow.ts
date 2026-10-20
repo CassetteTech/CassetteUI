@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { useAuthState } from '@/hooks/use-auth';
 import { profileQueryKeys } from '@/hooks/use-profile';
 import { authService } from '@/services/auth';
-import { fetchCuratorFollow, setCuratorFollow } from '@/services/curator';
+import { fetchCuratorFollow, setCuratorFollow, type CuratorFollowState } from '@/services/curator';
 import { isCurrentAccount } from '@/stores/auth-store';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
@@ -56,6 +56,11 @@ export function useCuratorFollow(
   returnQuery: string,
   /** Where a signed-out Follow returns after sign-in; the curator page when omitted. */
   returnPathname?: string,
+  /**
+   * The relationship as another read already reported it, such as the post read; null while that
+   * read predates the signed-in viewer. Given either way, the hook never reads the relationship itself.
+   */
+  reportedRelationship?: CuratorFollowState | null,
 ): CuratorFollow | null {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -70,7 +75,8 @@ export function useCuratorFollow(
   const relationship = useQuery({
     queryKey: curatorFollowQueryKey(curatorId, viewerId),
     queryFn: ({ signal }) => fetchCuratorFollow(curatorId, signal),
-    enabled: curatorId !== '' && viewerId !== null && !isOwner,
+    enabled: curatorId !== '' && viewerId !== null && !isOwner && reportedRelationship === undefined,
+    placeholderData: reportedRelationship ?? undefined,
     staleTime: 0,
     retry: 1,
   });

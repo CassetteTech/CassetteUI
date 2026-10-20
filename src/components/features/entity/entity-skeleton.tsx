@@ -22,6 +22,7 @@ import {
   sharesCassetteSpotifyCopy,
 } from '@/lib/playlist-copy-placement';
 import { cn } from '@/lib/utils';
+import type { PublicPostPageMetadata } from '@/types';
 import { ColorExtractor, type ColorPalette } from '@/services/color-extractor';
 
 export interface StagedConversion {
@@ -54,7 +55,24 @@ export interface ViewportBox {
   height: number;
 }
 
+/** The post's author card as the public metadata describes it; absent from an older Bridge. */
+export interface SkeletonAuthor {
+  hasCuratorPage: boolean;
+  hasLivePlan: boolean;
+  caption: string | null;
+}
+
+export const skeletonAuthorOf = (metadata: PublicPostPageMetadata | null | undefined): SkeletonAuthor | undefined =>
+  metadata?.author
+    ? {
+        hasCuratorPage: metadata.author.hasCuratorPage,
+        hasLivePlan: metadata.author.hasLivePlan,
+        caption: metadata.author.hasCaption ? metadata.description : null,
+      }
+    : undefined;
+
 interface EntitySkeletonProps {
+  author?: SkeletonAuthor;
   conversion?: StagedConversion;
   growFrom?: ViewportBox | null;
   sourceLabel?: string;
@@ -65,6 +83,7 @@ interface EntitySkeletonProps {
 }
 
 export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
+  author,
   conversion,
   growFrom,
   sourceLabel,
@@ -103,6 +122,7 @@ export const EntitySkeleton: React.FC<EntitySkeletonProps> = ({
     showReleaseLines: post.contentType !== 'playlist' && post.contentType !== 'artist',
     showAuthor: post.showAuthor,
     ownPost: post.ownPost,
+    author,
     onCancel,
   };
 
@@ -355,6 +375,7 @@ interface SkeletonLayoutProps {
   showTracklist: boolean;
   showAuthor: boolean;
   ownPost: boolean;
+  author?: SkeletonAuthor;
   onCancel?: () => void;
 }
 
@@ -674,23 +695,57 @@ const ListenLinks: React.FC<{
   );
 };
 
-// Every poster has a curator page, so a visitor's author row ends in the compact Follow button,
-// and the narrower name row wraps "shared this" and the date onto a line of their own.
-const AuthorRow: React.FC<{ blueprint: Blueprint; next: () => number; follow: boolean }> = ({ blueprint, next, follow }) => {
+/**
+ * Copies PostAuthorHeader, PostEngagementBar, and PostCuratorJoin. With the metadata's author hint,
+ * a visitor's row ends in Follow, which puts the name and "shared this" on lines of their own; the
+ * caption takes its real text, invisible, so it wraps as the loaded caption does; and a live plan
+ * adds the join line. Without the hint (an older Bridge), it draws a one-line caption and no Follow.
+ */
+const AuthorRow: React.FC<{
+  blueprint: Blueprint;
+  next: () => number;
+  author?: SkeletonAuthor;
+  ownPost: boolean;
+  compact?: boolean;
+}> = ({ blueprint, next, author, ownPost, compact }) => {
   const { late } = blueprint;
+  const visitor = Boolean(author?.hasCuratorPage) && !ownPost;
+  const caption = author ? author.caption : undefined;
   return (
     <>
-      <div className="flex items-start gap-2.5">
+      <div className={cn('flex gap-2.5', caption === null ? 'items-center' : 'items-start')}>
         <Part draft={late} order={next()} delay={200} className="h-8 w-8 shrink-0 rounded-full" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <TextLine draft={late} order={next()} delay={220} box="h-5" bar="h-3 w-40 max-w-full" />
-          {follow && <TextLine draft={late} order={next()} delay={230} box="h-4" bar="h-2.5 w-24" />}
-          <TextLine draft={late} order={next()} delay={240} box="h-5" bar="h-3 w-48 max-w-full" />
+          {visitor && <TextLine draft={late} order={next()} delay={230} box="h-4" bar="h-2.5 w-24" />}
+          {caption === undefined && <TextLine draft={late} order={next()} delay={240} box="h-5" bar="h-3 w-48 max-w-full" />}
+          {caption && (
+            <div className={cn('relative font-atkinson leading-relaxed tracking-wide', compact ? 'text-sm' : 'text-sm sm:text-[15px]')}>
+              <p aria-hidden className="invisible whitespace-pre-wrap break-words">
+                {caption}
+              </p>
+              {/* A blueprint part is position: relative, so the wrapper places the first line's rule. */}
+              <div className="absolute inset-x-0 top-0">
+                <TextLine draft={late} order={next()} delay={240} box="h-[1.625em]" bar="h-3 w-48 max-w-full" />
+              </div>
+            </div>
+          )}
         </div>
-        {follow && <Part draft={late} order={next()} delay={250} className="h-8 w-[84px] shrink-0 rounded-md" />}
+        {visitor && <Part draft={late} order={next()} delay={250} className="h-8 w-[87px] shrink-0 rounded-md" />}
       </div>
       {/* PostEngagementBar: a pill of two buttons, taller from the sm breakpoint. */}
       <Part draft={late} order={next()} delay={260} className="h-[26px] w-28 self-start rounded-full sm:h-[34px]" />
+      {visitor && author?.hasLivePlan && (
+        <div className={cn('border-t pt-3', late ? 'border-dotted border-foreground/30' : 'border-border/70')}>
+          <div className="flex min-h-9 items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <TextLine draft={late} order={next()} delay={270} box="h-5" bar="h-3 w-24" />
+              <TextLine draft={late} order={next()} delay={280} box="h-4" bar="h-2.5 w-44 max-w-full" />
+            </div>
+            <Part draft={late} order={next()} delay={290} className="h-8 w-[52px] shrink-0 rounded-md" />
+          </div>
+        </div>
+      )}
     </>
   );
 };
@@ -826,6 +881,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
   showTracklist,
   showAuthor,
   ownPost,
+  author,
   perServiceLinks,
   showReleaseLines,
   onCancel
@@ -872,7 +928,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
                 </ConversionBeam>
                 {showAuthor && (
                   <div className="flex flex-1 flex-col gap-2.5 p-5">
-                    <AuthorRow blueprint={blueprint} next={next} follow={!ownPost} />
+                    <AuthorRow blueprint={blueprint} next={next} author={author} ownPost={ownPost} compact />
                   </div>
                 )}
               </div>
@@ -905,7 +961,7 @@ const DesktopSkeleton: React.FC<SkeletonLayoutProps> = ({
           {ownPost && <OwnerColumn blueprint={blueprint} next={next} className="self-center max-[1279px]:hidden" />}
           <div className="min-w-0 space-y-6 min-[1280px]:col-start-1">
             {showTracklist && <TracklistCard blueprint={blueprint} staged={staged} settled={settled} next={next} />}
-            <Foot blueprint={blueprint} next={next} offer={!showAuthor} />
+            <Foot blueprint={blueprint} next={next} offer={!ownPost && !author?.hasCuratorPage} />
           </div>
         </div>
       </div>
@@ -927,6 +983,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
   showTracklist,
   showAuthor,
   ownPost,
+  author,
   perServiceLinks,
   showReleaseLines,
   onCancel
@@ -990,7 +1047,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
 
           {showAuthor && (
             <div {...draftProps(late, next(), 180, 'card-ink flex flex-col gap-1.5 px-3 py-2.5 sm:gap-2.5 sm:p-4')}>
-              <AuthorRow blueprint={blueprint} next={next} follow={!ownPost} />
+              <AuthorRow blueprint={blueprint} next={next} author={author} ownPost={ownPost} />
             </div>
           )}
         </div>
@@ -998,7 +1055,7 @@ const MobileSkeleton: React.FC<SkeletonLayoutProps> = ({
 
       <div className="mt-3 space-y-3 text-center sm:mt-6 sm:space-y-6">
         {showTracklist && <TracklistCard blueprint={blueprint} staged={staged} settled={settled} next={next} compact />}
-        <Foot blueprint={blueprint} next={next} offer={!showAuthor} />
+        <Foot blueprint={blueprint} next={next} offer={!ownPost && !author?.hasCuratorPage} />
       </div>
     </div>
   );

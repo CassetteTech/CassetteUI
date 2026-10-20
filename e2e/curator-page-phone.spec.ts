@@ -193,6 +193,40 @@ test.describe('curator page on a phone', () => {
     await expect(page.getByRole('radio', { name: 'Members only' })).toBeChecked();
   });
 
+  test('back from Checkout on a plan without member posts: "You\'re in" shows without post content', async ({ page }) => {
+    const publicOnly = fixtureCuratorPage.posts.items.filter((item) => item.kind === 'post');
+    const badgePlan = {
+      ...fixtureCuratorPage,
+      membership: {
+        ...fixtureCuratorPage.membership!,
+        benefits: [{ featureKey: 'member_badge', name: 'Member badge', description: 'A badge beside your name.' }],
+        membersOnlyPostCount: 0,
+      },
+      posts: { ...fixtureCuratorPage.posts, items: publicOnly, totalItems: publicOnly.length },
+    };
+    await mockCassetteApp(page, {
+      currentUser: fixtureUsers.viewer,
+      curatorPage: badgePlan,
+      membershipStatus: fixtureNoMembershipStatus,
+      membershipPollSequence: [fixtureActiveMembershipStatus],
+      // An active membership without the member-posts benefit: no member-posts access.
+      membershipActiveCuratorPage: { ...badgePlan, viewer: { isOwner: false, isMember: false, hasMemberBadge: true } },
+    });
+    await page.goto(CURATOR_PATH);
+    await returnFromProvider(page, CHECKOUT_URL, `${CURATOR_PATH}?membership=return`);
+    await phonePass(page).getByRole('button', { name: `Join ${NAME}`, exact: true }).click();
+
+    const pass = phonePass(page);
+    await expect(pass.getByRole('heading', { name: 'You\'re in' })).toBeFocused();
+    await expect(page.getByText('Confirming your payment')).toHaveCount(0);
+    await expect(pass).toContainText(`Welcome to ${NAME}'s membership.`);
+    await expect(pass).not.toContainText(/members-only post|member posts/i);
+    await expect(pass.getByRole('list', { name: 'Newest members-only posts' })).toHaveCount(0);
+    await expect(pass.getByRole('button', { name: 'Manage membership' })).toBeVisible();
+    await expect(page.getByText(CURATOR_SUBSCRIBER_SENTINEL)).toHaveCount(0);
+    await expect(page.getByText('Members-only post', { exact: true })).toHaveCount(0);
+  });
+
   test('a member on a later visit sees the plain member pass with View member posts and Manage', async ({ page }) => {
     await mockCassetteApp(page, {
       currentUser: fixtureUsers.member,

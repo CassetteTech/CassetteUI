@@ -45,7 +45,8 @@ export type UnlockedPost = {
 };
 
 const inkFocus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground';
-const headingFocus = cn('rounded-sm focus:outline-none', inkFocus);
+// Script moves focus to the arrival heading so screen readers start there; it is not a control, so it draws no ring.
+const headingFocus = 'focus:outline-none';
 
 /**
  * The curator's membership pass. Phones get a plain card above the posts; the desktop rail keeps
@@ -128,14 +129,18 @@ export function CuratorMembershipCard({
   const phase = membership ? membershipPhase(membership) : null;
   const planName = displayedPlan?.name ?? `${displayName} membership`;
   const paymentProblem = phase === 'payment-problem';
-  const isMember = page.viewer.isMember;
+  // Reading member posts is one benefit of a plan, not proof of payment: a plan can be live without it.
+  const canReadPosts = page.viewer.isMember;
+  // The count is public and shows in the offer; the welcome lists it only to a member who can read the posts.
   const memberPostCount = plan?.membersOnlyPostCount ?? 0;
-  // Payment is not confirmed: polling after Checkout, settled but the page not yet reread, or a
-  // Checkout that Stripe still holds as incomplete.
-  const pending = !isMember && !page.viewer.isOwner &&
-    (confirming || activated || (membership?.status === 'incomplete' && !canJoin));
-  const welcome = activated && isMember;
-  const arrival = welcome ? 'welcome' : pending && (confirming || activated) ? 'pending' : null;
+  const readablePostCount = canReadPosts ? memberPostCount : 0;
+  // The Checkout return settled on a membership whose status grants access.
+  const welcome = activated && !page.viewer.isOwner;
+  const showMemberPass = canReadPosts || welcome;
+  // Payment is not confirmed: polling after Checkout, or a Checkout that Stripe still holds as incomplete.
+  const pending = !showMemberPass && !page.viewer.isOwner &&
+    (confirming || (membership?.status === 'incomplete' && !canJoin));
+  const arrival = welcome ? 'welcome' : pending && confirming ? 'pending' : null;
 
   // After Checkout, the visible pass comes into view and its heading takes focus.
   useEffect(() => {
@@ -190,8 +195,8 @@ export function CuratorMembershipCard({
     </>
   );
 
-  const viewPostsLabel = welcome && memberPostCount > 1 ? `View all ${memberPostCount} member posts` : 'View member posts';
-  const viewPostsButton = (phone: boolean) => (
+  const viewPostsLabel = welcome && readablePostCount > 1 ? `View all ${readablePostCount} member posts` : 'View member posts';
+  const viewPostsButton = (phone: boolean) => canReadPosts && (
     <Button asChild className="w-full">
       <a href={`#${feedHeadingId}`} onClick={onViewMemberPosts} data-testid={phone ? undefined : 'membership-view-posts'}>
         {phone && !welcome ? 'View member posts' : viewPostsLabel}
@@ -245,15 +250,15 @@ export function CuratorMembershipCard({
     </RadioGroup>
   );
 
-  const phone = isMember ? (
+  const phone = showMemberPass ? (
     <PlainPass ref={phoneCardRef}>
       {welcome ? (
         <>
           <YoureIn
             headingRef={phoneHeadingRef}
             displayName={displayName}
-            memberPostCount={memberPostCount}
-            posts={unlockedPosts}
+            memberPostCount={readablePostCount}
+            posts={canReadPosts ? unlockedPosts : null}
           />
           {noticeBlock(true)}
           <div className="mt-5 space-y-2">
@@ -361,7 +366,7 @@ export function CuratorMembershipCard({
     active: true,
   } as const;
 
-  const desktop = isMember ? (
+  const desktop = showMemberPass ? (
     <WalletPass
       ref={memberPassRef}
       {...pass}
@@ -376,8 +381,8 @@ export function CuratorMembershipCard({
         <YoureIn
           headingRef={desktopHeadingRef}
           displayName={displayName}
-          memberPostCount={memberPostCount}
-          posts={unlockedPosts}
+          memberPostCount={readablePostCount}
+          posts={canReadPosts ? unlockedPosts : null}
         />
       )}
       {membership && (

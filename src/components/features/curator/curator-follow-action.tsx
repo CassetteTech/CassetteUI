@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useRef } from 'react';
 import { Check, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -10,8 +10,26 @@ import { cn } from '@/lib/utils';
 
 export const CuratorFollowContext = createContext<CuratorFollow | null>(null);
 
-export function CuratorFollowAction({ className, compact = false }: { className?: string; compact?: boolean }) {
+export function CuratorFollowAction({
+  className,
+  compact = false,
+  showUnfollow = true,
+}: {
+  className?: string;
+  compact?: boolean;
+  /** False shows a followed curator as "Following" only; Unfollow stays on the curator page. */
+  showUnfollow?: boolean;
+}) {
   const follow = useContext(CuratorFollowContext);
+  const followedHere = useRef(false);
+  const followingLabel = useRef<HTMLParagraphElement>(null);
+  const following = follow?.state === 'following';
+  // The Follow button leaves when it succeeds, so its focus moves to the label that replaces it.
+  useEffect(() => {
+    if (!following || !followedHere.current) return;
+    followedHere.current = false;
+    if (!showUnfollow) followingLabel.current?.focus();
+  }, [following, showUnfollow]);
   if (!follow || follow.state === 'loading' || follow.state === 'member') return null;
 
   const name = <span className="sr-only"> {follow.displayName}</span>;
@@ -24,26 +42,34 @@ export function CuratorFollowAction({ className, compact = false }: { className?
       </div>
     );
   } else {
-    const following = follow.state === 'following';
     control = (
       <div className={cn('flex items-center gap-3', !compact && 'justify-between')}>
         {following && (
-          <p className="flex items-center gap-1.5 text-sm font-medium">
+          <p ref={followingLabel} tabIndex={-1} className="flex items-center gap-1.5 text-sm font-medium focus-visible:outline-none">
             <Check className="size-4" aria-hidden />
             Following
           </p>
         )}
-        <Button
-          variant="outline"
-          size={following || compact ? 'sm' : 'default'}
-          className={cn(!following && !compact && 'w-full')}
-          onClick={following ? follow.unfollow : follow.follow}
-          busy={follow.pending}
-        >
-          {follow.pending ? <Spinner size="sm" aria-hidden /> : !following && <UserPlus aria-hidden />}
-          {following ? 'Unfollow' : 'Follow'}
-          {name}
-        </Button>
+        {(showUnfollow || !following) && (
+          <Button
+            variant="outline"
+            size={following || compact ? 'sm' : 'default'}
+            className={cn(!following && !compact && 'w-full')}
+            onClick={() => {
+              if (following) {
+                follow.unfollow();
+                return;
+              }
+              followedHere.current = true;
+              follow.follow();
+            }}
+            busy={follow.pending}
+          >
+            {follow.pending ? <Spinner size="sm" aria-hidden /> : !following && <UserPlus aria-hidden />}
+            {following ? 'Unfollow' : 'Follow'}
+            {name}
+          </Button>
+        )}
       </div>
     );
   }

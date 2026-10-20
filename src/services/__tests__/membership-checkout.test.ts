@@ -70,3 +70,14 @@ void test('a Join link carries the post it came from to the curator offer', () =
   assert.equal(curatorMembershipHref('night-curator'), '/profile/night-curator#membership-offer');
   assert.equal(curatorMembershipHref('night-curator', 'p_bad'), '/profile/night-curator#membership-offer');
 });
+
+void test('a Join from a post asks the curator page for its monthly confirmation', () => {
+  assert.equal(
+    curatorMembershipHref('night-curator', sourcePostId, true),
+    `/profile/night-curator?intent=join&interval=month&source_post=${sourcePostId}#membership-offer`,
+  );
+  assert.equal(
+    curatorMembershipHref('night-curator', 'p_bad', true),
+    '/profile/night-curator?intent=join&interval=month#membership-offer',
+  );
+});

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuthState } from '@/hooks/use-auth';
 import { profileQueryKeys } from '@/hooks/use-profile';
 import { authService } from '@/services/auth';
-import { fetchCuratorFollow, setCuratorFollow } from '@/services/curator';
+import { fetchCuratorFollow, setCuratorFollow, type CuratorFollowState } from '@/services/curator';
 import { isCurrentAccount } from '@/stores/auth-store';
 import { removeQueryParameters, removeQueryParametersFromRouter } from '@/utils/remove-query-parameters';
 import { parseProfileActionIntent } from '@/utils/profile-action-intent';
@@ -14,6 +14,10 @@ import { tryStorage } from '@/lib/best-effort';
 
 const followIntentPrefix = 'cassette:follow-intent:';
 const followIntentLifetimeMs = 10 * 60 * 1_000;
+
+// Reports already written to the cache. Each post read parses a new report object, so a remount of the
+// control (the post page swaps layouts at 900 px) does not write an older report over a later Follow.
+const appliedReports = new WeakSet<CuratorFollowState>();
 
 const curatorFollowQueryKey = (curatorProfileId: string, viewerId: string | null) =>
   ['curator-follow', curatorProfileId, viewerId] as const;
@@ -41,11 +45,12 @@ function signInToFollow(
   router: ReturnType<typeof useRouter>,
   curator: { id: string; username: string },
   returnQuery: string,
+  returnPathname: string | undefined,
 ) {
   tryStorage(() => sessionStorage.setItem(`${followIntentPrefix}${curator.id}`, String(Date.now())), undefined);
   const query = new URLSearchParams(returnQuery);
   query.set('follow', '1');
-  const returnPath = `/profile/${encodeURIComponent(curator.username)}?${query}`;
+  const returnPath = `${returnPathname ?? `/profile/${encodeURIComponent(curator.username)}`}?${query}`;
   router.push(`/auth/signin?redirect=${encodeURIComponent(returnPath)}`);
 }
 
@@ -53,6 +58,13 @@ export function useCuratorFollow(
   curator: { id: string; username: string; displayName: string } | null,
   isOwner: boolean,
   returnQuery: string,
+  /** Where a signed-out Follow returns after sign-in; the curator page when omitted. */
+  returnPathname?: string,
+  /**
+   * The relationship as another read already reported it, such as the post read; null while that
+   * read predates the signed-in viewer. Given either way, the hook never reads the relationship itself.
+   */
+  reportedRelationship?: CuratorFollowState | null,
 ): CuratorFollow | null {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -67,10 +79,18 @@ export function useCuratorFollow(
   const relationship = useQuery({
     queryKey: curatorFollowQueryKey(curatorId, viewerId),
     queryFn: ({ signal }) => fetchCuratorFollow(curatorId, signal),
-    enabled: curatorId !== '' && viewerId !== null && !isOwner,
+    enabled: curatorId !== '' && viewerId !== null && !isOwner && reportedRelationship === undefined,
     staleTime: 0,
     retry: 1,
   });
+  // Each new report replaces the cached relationship once, so it wins over an older cached read
+  // (from another page, before a change in another tab), and a later Follow or Unfollow wins over it.
+  const unappliedReport = reportedRelationship && !appliedReports.has(reportedRelationship) ? reportedRelationship : null;
+  useLayoutEffect(() => {
+    if (!unappliedReport || viewerId === null) return;
+    appliedReports.add(unappliedReport);
+    queryClient.setQueryData(curatorFollowQueryKey(curatorId, viewerId), unappliedReport);
+  }, [curatorId, queryClient, unappliedReport, viewerId]);
   const write = useMutation({
     mutationFn: ({ following }: { following: boolean; viewerId: string }) => setCuratorFollow(curatorId, following),
     onSuccess: async (state, { viewerId: startedBy }) => {
@@ -88,7 +108,7 @@ export function useCuratorFollow(
   const { mutate } = write;
 
   const returnHandled = useRef(false);
-  const knownRelationship = relationship.data;
+  const knownRelationship = unappliedReport ?? relationship.data;
   useEffect(() => {
     if (!returning || returnHandled.current || curatorId === '' || authLoading) return;
     if (!viewerId) {
@@ -118,7 +138,7 @@ export function useCuratorFollow(
       if (sessionError) return;
       carriedHandled.current = true;
       removeQueryParametersFromRouter('intent');
-      signInToFollow(router, { id: curatorId, username: curatorUsername }, returnQuery);
+      signInToFollow(router, { id: curatorId, username: curatorUsername }, returnQuery, returnPathname);
       return;
     }
     if (!isOwner && !knownRelationship) return;
@@ -134,6 +154,7 @@ export function useCuratorFollow(
     curatorUsername,
     isOwner,
     knownRelationship,
+    returnPathname,
     returnQuery,
     router,
     sessionError,
@@ -148,7 +169,7 @@ export function useCuratorFollow(
       mutate({ following, viewerId });
       return;
     }
-    signInToFollow(router, curator, returnQuery);
+    signInToFollow(router, curator, returnQuery, returnPathname);
   };
 
   let state: CuratorFollow['state'];

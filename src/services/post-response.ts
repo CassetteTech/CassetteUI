@@ -8,6 +8,28 @@ import {
 } from '@/types';
 import { fromBridgePlatformLinks } from '@/lib/playlist-copy-placement';
 import { detectContentType } from '@/utils/content-type-detection';
+import { curatorFollowStateSchema } from '@/services/curator';
+
+const postCuratorSchema = z.object({
+  curatorProfileId: z.string().min(1),
+  userId: z.string().min(1),
+  username: z.string().min(1),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  membership: z.object({
+    planName: z.string().min(1),
+    amountMinor: z.number().int().nonnegative().safe(),
+    serviceFeeMinor: z.number().int().nonnegative().safe(),
+    currency: z.string().length(3),
+    membersOnlyPostCount: z.number().int().nonnegative(),
+    viewerIsMember: z.boolean(),
+  }).nullable(),
+  /** The follow endpoint's state for a signed-in viewer other than the owner; null otherwise. */
+  viewerFollow: curatorFollowStateSchema.nullable(),
+});
+
+/** The curator behind a post's content; absent when the owner has no curator page or Bridge predates it. */
+export type PostCurator = z.infer<typeof postCuratorSchema>;
 
 export type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> & {
   previewUrl?: string;
@@ -18,6 +40,7 @@ export type PostPageData = Omit<MusicLinkConversion, 'conversionSuccessCount'> &
   paidPromotionCampaignId?: string | null;
   curatorId?: string | null;
   isMemberView?: boolean;
+  curator?: PostCurator;
   cassetteSpotifyCopyUrl?: string | null;
   /** The owner's own link for each service on a playlist post. */
   curatorLinks?: Partial<Record<NormalizedPlatformKey, string>>;
@@ -160,6 +183,7 @@ export function parsePostResponse(response: PostByIdResponse, requestedPostId: s
     paidPromotionCampaignId: response.paidPromotionCampaignId ?? null,
     curatorId: response.curatorId ?? null,
     isMemberView: response.isMemberView === true,
+    curator: postCuratorSchema.optional().catch(undefined).parse(response.curator),
     cassetteSpotifyCopyUrl: response.cassetteSpotifyCopyUrl ?? null,
     curatorLinks: fromBridgePlatformLinks(response.curatorLinks),
     repostedByCurrentUser:

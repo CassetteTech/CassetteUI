@@ -701,6 +701,7 @@ export interface PostByIdResponse {
   paidPromotionCampaignId?: string | null;
   curatorId?: string | null;
   isMemberView?: boolean;
+  curator?: unknown;
   isRepost?: boolean;
   originalPostId?: string | null;
   repostedByCurrentUser?: boolean;
@@ -773,6 +774,8 @@ export interface PublicPostPageMetadata {
   canonicalUrl: string;
   /** Null for a members-only post, whose metadata names only its curator. */
   elementType: string | null;
+  /** Layout facts for the loading skeleton's author card; absent from an older Bridge. */
+  author?: { hasCuratorPage: boolean; hasLivePlan: boolean; hasCaption: boolean } | null;
 }
 
 export interface PostViewerStateResponse {

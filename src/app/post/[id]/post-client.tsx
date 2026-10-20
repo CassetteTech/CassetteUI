@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { MusicLinkConversion, ElementType, InternalSignupLinkTemplate, PostByIdResponse, PostPrivacy, PublicPostPageMetadata } from '@/types';
 import { normalizePlatformKey, parsePostResponse, type NormalizedPlatformKey, type PostPageData } from '@/services/post-response';
-import { EntitySkeleton, printedBand } from '@/components/features/entity/entity-skeleton';
+import { EntitySkeleton, printedBand, skeletonAuthorOf } from '@/components/features/entity/entity-skeleton';
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlaylistCopyActions } from '@/components/features/entity/playlist-copy-actions';
 import {
@@ -19,6 +19,7 @@ import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
 import { PostEngagementBar } from '@/components/features/post/post-engagement-bar';
+import { PostCuratorJoin, postCuratorHeader } from '@/components/features/post/post-curator';
 import { OPEN_COMMENTS_PARAMETER, PostCommentsSheet } from '@/components/features/post/post-comments-sheet';
 import { PostStudioColumn, PostStudioSheet } from '@/components/features/post/post-studio-panel';
 import { EditPostModal, type PostChanges } from '@/components/features/post/edit-post-modal';
@@ -910,6 +911,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         <EntitySkeleton
           contentType={initialMetadata?.elementType?.toLowerCase()}
           sourceLabel={initialMetadata?.elementType ?? undefined}
+          author={skeletonAuthorOf(initialMetadata)}
         />
       </>
     );
@@ -1026,7 +1028,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     onPrivacyChange: (privacy: PostPrivacy) => setPostData((prev) => (prev ? { ...prev, privacy } : prev)),
     conversionSuccessCount: ownerVisibleConversionCount,
   };
-  const showSignupCTA = !isLoading && !isAuthenticated;
+  const showSignupCTA = !isLoading && !isAuthenticated && !postData?.curator;
   const filteredGenres = (postData?.genres ?? []).filter(
     (genre) => genre.toLowerCase() !== 'music',
   );
@@ -1336,6 +1338,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                               <div className="relative z-20 flex flex-1 flex-col gap-2.5 p-5">
                                 <PostAuthorHeader
                                   username={postData.username}
+                                  {...postCuratorHeader({ curator: postData.curator, postId: postData.postId || postId, isOwner: isOwnPost })}
                                   description={postData?.description || ''}
                                   createdAt={postData?.createdAt}
                                   compact
@@ -1357,6 +1360,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                                   onOpenStudio={handleOpenStudio}
                                   className="self-start"
                                 />
+                                <PostCuratorJoin curator={postData.curator} postId={postData.postId || postId} isOwner={isOwnPost} />
                               </div>
                             )}
                           </div>
@@ -1496,6 +1500,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                 <div className="px-3 py-2.5 sm:p-4 card-ink flex flex-col gap-1.5 sm:gap-2.5 text-left relative z-20">
                   <PostAuthorHeader
                     username={postData.username}
+                    {...postCuratorHeader({ curator: postData.curator, postId: postData.postId || postId, isOwner: isOwnPost })}
                     description={postData?.description || ''}
                     createdAt={postData?.createdAt}
                   />
@@ -1516,6 +1521,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
                     onOpenStudio={handleOpenStudio}
                     className="self-start"
                   />
+                  <PostCuratorJoin curator={postData.curator} postId={postData.postId || postId} isOwner={isOwnPost} />
                 </div>
               )}
             </div>

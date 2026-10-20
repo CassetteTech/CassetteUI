@@ -442,6 +442,16 @@ const applyPlatformLinks = (
   return next;
 };
 
+// Like Bridge: a membership with access implies inclusion; only the explicit row changes on a write.
+const followStateOf = (state: MockState, curatorProfileId: string) => {
+  const membership = state.membershipStatus?.curatorProfileId === curatorProfileId
+    ? state.membershipStatus.membership
+    : null;
+  const hasActiveMembership = Boolean(membership && ['active', 'trialing', 'past_due'].includes(membership.status));
+  const hasExplicitFollow = state.curatorFollows.has(curatorProfileId);
+  return { isFollowing: hasActiveMembership || hasExplicitFollow, hasExplicitFollow, hasActiveMembership };
+};
+
 export const toPostByIdResponse = (post: FixturePost) => ({
   success: true,
   postId: post.postId,
@@ -449,6 +459,7 @@ export const toPostByIdResponse = (post: FixturePost) => ({
   paidPromotionCampaignId: post.paidPromotionCampaignId ?? null,
   curatorId: post.curatorId ?? null,
   isMemberView: post.isMemberView ?? false,
+  curator: post.curator,
   repostedByCurrentUser: post.repostedByCurrentUser || false,
   elementType: post.elementType,
   musicElementId: post.musicElementId,
@@ -1157,20 +1168,14 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
         state[failuresKey] -= 1;
         return json(route, { message: 'Follow is temporarily unavailable.' }, 503);
       }
-      // Like Bridge: a membership with access implies inclusion; only the explicit row changes here.
-      const membership = state.membershipStatus?.curatorProfileId === curatorProfileId
-        ? state.membershipStatus.membership
-        : null;
-      const hasActiveMembership = Boolean(membership && ['active', 'trialing', 'past_due'].includes(membership.status));
-      const wasSource = hasActiveMembership || state.curatorFollows.has(curatorProfileId);
+      const wasSource = followStateOf(state, curatorProfileId).isFollowing;
       if (method === 'PUT') state.curatorFollows.add(curatorProfileId);
       if (method === 'DELETE') state.curatorFollows.delete(curatorProfileId);
-      const hasExplicitFollow = state.curatorFollows.has(curatorProfileId);
-      const isFollowing = hasActiveMembership || hasExplicitFollow;
-      if (isFollowing !== wasSource) {
-        state.currentUser.feedCuratorCount = Math.max(0, (state.currentUser.feedCuratorCount ?? 0) + (isFollowing ? 1 : -1));
+      const followState = followStateOf(state, curatorProfileId);
+      if (followState.isFollowing !== wasSource) {
+        state.currentUser.feedCuratorCount = Math.max(0, (state.currentUser.feedCuratorCount ?? 0) + (followState.isFollowing ? 1 : -1));
       }
-      return json(route, { isFollowing, hasExplicitFollow, hasActiveMembership });
+      return json(route, followState);
     }
 
     if (pathname === '/api/v1/curators/me/member-stats' && method === 'GET') {
@@ -2790,7 +2795,11 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
           }
         }
 
-        return json(route, toPostByIdResponse(post));
+        // Like Bridge: the curator summary carries the follow state for a signed-in viewer other than the owner.
+        const viewerFollow = post.curator && state.currentUser && state.currentUser.id !== post.ownerId
+          ? followStateOf(state, post.curator.curatorProfileId)
+          : null;
+        return json(route, toPostByIdResponse(post.curator ? { ...post, curator: { ...post.curator, viewerFollow } } : post));
       }
 
       if (method === 'PATCH') {

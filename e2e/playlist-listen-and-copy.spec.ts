@@ -26,7 +26,6 @@ test('opens a playlist on the service it came from and offers copies only elsewh
   const original = page.getByRole('link', { name: /Spotify.*Original playlist/ });
   await expect(original).toHaveAttribute('href', originalUrl);
   await expect(page.getByTestId('playlist-copy-spotify')).toHaveCount(0);
-  await expect(page.getByTestId('cassette-spotify-copy')).toHaveCount(0);
 
   const copies = page.getByRole('region', { name: 'Not on your service?' });
   await expect(copies).toContainText('Cassette builds a copy in your account.');
@@ -35,7 +34,7 @@ test('opens a playlist on the service it came from and offers copies only elsewh
   await expect(page.getByRole('link', { name: /^From/ })).toHaveCount(0);
 });
 
-test("makes Cassette's Spotify copy on a signed-out fan's first tap and then opens it", async ({ page }) => {
+test("offers Cassette's Spotify copy in the copy block until a signed-out fan's first tap makes it", async ({ page }) => {
   await mockCassetteApp(page, { posts: [applePlaylist] });
   const creations: Array<{ TargetPlatform?: string }> = [];
   await page.route('**/api/v1/convert/createPlaylist', async (route) => {
@@ -45,20 +44,25 @@ test("makes Cassette's Spotify copy on a signed-out fan's first tap and then ope
 
   await page.goto('/post/post-apple-original');
 
-  // Spotify is a listen row, not a copy button: the copy block offers only Deezer.
+  // No copy exists yet, so Spotify is a copy button, not a listen row.
+  await expect(page.getByRole('link', { name: /Spotify.*Copy made by Cassette/ })).toHaveCount(0);
   const copies = page.getByRole('region', { name: 'Not on your service?' });
-  await expect(copies.getByRole('button')).toHaveCount(1);
+  await expect(copies).toContainText('Cassette builds a copy on the service you pick.');
+  await expect(copies.getByRole('button')).toHaveCount(2);
   await expect(copies.getByRole('button', { name: 'Make a copy on Deezer' })).toBeVisible();
 
-  await page.getByRole('button', { name: /Spotify.*Copy made by Cassette/ }).focus();
-  await page.keyboard.press('Enter');
+  await copies.getByRole('button', { name: 'Make a copy on Spotify' }).click();
 
-  // Focus moves to the link that replaces the button, so Enter opens the copy next.
-  const copy = page.getByRole('link', { name: /Spotify.*Ready to open/ });
-  await expect(copy).toHaveAttribute('href', 'https://open.spotify.com/playlist/test-playlist-505050');
-  await expect(copy).toBeFocused();
+  const open = copies.getByRole('button', { name: 'Open the copy on Spotify' });
+  await expect(open).toBeVisible();
   await expect(page.getByText('Create an account to continue')).toHaveCount(0);
   expect(creations).toEqual([expect.objectContaining({ TargetPlatform: 'spotify' })]);
+
+  // The Spotify app does not open in the test browser, so the copy opens on the web.
+  await page.context().route('https://open.spotify.com/**', (route) => route.fulfill({ body: '' }));
+  const popup = page.waitForEvent('popup');
+  await open.click();
+  await expect(await popup).toHaveURL(/^https:\/\/open\.spotify\.com\/playlist\//);
 });
 
 test("opens Cassette's stored Spotify copy with one tap and makes no new one", async ({ page }) => {
@@ -73,7 +77,10 @@ test("opens Cassette's stored Spotify copy with one tap and makes no new one", a
   await page.goto('/post/post-apple-original');
 
   await expect(page.getByRole('link', { name: /Spotify.*Copy made by Cassette/ })).toHaveAttribute('href', storedCopy);
-  await expect(page.getByTestId('cassette-spotify-copy')).toHaveCount(0);
+  const copies = page.getByRole('region', { name: 'Not on your service?' });
+  await expect(copies).toContainText('Cassette builds a copy in your account.');
+  await expect(copies.getByRole('button')).toHaveCount(1);
+  await expect(copies.getByRole('button', { name: 'Make a copy on Deezer' })).toBeVisible();
   expect(creationRequests).toBe(0);
 });
 

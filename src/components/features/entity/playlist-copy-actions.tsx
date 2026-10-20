@@ -13,7 +13,7 @@ import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
-import { clientConfig } from '@/lib/config-client';
+import { sharesCassetteSpotifyCopy } from '@/lib/playlist-copy-placement';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
@@ -314,7 +314,10 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       success: false,
     });
 
-    if (!isAuthenticated) {
+    // Cassette's shared Spotify copy is made on Cassette's account, so it needs no sign-in and no connection.
+    const sharedSpotifyCopy = platform === 'spotify' && sharesCassetteSpotifyCopy(sourcePlatformKey);
+
+    if (!isAuthenticated && !sharedSpotifyCopy) {
       void captureClientEvent('playlist_creation_blocked', {
         ...analyticsProps,
         reason_code: 'auth_required',
@@ -333,10 +336,8 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
     setShowFailedTracks(false);
 
     try {
-      const skipConnectionCheck = platform === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
-
-      let hasConnection = skipConnectionCheck;
-      if (!skipConnectionCheck) {
+      let hasConnection = sharedSpotifyCopy;
+      if (!sharedSpotifyCopy) {
         const connections = await apiService.getMusicConnections();
         const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
         hasConnection = connections.services?.some(
@@ -591,7 +592,10 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
         Not on your service?
       </h4>
       <p className="mt-0.5 font-roboto-flex text-xs text-muted-foreground">
-        Cassette builds a copy in your account.
+        {/* Cassette's shared Spotify copy is not in the fan's account. */}
+        {targets.includes('spotify') && sharesCassetteSpotifyCopy(sourcePlatformKey)
+          ? 'Cassette builds a copy on the service you pick.'
+          : 'Cassette builds a copy in your account.'}
         {conversionLimitExceeded &&
           ` A copy holds the first ${PLAYLIST_CONVERSION_LIMIT} of its ${playlistTrackCount} tracks.`}
       </p>

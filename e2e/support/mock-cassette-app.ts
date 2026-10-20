@@ -1255,7 +1255,8 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       if (action === 'publish') {
         state.curatorPlanPublishRequests.push(planId);
         if (plan.status === 'active') return json(route, plan);
-        if (plan.featureKeys.length === 0) {
+        if (!plan.featureKeys.some((key) =>
+          state.curatorFeatures.some((feature) => feature.featureKey === key))) {
           return json(route, {
             errorCode: 'curator_profile_state_invalid',
             message: 'Publishing requires at least one membership feature; edit the draft to add one.',

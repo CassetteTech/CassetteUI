@@ -18,7 +18,7 @@ import { useShowMore } from '@/components/ui/interior/show-more';
 const avatarBlob = { borderRadius: '60% 40% 55% 45% / 55% 45% 55% 45%' } as const;
 
 const iconControl =
-  'flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  'flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
@@ -37,7 +37,8 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
         animate: { opacity: 1, y: 0 },
         transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const },
       })}
-      className="flex flex-col gap-3 px-4 pt-4 sm:px-6"
+      // Focus is ink here: the shared Follow button reads --ring, and profile links get an ink outline.
+      className="flex flex-col gap-3 px-4 pt-4 [--ring:var(--foreground)] sm:px-6 [&_a:focus-visible]:rounded-sm [&_a:focus-visible]:outline [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-2 [&_a:focus-visible]:outline-foreground"
     >
       <div className="flex items-center gap-3">
         <AvatarPreviewDialog
@@ -49,7 +50,7 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
           <button
             type="button"
             aria-label={`View ${name}'s profile picture`}
-            className="flex-shrink-0 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex-shrink-0 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
             style={avatarBlob}
           >
             <Avatar className="size-14 border-2 border-foreground/80" style={avatarBlob}>
@@ -128,7 +129,7 @@ function ProfileAbout({ userBio }: { userBio: UserBio }) {
           onClick={() => setExpanded(!open)}
           aria-expanded={open}
           aria-controls={regionId}
-          className="mt-1 block rounded-sm font-mono text-[10px] font-bold uppercase leading-[0.9375rem] tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-1 block rounded-sm font-mono text-[10px] font-bold uppercase leading-[0.9375rem] tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"
         >
           {open ? 'Show less' : 'Show more'}
         </button>

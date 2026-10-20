@@ -61,6 +61,57 @@ test.describe('curator page on a phone', () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  for (const theme of ['light', 'dark'] as const) {
+    test(`header controls draw an ink focus indicator, not red, in the ${theme} theme`, async ({ page }) => {
+      await page.addInitScript((value) => localStorage.setItem('theme', value), theme);
+      await mockCassetteApp(page, {
+        curatorPage: fixtureCuratorPage,
+        users: [{ ...fixtureUsers.playlistCurator, bio: LONG_BIO }],
+      });
+      await page.goto(CURATOR_PATH);
+      const header = page.locator('header').filter({ has: page.getByRole('button', { name: /profile picture/ }) });
+      const avatar = header.getByRole('button', { name: /profile picture/ });
+      await expect(avatar).toBeVisible();
+      await expect(page.locator('html')).toHaveClass(new RegExp(theme));
+
+      // Tab from the avatar through Follow, Share, and Show more; each focus mark uses the ink color.
+      await avatar.focus();
+      const marks: Array<{ label: string; ink: boolean; red: boolean }> = [];
+      for (let step = 0; step < 4; step += 1) {
+        if (step > 0) await page.keyboard.press('Tab');
+        marks.push(await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!(el instanceof HTMLElement) || !el.parentElement) throw new Error('No focused control');
+          // Read the settled focus style, not a frame of the button's color transition.
+          for (const animation of el.getAnimations()) animation.finish();
+          const probe = document.createElement('span');
+          el.parentElement.append(probe);
+          const rgb = (color: string) => {
+            probe.style.color = color;
+            return getComputedStyle(probe).color.match(/\d+/g)!.slice(0, 3).join(', ');
+          };
+          const ink = rgb('hsl(var(--foreground))');
+          const reds = [rgb('hsl(350 76% 52%)'), rgb('hsl(349 89% 65%)')];
+          probe.remove();
+          const style = getComputedStyle(el);
+          const drawn = [style.boxShadow, style.outlineStyle === 'none' ? '' : style.outlineColor, style.borderColor].join(' ');
+          return {
+            label: el.getAttribute('aria-label') ?? el.textContent?.trim() ?? '',
+            ink: drawn.includes(ink),
+            red: reds.some((red) => drawn.includes(red)),
+          };
+        }));
+      }
+      expect(marks.map((mark) => mark.label)).toEqual([
+        `View ${NAME}'s profile picture`,
+        `Follow ${NAME}`,
+        'Share profile',
+        'Show more',
+      ]);
+      for (const mark of marks) expect(mark, mark.label).toMatchObject({ ink: true, red: false });
+    });
+  }
+
   test('a non-member sees the plain offer above the posts, first in reading and keyboard order', async ({ page }) => {
     await mockCassetteApp(page, { curatorPage: fixtureCuratorPage });
     await page.goto(CURATOR_PATH);

@@ -1,24 +1,24 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Share2 } from 'lucide-react';
 import { UserBio, ConnectedService, PlatformPreferenceInfo } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { CoralGlow } from '@/components/ui/coral-glow';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { AvatarPreviewDialog } from '@/components/features/profile/avatar-preview-dialog';
 import { StudioChip } from '@/components/features/curator/studio-shell';
 import { CuratorFollowAction } from '@/components/features/curator/curator-follow-action';
 import { getDisplayPlatformDefinition, isAppleMusicPlatform } from '@/lib/platforms';
 import { ProfileLinksRow } from '@/components/features/profile/profile-links';
+import { parseProfileLink } from '@/lib/profile-links';
 import { useShowMore } from '@/components/ui/interior/show-more';
 
 const avatarBlob = { borderRadius: '60% 40% 55% 45% / 55% 45% 55% 45%' } as const;
 
 const iconControl =
-  'flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  'flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground';
 
 interface ProfileHeaderProps {
   userBio: UserBio;
@@ -28,7 +28,7 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({ userBio, onShare, shareCopied = false }: ProfileHeaderProps) {
   const reduceMotion = useReducedMotion();
-  const totalLikesReceived = Number(userBio.totalLikesReceived ?? 0);
+  const name = userBio.displayName || userBio.username;
 
   return (
     <motion.header
@@ -37,10 +37,10 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
         animate: { opacity: 1, y: 0 },
         transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const },
       })}
-      className="px-3 pt-3 sm:px-4 sm:pt-4"
+      // Focus is ink here: the shared Follow button reads --ring, and profile links get an ink outline.
+      className="flex flex-col gap-3 px-4 pt-4 [--ring:var(--foreground)] sm:px-6 [&_a:focus-visible]:rounded-sm [&_a:focus-visible]:outline [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-2 [&_a:focus-visible]:outline-foreground"
     >
-    <CoralGlow vivid className="card-quiet flex flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5">
-      <div className="flex items-start gap-4">
+      <div className="flex items-center gap-3">
         <AvatarPreviewDialog
           avatarUrl={userBio.avatarUrl}
           username={userBio.username}
@@ -49,103 +49,103 @@ export function ProfileHeader({ userBio, onShare, shareCopied = false }: Profile
         >
           <button
             type="button"
-            aria-label={`View ${userBio.displayName || userBio.username}'s profile picture`}
-            className="flex-shrink-0 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label={`View ${name}'s profile picture`}
+            className="flex-shrink-0 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
             style={avatarBlob}
           >
-            <Avatar className="h-[4.5rem] w-[4.5rem] border-2 border-foreground/80 sm:h-24 sm:w-24" style={avatarBlob}>
+            <Avatar className="size-14 border-2 border-foreground/80" style={avatarBlob}>
               <AvatarImage src={userBio.avatarUrl} alt={`@${userBio.username}`} />
-              <AvatarFallback className="bg-muted text-xl text-muted-foreground">
+              <AvatarFallback className="bg-muted text-lg text-muted-foreground">
                 {userBio.username.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </button>
         </AvatarPreviewDialog>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate font-teko text-3xl font-bold leading-none sm:text-4xl">
-                  {userBio.displayName || userBio.username}
-                </span>
-                <VerificationBadge accountType={userBio.accountType} size="md" />
-              </div>
-              <span className="block truncate font-mono text-xs text-muted-foreground">@{userBio.username}</span>
+        {/* Follow and Share stay on the name's row; a wide Following and Unfollow pair wraps under the name. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+          <div className="min-w-[8rem] flex-1">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-xl font-semibold leading-tight">{name}</span>
+              <VerificationBadge accountType={userBio.accountType} size="md" />
             </div>
-            <div className="-mr-2 -mt-1 flex shrink-0 items-center">
-              <button type="button" onClick={onShare} aria-label="Share profile" className={iconControl}>
-                {shareCopied ? (
-                  <Check className="h-5 w-5" aria-hidden="true" />
-                ) : (
-                  <Share2 className="h-5 w-5" aria-hidden="true" />
-                )}
-              </button>
-              <output aria-live="polite" className="sr-only">
-                {shareCopied ? 'Profile link copied' : ''}
-              </output>
-            </div>
+            <span className="block truncate font-mono text-xs text-muted-foreground">@{userBio.username}</span>
           </div>
-          {totalLikesReceived > 0 && (
-            <p className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-teko text-3xl font-bold leading-none tabular-nums">
-                {totalLikesReceived.toLocaleString()}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {totalLikesReceived === 1 ? 'like' : 'likes'}
-              </span>
-            </p>
-          )}
+          <div className="-mr-2 flex shrink-0 items-center gap-1">
+            <CuratorFollowAction compact />
+            <button type="button" onClick={onShare} aria-label="Share profile" className={iconControl}>
+              {shareCopied ? (
+                <Check className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <Share2 className="h-5 w-5" aria-hidden="true" />
+              )}
+            </button>
+            <output aria-live="polite" className="sr-only">
+              {shareCopied ? 'Profile link copied' : ''}
+            </output>
+          </div>
         </div>
       </div>
 
-      <ConnectedServices
-        services={userBio.connectedServices}
-        platformPreferences={userBio.platformPreferences}
-      />
-
-      {userBio.bio && <ProfileBio bio={userBio.bio} />}
-
-      <ProfileLinksRow links={userBio.profileLinks} />
-
-      <CuratorFollowAction compact />
-    </CoralGlow>
+      <ProfileAbout userBio={userBio} />
     </motion.header>
   );
 }
 
-function ProfileBio({ bio }: { bio: string }) {
+/** Two lines of bio; "Show more" opens the rest with the services and links. Without a bio they show at once. */
+function ProfileAbout({ userBio }: { userBio: UserBio }) {
   const reduced = useReducedMotion();
   const regionId = useId();
-  const { contentRef, open, toggle, height, expandable } = useShowMore({ lines: 4 });
+  const [expanded, setExpanded] = useState(false);
+  const { contentRef, height, expandable } = useShowMore({ lines: 2 });
+  const hasExtras = connectedPlatforms(userBio.connectedServices, userBio.platformPreferences).length > 0 ||
+    (userBio.profileLinks ?? []).some((link) => parseProfileLink(link) !== null);
+  const extras = (
+    <div className="mt-3 flex flex-col gap-2">
+      <ConnectedServices services={userBio.connectedServices} platformPreferences={userBio.platformPreferences} />
+      <ProfileLinksRow links={userBio.profileLinks} />
+    </div>
+  );
 
+  if (!userBio.bio) return hasExtras ? extras : null;
+
+  const open = expanded && (expandable || hasExtras);
   return (
     <div className="min-w-0">
       <motion.div
         id={regionId}
         initial={false}
-        animate={height === null ? {} : { height }}
+        animate={open ? { height: 'auto' } : height === null ? {} : { height }}
         transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 190, damping: 30, mass: 1 }}
-        style={{ maxHeight: height === null ? '4lh' : undefined }}
-        className="overflow-hidden"
+        style={{ maxHeight: height === null ? '2lh' : undefined }}
+        className="overflow-hidden text-sm leading-relaxed"
       >
-        <div ref={contentRef} className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 sm:text-base">
-          {bio}
-        </div>
+        <div ref={contentRef} className="whitespace-pre-wrap text-foreground/90">{userBio.bio}</div>
+        {open && extras}
       </motion.div>
-      {expandable && (
+      {(expandable || hasExtras) && (
         <button
           type="button"
-          onClick={toggle}
+          onClick={() => setExpanded(!open)}
           aria-expanded={open}
           aria-controls={regionId}
-          className="mt-1 rounded-sm font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-1 block rounded-sm font-mono text-[10px] font-bold uppercase leading-[0.9375rem] tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"
         >
           {open ? 'Show less' : 'Show more'}
         </button>
       )}
     </div>
   );
+}
+
+function connectedPlatforms(services: ConnectedService[], platformPreferences?: PlatformPreferenceInfo[]) {
+  const types = platformPreferences?.length
+    ? platformPreferences.map((pref) => pref.platform)
+    : (services ?? []).map((service) => service.serviceType);
+  return [...new Set(types)].flatMap((type) => {
+    const definition = getDisplayPlatformDefinition(type);
+    return definition?.logoSrc ? [{ type, logoSrc: definition.logoSrc, name: definition.displayName }] : [];
+  });
 }
 
 export function ConnectedServices({
@@ -155,13 +155,7 @@ export function ConnectedServices({
   services: ConnectedService[];
   platformPreferences?: PlatformPreferenceInfo[];
 }) {
-  const types = platformPreferences?.length
-    ? platformPreferences.map((pref) => pref.platform)
-    : (services ?? []).map((service) => service.serviceType);
-  const platforms = [...new Set(types)].flatMap((type) => {
-    const definition = getDisplayPlatformDefinition(type);
-    return definition?.logoSrc ? [{ type, logoSrc: definition.logoSrc, name: definition.displayName }] : [];
-  });
+  const platforms = connectedPlatforms(services, platformPreferences);
 
   if (platforms.length === 0) return null;
 

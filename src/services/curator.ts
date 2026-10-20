@@ -99,6 +99,7 @@ export const curatorPageSchema = z.object({
       name: z.string().min(1),
       description: z.string(),
     })),
+    membersOnlyPostCount: z.number().int().nonnegative().optional(),
   }).refine(
     (plan) => (plan.annualAmountMinor === null) === (plan.annualServiceFeeMinor === null),
     { message: 'Annual amount and service fee must be provided together' },

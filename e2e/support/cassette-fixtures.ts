@@ -567,6 +567,7 @@ export const fixtureCuratorPage: FixtureCuratorPage = {
         description: 'Members-only posts are visible to members.',
       },
     ],
+    membersOnlyPostCount: 1,
   },
   viewer: {
     isOwner: false,

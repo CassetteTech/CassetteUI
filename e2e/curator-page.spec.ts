@@ -238,17 +238,14 @@ test('keeps the curator page accessible and responsive on mobile and desktop', a
   await expect(
     page.getByText(fixtureUsers.playlistCurator.bio!, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();
-  const banner = page.getByTestId('membership-banner');
-  await expect(banner).toBeVisible();
-  await expect(banner).toContainText('View membership');
-  await expect(banner).not.toContainText(/\bJoin\b/);
-  await expect(banner).toContainText('$5.50/month');
-  const card = page.locator('[data-testid="curator-membership-card"]:visible').first();
-  await card.getByText('Annual', { exact: true }).click();
-  await expect(banner).toContainText('$55.00/year');
-  await expect(card).toContainText('plus applicable tax');
-  const joinButton = page.locator('[data-testid="curator-membership-card"]:visible').first()
-    .getByRole('button', { name: /join/i });
+  const pass = page.getByTestId('curator-membership-compact');
+  await expect(pass).toBeVisible();
+  await expect(pass).toContainText('$5.50/month');
+  await pass.getByRole('button', { name: 'Plan details' }).click();
+  await pass.getByText('Annual', { exact: true }).click();
+  await expect(pass).toContainText('$55.00/year');
+  await expect(pass).toContainText('Plus applicable tax');
+  const joinButton = pass.getByRole('button', { name: /join/i });
   // Actionability proof: visible, enabled, stable, and unobstructed at the click point.
   await joinButton.click({ trial: true });
   await expect(joinButton).toBeInViewport({ ratio: 0.95 });

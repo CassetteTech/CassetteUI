@@ -168,7 +168,7 @@ test.describe('on a phone', () => {
     });
 
     await page.goto(CURATOR_PATH);
-    await expect(page.locator('[data-testid="curator-membership-card"]:visible')).toBeVisible();
+    await expect(page.getByTestId('curator-membership-compact')).toBeVisible();
     await expect(followButton(page)).toHaveCount(1);
     await expect(page.locator('header').filter({ has: followButton(page) })).toHaveCount(1);
     await expectNoHorizontalOverflow(page);

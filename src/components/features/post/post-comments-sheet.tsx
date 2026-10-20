@@ -36,7 +36,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { z } from 'zod';
 import { appLogger } from '@/lib/observability/logger';
-import { tryStorage } from '@/lib/best-effort';
+import { ignoreFailure, tryStorage } from '@/lib/best-effort';
 import { browserHandoffPath } from '@/utils/profile-action-intent';
 
 const COMMENT_MAX_LENGTH = 2000;
@@ -45,8 +45,7 @@ const DEFAULT_VISIBLE_REPLIES = 2;
 /** The post page opens this sheet when it loads with this parameter, so sign-in can return here. */
 export const OPEN_COMMENTS_PARAMETER = 'comments';
 
-const commentDraftSchema = z.object({ content: z.string(), parentCommentId: z.string().nullable() });
-type CommentDraft = z.infer<typeof commentDraftSchema>;
+const commentDraftSchema = z.object({ userId: z.string(), content: z.string(), parentCommentId: z.string().nullable() });
 const draftKey = (postId: string) => `cassette_comment_draft:${postId}`;
 
 interface PostCommentsSheetProps {
@@ -75,6 +74,8 @@ export function PostCommentsSheet({
   const signInHref = browserHandoffPath(`${pathname}?${OPEN_COMMENTS_PARAMETER}=1`);
   const signedIn = Boolean(currentUserId);
   const [sessionEnded, setSessionEnded] = useState(false);
+  // The account whose unposted text is kept in storage until it posts.
+  const [draftOwner, setDraftOwner] = useState<string | null>(null);
 
   const [comments, setComments] = useState<PostComment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -369,36 +370,71 @@ export function PostCommentsSheet({
   }, [hasLoaded, loadComments]);
 
   // A comment written when the session ends waits here through sign-in.
-  const keepDraft = useCallback((draft: CommentDraft) => {
+  const keepDraft = useCallback(() => {
     setSessionEnded(true);
-    tryStorage(() => sessionStorage.setItem(draftKey(postId), JSON.stringify(draft)), undefined);
-  }, [postId]);
+    setDraftOwner(currentUserId ?? null);
+  }, [currentUserId]);
   const forgetDraft = useCallback(() => {
     setSessionEnded(false);
+    setDraftOwner(null);
     tryStorage(() => sessionStorage.removeItem(draftKey(postId)), undefined);
   }, [postId]);
 
   const draftChecked = useRef(false);
+  const previousAccount = useRef(currentUserId);
   useEffect(() => {
-    if (draftChecked.current || !hasLoaded || !signedIn) return;
+    if (previousAccount.current === currentUserId) return;
+    previousAccount.current = currentUserId;
+    draftChecked.current = false;
+    setSessionEnded(false);
+    setDraftOwner(null);
+    setNewComment('');
+    setReplyingToCommentId(null);
+    setReplyContent('');
+    setEditingCommentId(null);
+    setEditingContent('');
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (draftChecked.current || !hasLoaded || !currentUserId) return;
     draftChecked.current = true;
     const raw = tryStorage(() => sessionStorage.getItem(draftKey(postId)), null);
     if (!raw) return;
-    tryStorage(() => sessionStorage.removeItem(draftKey(postId)), undefined);
-    try {
-      const parsed = commentDraftSchema.safeParse(JSON.parse(raw));
-      if (!parsed.success) return;
-      const draft = parsed.data;
-      if (draft.parentCommentId && comments.some((c) => c.commentId === draft.parentCommentId)) {
-        setReplyingToCommentId(draft.parentCommentId);
-        setReplyContent(draft.content);
-      } else {
-        setNewComment(draft.content);
-      }
-    } catch {
-      // A malformed draft is dropped.
+    const parsed = commentDraftSchema.safeParse(ignoreFailure(() => JSON.parse(raw)));
+    if (!parsed.success || parsed.data.userId !== currentUserId) {
+      tryStorage(() => sessionStorage.removeItem(draftKey(postId)), undefined);
+      return;
     }
-  }, [comments, hasLoaded, postId, signedIn]);
+    const draft = parsed.data;
+    setDraftOwner(currentUserId);
+    const target = comments.find((c) => c.commentId === draft.parentCommentId);
+    if (!target) {
+      setNewComment(draft.content);
+      return;
+    }
+    setReplyingToCommentId(target.commentId);
+    setReplyContent(draft.content);
+    const expanded: Record<string, boolean> = {};
+    const counts: Record<string, number> = {};
+    for (let node = target; node.parentCommentId;) {
+      const parentId = node.parentCommentId;
+      const siblings = comments.filter((c) => c.parentCommentId === parentId);
+      expanded[parentId] = true;
+      counts[parentId] = Math.max(DEFAULT_VISIBLE_REPLIES, siblings.indexOf(node) + 1);
+      const parent = comments.find((c) => c.commentId === parentId);
+      if (!parent) break;
+      node = parent;
+    }
+    setExpandedThreads((prev) => ({ ...prev, ...expanded }));
+    setVisibleRepliesCount((prev) => ({ ...prev, ...counts }));
+  }, [comments, currentUserId, hasLoaded, postId]);
+
+  const recoveryContent = replyingToCommentId ? replyContent : newComment;
+  useEffect(() => {
+    if (!draftOwner || !recoveryContent.trim()) return;
+    const draft = { userId: draftOwner, content: recoveryContent, parentCommentId: replyingToCommentId };
+    tryStorage(() => sessionStorage.setItem(draftKey(postId), JSON.stringify(draft)), undefined);
+  }, [draftOwner, postId, recoveryContent, replyingToCommentId]);
 
   const handleCreate = useCallback(async () => {
     const content = newComment.trim();
@@ -428,7 +464,7 @@ export function PostCommentsSheet({
       if (error instanceof ApiError && error.status === 403) toast.error('Comments are turned off for this post.');
       else if (error instanceof ApiError && error.status === 401) {
         setNewComment((current) => current || content);
-        keepDraft({ content, parentCommentId: null });
+        keepDraft();
       }
       else toast.error('Failed to add comment.');
     } finally {
@@ -472,7 +508,7 @@ export function PostCommentsSheet({
       else if (error instanceof ApiError && error.status === 401) {
         setReplyingToCommentId(parentComment.commentId);
         setReplyContent(content);
-        keepDraft({ content, parentCommentId: parentComment.commentId });
+        keepDraft();
       }
       else toast.error('Failed to add reply.');
     } finally {

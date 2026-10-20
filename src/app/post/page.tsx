@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react';
 import { EntitySkeleton, type StagedConversion } from '@/components/features/entity/entity-skeleton';
 import { useMusicLinkConversion } from '@/hooks/use-music';
+import { useAuthState } from '@/hooks/use-auth';
 import { useConversionStage } from '@/hooks/use-conversion-stage';
 import { clearConversionHandoff, growthBox, readConversionHandoff } from '@/lib/conversion-handoff';
 import { returnAddMusicDraft } from '@/lib/add-music-draft';
@@ -51,6 +52,7 @@ function PostPageContent() {
   const anonymous = handedOff ? handedOff.anonymous : !fromAddMusic;
   // Add music writes the post under the signed-in person, where read lag has been seen.
   const addMusicWrite = fromAddMusic || Boolean(handedOff?.running);
+  const viewerId = useAuthState().user?.id ?? null;
   const [conversionKey, setConversionKey] = useState<string | null>(null);
   const polled = useConversionStage(conversionKey, { anonymous, intervalMs: 500 });
   const reported = handedOff?.running?.reported;
@@ -142,7 +144,7 @@ function PostPageContent() {
       try {
         const response = await apiService.fetchPostById(postId);
         if (response?.success) {
-          savePrefetchedPost(postId, response);
+          savePrefetchedPost(postId, response, viewerId);
           if (isMountedRef.current) setReadPost(parsePostResponse(response, postId));
           return true;
         }
@@ -160,7 +162,7 @@ function PostPageContent() {
     }
     // Without the add-music lag, /post/[id] can load the post itself.
     return !addMusicWrite;
-  }, [addMusicWrite]);
+  }, [addMusicWrite, viewerId]);
 
   const resolvePostAndRender = useCallback(async (postId: string) => {
     const isReady = await waitForPostAvailability(postId);

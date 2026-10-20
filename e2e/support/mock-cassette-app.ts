@@ -442,7 +442,7 @@ const applyPlatformLinks = (
   return next;
 };
 
-const toPostByIdResponse = (post: FixturePost) => ({
+export const toPostByIdResponse = (post: FixturePost) => ({
   success: true,
   postId: post.postId,
   redirectPostId: post.postId,

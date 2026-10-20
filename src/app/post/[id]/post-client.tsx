@@ -645,7 +645,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
         const startedAt = Date.now();
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
-          takePrefetchedPost(postId);
+          takePrefetchedPost(postId, viewerId);
         if (response) setArrivedFromConversionHandoff(true);
 
         while (!response && Date.now() - startedAt < maxWaitMs) {

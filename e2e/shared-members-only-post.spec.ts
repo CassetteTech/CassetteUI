@@ -12,7 +12,7 @@ import {
   fixtureUsers,
   type FixturePost,
 } from './support/cassette-fixtures';
-import { mockCassetteApp } from './support/mock-cassette-app';
+import { mockCassetteApp, toPostByIdResponse } from './support/mock-cassette-app';
 
 const NAME = fixtureCuratorPage.curator.displayName!;
 const USERNAME = fixtureCuratorPage.curator.username;
@@ -239,5 +239,97 @@ test.describe('a post read while the account is not known', () => {
 
     await expectLockedView(page);
     await expect(lockedView(page).getByRole('link', { name: 'Sign in' })).toBeVisible();
+  });
+});
+
+test.describe('a post cached by a conversion for another account', () => {
+  const CACHED_TITLE = 'Cached Members Mixtape';
+  const isPostRead = (url: string) => new URL(url).pathname === `/api/v1/social/posts/${memberPost.postId}`;
+
+  // The stash a conversion leaves for the member's own next page, as Studio writes it.
+  async function seedMemberCache(page: Page) {
+    const entry = { viewerId: fixtureUsers.viewer.id, post: toPostByIdResponse({ ...memberPost, title: CACHED_TITLE }) };
+    await page.addInitScript(([key, value]) => {
+      if (sessionStorage.getItem('cache-seeded')) return;
+      sessionStorage.setItem('cache-seeded', '1');
+      sessionStorage.setItem(key, value);
+    }, [`cassette:prefetched-post:${memberPost.postId}`, JSON.stringify(entry)]);
+    // Records any moment the cached content is on the page, so a brief flash also fails.
+    await page.addInitScript((title) => {
+      new MutationObserver(() => {
+        if (document.body?.textContent?.includes(title)) sessionStorage.setItem('cached-title-seen', '1');
+      }).observe(document, { childList: true, subtree: true, characterData: true });
+    }, CACHED_TITLE);
+  }
+
+  const cachedTitleSeen = (page: Page) => page.evaluate(() => sessionStorage.getItem('cached-title-seen') === '1');
+
+  const memberOptions = {
+    currentUser: fixtureUsers.viewer,
+    curatorPage: fixtureCuratorPage,
+    membershipStatus: fixtureActiveMembershipStatus,
+    posts: [memberPost],
+    users: [fixtureUsers.member],
+  };
+
+  test('serves the account that cached it', async ({ page }) => {
+    await mockCassetteApp(page, memberOptions);
+    await seedMemberCache(page);
+
+    await page.goto(`/post/${memberPost.postId}`);
+
+    await expect(page.getByRole('heading', { name: CACHED_TITLE }).first()).toBeVisible();
+    expect(await cachedTitleSeen(page)).toBe(true);
+  });
+
+  test('is not shown when the first session read fails, nor after the session ends', async ({ page }) => {
+    const { state } = await mockCassetteApp(page, { ...memberOptions, sessionCookie: true });
+    await seedMemberCache(page);
+    let isFirstRead = true;
+    await page.route('**/api/auth/session', async (route) => {
+      if (!isFirstRead) return route.fallback();
+      isFirstRead = false;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"success":false}' });
+    });
+    const postRead = page.waitForRequest((request) => isPostRead(request.url()));
+
+    await page.goto(`/post/${memberPost.postId}`);
+
+    expect(await (await postRead).headerValue('cookie')).toBeNull();
+    await expectLockedView(page);
+    await expect(page.getByText(CACHED_TITLE)).toHaveCount(0);
+
+    state.currentUser = null;
+    const sessionRead = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/auth/session');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    expect((await sessionRead).status()).toBe(401);
+
+    await expectLockedView(page);
+    expect(await cachedTitleSeen(page)).toBe(false);
+  });
+
+  test('is not shown to a different account while its own read waits', async ({ page }) => {
+    await mockCassetteApp(page, {
+      ...memberOptions,
+      currentUser: fixtureUsers.member,
+      membershipStatus: fixtureNoMembershipStatus,
+    });
+    await seedMemberCache(page);
+    let answerPostRead!: () => void;
+    const postReadAnswered = new Promise<void>((resolve) => { answerPostRead = resolve; });
+    await page.route((url) => isPostRead(url.href), async (route) => {
+      await postReadAnswered;
+      await route.fallback();
+    });
+    const accountPostRead = page.waitForRequest((request) => isPostRead(request.url()));
+
+    await page.goto(`/post/${memberPost.postId}`);
+    await accountPostRead;
+    await expect(page.getByText(CACHED_TITLE)).toHaveCount(0);
+    await expect(page.getByText(SECRET_TITLE)).toHaveCount(0);
+
+    answerPostRead();
+    await expectLockedView(page);
+    expect(await cachedTitleSeen(page)).toBe(false);
   });
 });

@@ -923,7 +923,7 @@ export default function AddMusicPage() {
       if (result.postId) {
         const post = await ignoreFailure(apiService.fetchPostById(result.postId));
         if (post?.success) {
-          savePrefetchedPost(result.postId, post);
+          savePrefetchedPost(result.postId, post, user?.id ?? null);
         }
       }
 
@@ -945,7 +945,7 @@ export default function AddMusicPage() {
         'Something went wrong while converting your link. Please try again.',
       ));
     }
-  }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, pendingIsPlaylist, pendingSourcePlatform, platformLinks, privacy, resolvedReturnRoute, router, selectedItem]);
+  }, [conversionKey, description, isValidMusicUrl, linkConversion, musicUrl, normalizeUrlInput, pendingIsPlaylist, pendingSourcePlatform, platformLinks, privacy, resolvedReturnRoute, router, selectedItem, user?.id]);
 
   useEffect(() => {
     const query = debouncedSearchTerm.trim();

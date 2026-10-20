@@ -771,7 +771,8 @@ export interface PublicPostPageMetadata {
   description: string;
   imageUrl?: string | null;
   canonicalUrl: string;
-  elementType: string;
+  /** Null for a members-only post, whose metadata names only its curator. */
+  elementType: string | null;
 }
 
 export interface PostViewerStateResponse {

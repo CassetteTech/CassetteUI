@@ -60,8 +60,11 @@ const elementTypeForFixtureId = (
   }
 };
 
+const SESSION_COOKIE_NAME = 'cassette-e2e-session';
+
 type MockCassetteOptions = {
   reducedMotion?: 'reduce' | 'no-preference';
+  sessionCookie?: boolean;
   analyticsCaptures?: Array<Record<string, unknown>>;
   exploreRequests?: string[];
   currentUser?: FixtureUser | null;
@@ -930,6 +933,9 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
   const state = buildState(options);
 
   await page.emulateMedia({ reducedMotion: options.reducedMotion ?? 'reduce' });
+  if (options.sessionCookie) {
+    await page.context().addCookies([{ name: SESSION_COOKIE_NAME, value: 'signed-in', domain: '127.0.0.1', path: '/' }]);
+  }
 
   await page.route(
     /^https:\/\/fonts\.googleapis\.com\/icon\?family=Material\+Icons$/,
@@ -2740,13 +2746,47 @@ export async function mockCassetteApp(page: Page, options: MockCassetteOptions =
       }
 
       if (method === 'GET') {
-        if (post.privacy === 'private' && post.ownerId !== state.currentUser?.id) {
+        const sentSessionCookie = (await request.headerValue('cookie'))?.includes(SESSION_COOKIE_NAME) ?? false;
+        const viewer = options.sessionCookie && !sentSessionCookie ? null : state.currentUser;
+        if (post.privacy === 'private' && post.ownerId !== viewer?.id) {
           return json(route, {
             success: false,
             status: 'failed',
             errorCode: 'POST_NOT_FOUND',
             message: 'Post not found',
           }, 404);
+        }
+
+        // Like Bridge: the curator's members-only post, refused to a viewer
+        // without access, answers with its locked Feed row only.
+        const curator = state.curatorPage?.curator;
+        const owner = post.ownerId ? state.usersById.get(post.ownerId) : undefined;
+        if (
+          post.privacy === 'subscriber' &&
+          curator &&
+          owner &&
+          normalizeUsername(owner.username) === normalizeUsername(curator.username) &&
+          owner.id !== viewer?.id
+        ) {
+          const membership = viewer && state.membershipStatus?.curatorProfileId === curator.id
+            ? state.membershipStatus.membership
+            : null;
+          if (!membership || !['active', 'trialing', 'past_due'].includes(membership.status)) {
+            return json(route, {
+              errorCode: 'POST_MEMBERS_ONLY',
+              post: {
+                kind: 'locked',
+                postId: post.postId,
+                createdAt: post.createdAt || FIXTURE_TIMESTAMP,
+                curator: {
+                  id: curator.id,
+                  username: curator.username,
+                  displayName: curator.displayName,
+                  avatarUrl: curator.avatarUrl,
+                },
+              },
+            }, 403);
+          }
         }
 
         return json(route, toPostByIdResponse(post));

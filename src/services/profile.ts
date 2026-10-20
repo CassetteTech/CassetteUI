@@ -52,24 +52,30 @@ interface ActivityApiResponse {
 
 const feedCount = z.number().int().nonnegative();
 
+// A locked row is exact, because an added field on it would carry the post's
+// content to a viewer without access. A refused members-only post link carries
+// the same row.
+const lockedCuratorPostSchema = z.object({
+  kind: z.literal('locked'),
+  postId: z.string().min(1),
+  createdAt: z.string().datetime({ offset: true }),
+  curator: z.object({
+    id: z.string().min(1),
+    username: z.string().min(1),
+    displayName: z.string().nullable(),
+    avatarUrl: z.string().nullable(),
+  }).strict(),
+}).strict();
+
+// Bridge's refusal of a members-only post link: an error code and the locked row.
+export const refusedMembersOnlyPostSchema = z.object({ post: lockedCuratorPostSchema });
+
 // The feed metadata drives paging and the empty states, so a response without
-// it is an error, never an empty feed. A full post keeps the activity mapping;
-// a locked row is exact, because an added field on it would carry the post's
-// content to a viewer without access.
+// it is an error, never an empty feed. A full post keeps the activity mapping.
 const curatorFeedPageSchema = z.object({
   items: z.array(z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('post'), post: activityItemPayloadSchema }).strict(),
-    z.object({
-      kind: z.literal('locked'),
-      postId: z.string().min(1),
-      createdAt: z.string().datetime({ offset: true }),
-      curator: z.object({
-        id: z.string().min(1),
-        username: z.string().min(1),
-        displayName: z.string().nullable(),
-        avatarUrl: z.string().nullable(),
-      }).strict(),
-    }).strict(),
+    lockedCuratorPostSchema,
   ])),
   nextCursor: z.string().min(1).nullable(),
   activeMembershipCount: feedCount,

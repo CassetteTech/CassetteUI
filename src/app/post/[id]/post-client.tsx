@@ -47,8 +47,6 @@ import { ApiError, apiService } from '@/services/api';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { AlertCircle, MoreVertical, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react';
-import { openKoFiSupport } from '@/lib/ko-fi';
-import { KofiIcon } from '@/components/ui/kofi-icon';
 import { detectContentType } from '@/utils/content-type-detection';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { getDeviceCategory, getUserCohort } from '@/lib/analytics/audience';
@@ -99,15 +97,6 @@ function PostFoot({
         </div>
       )}
       <p className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/80">
-        <button
-          type="button"
-          onClick={openKoFiSupport}
-          aria-label="Support Cassette on Ko-fi"
-          className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
-        >
-          <KofiIcon width={14} className="rounded-full" />
-          <span>Support Cassette on Ko-fi</span>
-        </button>
         <button
           type="button"
           onClick={onReport}

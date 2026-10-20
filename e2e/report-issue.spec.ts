@@ -16,6 +16,8 @@ test('preserves a failed report draft across a mobile close and clears it only a
   const openReport = page.getByRole('main').last().getByRole('button', {
     name: 'Report a Problem',
   });
+  await expect(openReport).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Support Cassette on Ko-fi' })).toHaveCount(0);
   await openReport.click();
 
   const dialog = page.getByRole('dialog', { name: 'Report a Problem' });

@@ -47,6 +47,8 @@ test.describe('home page', () => {
     const menu = page.locator('#mobile-menu-panel');
     await expect(menu.getByRole('link', { name: /Mia Groove/ })).toHaveAttribute('href', '/studio');
     await expect(menu.getByRole('button', { name: 'Sign Out' })).toBeVisible();
+    await expect(menu.getByRole('link', { name: 'Release Notes' })).toBeVisible();
+    await expect(menu.getByRole('link', { name: /Support Us/ })).toHaveCount(0);
     const kofi = await page.getByRole('button', { name: 'Support Cassette on Ko-fi' }).boundingBox();
     expect(kofi).not.toBeNull();
     expect(await page.evaluate(

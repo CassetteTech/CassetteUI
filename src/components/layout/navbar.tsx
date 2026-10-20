@@ -102,25 +102,13 @@ export function Navbar() {
                 <DropdownMenuContent align="start" className="w-48 bg-background border border-border/20 rounded-lg shadow-main">
                   {visibleCompanyItems.map((item) => (
                     <DropdownMenuItem key={item.key} asChild>
-                      {item.external ? (
-                        <a
-                          href={item.href}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </a>
-                      ) : (
-                        <Link
-                          href={resolveNavHref(item, user)}
-                          className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      )}
+                      <Link
+                        href={resolveNavHref(item, user)}
+                        className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-atkinson font-bold text-foreground hover:bg-muted hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator className="bg-border/20" />

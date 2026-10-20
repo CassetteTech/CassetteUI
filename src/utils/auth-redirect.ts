@@ -38,6 +38,17 @@ export const normalizeAuthRedirect = (value: string | null | undefined) => {
   return trimmed;
 };
 
+// The home page and the auth and onboarding pages add no redirect, so the
+// default destination applies.
+export const buildAuthPath = (
+  authPath: '/auth/signin' | '/auth/signup',
+  returnPath: string | null | undefined,
+) => {
+  const redirect = normalizeAuthRedirect(returnPath);
+  if (!redirect || redirect === '/' || /^\/(auth|onboarding)($|[/?])/.test(redirect)) return authPath;
+  return `${authPath}?redirect=${encodeURIComponent(redirect)}`;
+};
+
 export const isPromoteIntentRedirect = (value: string | null | undefined) => {
   const normalized = normalizeAuthRedirect(value);
   return normalized != null && /^\/promote($|[/?])/.test(normalized);

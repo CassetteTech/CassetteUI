@@ -13,6 +13,7 @@ import { ChevronDown, AlertCircle } from 'lucide-react';
 import { ThemeSwitcher } from './theme-switcher';
 import { NavigationLinks } from './navigation-links';
 import { cn } from '@/lib/utils';
+import { buildAuthPath } from '@/utils/auth-redirect';
 import Image from 'next/image';
 import { useReportIssue } from '@/providers/report-issue-provider';
 import { NotificationMenu } from './notification-menu';
@@ -168,14 +169,14 @@ export function Navbar() {
             ) : (
               <>
                 <Link
-                  href="/auth/signin"
+                  href={buildAuthPath('/auth/signin', pathname)}
                   className="hidden min-[400px]:inline-block whitespace-nowrap text-sm font-atkinson font-bold text-foreground hover:text-primary transition-colors px-2 sm:px-3 py-2"
                 >
                   Sign In
                 </Link>
                 <AnimatedPrimaryButton
                   text="Sign Up"
-                  onClick={() => window.location.href = '/auth/signup'}
+                  onClick={() => window.location.href = buildAuthPath('/auth/signup', pathname)}
                   height={32}
                   width={80}
                   initialPos={2}

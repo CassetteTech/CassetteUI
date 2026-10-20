@@ -28,6 +28,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { appLogger } from '@/lib/observability/logger';
 import { canShareWebContent, shareWebContent } from '@/utils/web-share';
+import { buildAuthPath } from '@/utils/auth-redirect';
 import { CuratorPageSkeleton, PublicCuratorPage } from '@/components/features/curator/curator-page';
 import { CuratorFollowConfirmation, CuratorFollowContext } from '@/components/features/curator/curator-follow-action';
 import { useCuratorPage } from '@/hooks/use-curator';
@@ -243,7 +244,7 @@ export default function ProfilePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Error</h1>
           <p className="text-muted-foreground mb-4">You must be logged in to edit your profile</p>
-          <Button onClick={() => router.push('/auth/login')}>Log in</Button>
+          <Button onClick={() => router.push(buildAuthPath('/auth/signin', '/profile/edit'))}>Log in</Button>
         </div>
       </div>
     );

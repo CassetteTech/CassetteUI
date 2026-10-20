@@ -208,6 +208,17 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: '/auth/login',
+        destination: '/auth/signin',
+        permanent: false,
+      },
+      // The handle pattern keeps every other /@ path out of the profile route.
+      {
+        source: '/@:username([A-Za-z0-9_]{1,50})',
+        destination: '/profile/:username',
+        permanent: false,
+      },
+      {
         source: '/auth/forgot-password',
         destination: '/auth/signin',
         permanent: false,

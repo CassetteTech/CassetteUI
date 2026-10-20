@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fixtureUsers } from './support/cassette-fixtures';
+import { fixturePosts, fixtureUsers } from './support/cassette-fixtures';
 import { mockCassetteApp } from './support/mock-cassette-app';
 
 test.describe('route guards and auth redirects', () => {
@@ -59,6 +59,64 @@ test.describe('route guards and auth redirects', () => {
     await secondTab.getByRole('button', { name: 'Continue with Google' }).click();
 
     await expect(secondTab).toHaveURL('/promote/new');
+  });
+
+  test('redirects the short /@handle address to the profile', async ({ page }) => {
+    await mockCassetteApp(page);
+
+    await page.goto('/@miagroove');
+    await expect(page).toHaveURL(/\/profile\/miagroove(?:\?|$)/);
+
+    const response = await page.goto('/@not.a.handle');
+    expect(response?.status()).toBe(404);
+    await expect(page).not.toHaveURL(/\/profile\//);
+  });
+
+  test('sends /auth/login to sign-in and returns only to a safe local destination', async ({ page }) => {
+    await mockCassetteApp(page, { googleAuthUser: fixtureUsers.member });
+
+    await page.goto('/auth/login?redirect=/studio/music/new');
+    await expect(page).toHaveURL((url) =>
+      url.pathname === '/auth/signin' && url.searchParams.get('redirect') === '/studio/music/new');
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+    await expect(page).toHaveURL('/studio/music/new');
+  });
+
+  test('ignores an external redirect that arrives through /auth/login', async ({ page }) => {
+    await mockCassetteApp(page, { googleAuthUser: fixtureUsers.member });
+
+    await page.goto('/auth/login?redirect=https://evil.example/steal');
+    await expect(page).toHaveURL((url) => url.pathname === '/auth/signin');
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+    await expect(page).toHaveURL('/studio/music');
+  });
+
+  test('returns a visitor from a signed-in-only page to that page after sign-in', async ({ page }) => {
+    await mockCassetteApp(page, { googleAuthUser: fixtureUsers.member });
+
+    await page.goto('/memberships');
+    await expect(page).toHaveURL('/auth/signin?redirect=%2Fmemberships');
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+    await expect(page).toHaveURL('/memberships');
+  });
+
+  test('keeps the current page in the navbar and sidebar sign-in links', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mockCassetteApp(page, { posts: [fixturePosts.publicTrack] });
+
+    await page.goto('/post/post-public-track');
+    await expect(page.getByRole('link', { name: 'Sign In', exact: true }).filter({ visible: true }))
+      .toHaveAttribute('href', '/auth/signin?redirect=%2Fpost%2Fpost-public-track');
+
+    await page.goto('/explore');
+    const signInLinks = page.getByRole('link', { name: 'Sign In', exact: true }).filter({ visible: true });
+    await expect(signInLinks.first()).toBeVisible();
+    for (const link of await signInLinks.all()) {
+      await expect(link).toHaveAttribute('href', '/auth/signin?redirect=%2Fexplore');
+    }
+    for (const link of await page.getByRole('link', { name: 'Sign Up', exact: true }).filter({ visible: true }).all()) {
+      await expect(link).toHaveAttribute('href', '/auth/signup?redirect=%2Fexplore');
+    }
   });
 
   test('sends onboarded Google callback users to Curator Studio when no redirect is stored', async ({

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth';
 import { PageLoader } from '@/components/ui/page-loader';
+import { buildAuthPath } from '@/utils/auth-redirect';
 
 export default function EditProfileRedirect() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function EditProfileRedirect() {
       if (user?.username) {
         router.replace(`/profile/${user.username}/edit`);
       } else {
-        router.replace('/auth/signin');
+        router.replace(buildAuthPath('/auth/signin', '/profile/edit'));
       }
     }
   }, [user, isLoading, router]);

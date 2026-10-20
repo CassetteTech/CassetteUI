@@ -1069,6 +1069,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           sourceUrl={resolvedSourceUrl}
           sourcePlatform={sourcePlatformKey}
           paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+          curatorId={postData?.curatorId}
+          isMemberView={postData?.isMemberView}
         />
       )}
     </div>

@@ -36,6 +36,8 @@ interface PlaylistCopyActionsProps {
   sourceUrl?: string | null;
   sourcePlatform?: PlatformKey | null;
   paidPromotionCampaignId?: string | null;
+  curatorId?: string | null;
+  isMemberView?: boolean;
 }
 
 interface CreationStatus {
@@ -64,6 +66,8 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
   sourceUrl: resolvedSourceUrl = null,
   sourcePlatform: sourcePlatformKey = null,
   paidPromotionCampaignId,
+  curatorId,
+  isMemberView,
 }) => {
   const { isAuthenticated } = useAuthState();
   const { openReportModal } = useReportIssue();
@@ -191,13 +195,15 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
     pendingActionService.clear();
     setCreationStatus({ platform, loading: false, result });
 
+    // Bridge sends the success event for Cassette's shared Spotify copy.
+    if (platform === 'spotify' && sharesCassetteSpotifyCopy(sourcePlatformKey)) return;
     void captureClientEvent('playlist_created_on_platform', {
       ...buildPlaylistAnalyticsProps(platform),
       tracks_added: result.tracks_added,
       tracks_failed: result.tracks_failed,
       total_tracks: result.total_tracks,
     });
-  }, [buildPlaylistAnalyticsProps, playlistId, postId]);
+  }, [buildPlaylistAnalyticsProps, playlistId, postId, sourcePlatformKey]);
 
   const connectAppleMusicAndCreatePlaylist = React.useCallback(async (actionLabel = 'Reconnect Apple Music') => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -283,9 +289,12 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       target_platform: normalizedOpenedTargetPlatform,
       source_domain: sanitizeDomain(playlistUrl),
       is_authenticated: isAuthenticated,
+      paid_promotion_campaign_id: paidPromotionCampaignId ?? undefined,
+      curator_id: curatorId ?? undefined,
+      is_member_view: isMemberView === true,
     });
     openInAppOrBrowser(playlistUrl);
-  }, [isAuthenticated, paidPromotionCampaignId, playlistId, postId, sourcePlatformKey]);
+  }, [curatorId, isAuthenticated, isMemberView, paidPromotionCampaignId, playlistId, postId, sourcePlatformKey]);
 
   const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
@@ -464,7 +473,7 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
 
     if (creationStatus.error) {
       return (
-        <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+        <div role="alert" className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
           <div className="flex items-center gap-2 text-destructive">
             <AlertCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{creationStatus.error}</span>
@@ -507,7 +516,7 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
 
       if (!success) {
         return (
-          <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+          <div role="alert" className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="w-4 h-4" />
               <span className="text-sm font-medium">

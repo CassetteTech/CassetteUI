@@ -34,8 +34,25 @@ test('opens a playlist on the service it came from and offers copies only elsewh
   await expect(page.getByRole('link', { name: /^From/ })).toHaveCount(0);
 });
 
+type AnalyticsCapture = {
+  event?: string;
+  properties?: {
+    target_platform?: string;
+    paid_promotion_campaign_id?: string;
+    curator_id?: string;
+    is_member_view?: boolean;
+  };
+};
+
 test("offers Cassette's Spotify copy in the copy block until a signed-out fan's first tap makes it", async ({ page }) => {
-  await mockCassetteApp(page, { posts: [applePlaylist] });
+  const captures: AnalyticsCapture[] = [];
+  const attributedPlaylist: FixturePost = {
+    ...applePlaylist,
+    paidPromotionCampaignId: 'pmc_FixtureCampaign01',
+    curatorId: 'cpr_FixtureCurator01',
+    isMemberView: false,
+  };
+  await mockCassetteApp(page, { analyticsCaptures: captures, posts: [attributedPlaylist] });
   const creations: Array<{ TargetPlatform?: string }> = [];
   await page.route('**/api/v1/convert/createPlaylist', async (route) => {
     creations.push(route.request().postDataJSON() as { TargetPlatform?: string });
@@ -63,6 +80,40 @@ test("offers Cassette's Spotify copy in the copy block until a signed-out fan's 
   const popup = page.waitForEvent('popup');
   await open.click();
   await expect(await popup).toHaveURL(/^https:\/\/open\.spotify\.com\/playlist\//);
+
+  // The first open carries the post's attribution, as the listen row does for later fans.
+  const events = (name: string) => captures.filter((capture) => capture.event === name);
+  await expect.poll(() => events('playlist_opened_on_platform')).toEqual([
+    expect.objectContaining({
+      properties: expect.objectContaining({
+        target_platform: 'spotify',
+        paid_promotion_campaign_id: 'pmc_FixtureCampaign01',
+        curator_id: 'cpr_FixtureCurator01',
+        is_member_view: false,
+      }),
+    }),
+  ]);
+  // Bridge sends the success event for the shared copy; the browser sends only the click and the submission.
+  expect(events('playlist_creation_submitted')).toHaveLength(1);
+  expect(events('playlist_created_on_platform')).toHaveLength(0);
+});
+
+test("announces a failed Spotify copy and lets the fan try again", async ({ page }) => {
+  await mockCassetteApp(page, { posts: [applePlaylist] });
+  await page.route('**/api/v1/convert/createPlaylist', (route) =>
+    route.fulfill({
+      status: 504,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false, error_code: 'TIMEOUT', message: 'Timed out' }),
+    }),
+  );
+
+  await page.goto('/post/post-apple-original');
+  const copies = page.getByRole('region', { name: 'Not on your service?' });
+  await copies.getByRole('button', { name: 'Make a copy on Spotify' }).click();
+
+  await expect(copies.getByRole('alert')).toContainText('This is taking longer than expected. Please try again.');
+  await expect(copies.getByRole('button', { name: 'Make a copy on Spotify' })).toBeEnabled();
 });
 
 test("opens Cassette's stored Spotify copy with one tap and makes no new one", async ({ page }) => {

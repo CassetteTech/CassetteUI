@@ -2,7 +2,6 @@ import {
   BadgeCheck,
   Compass,
   FileText,
-  Heart,
   Home,
   Info,
   LayoutDashboard,
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { addMusicHref } from '@/components/features/curator/studio-routes';
-import { KOFI_SUPPORT_URL } from '@/lib/ko-fi';
 import { isCassetteInternalAccount } from '@/lib/analytics/internal-suppression';
 
 export type NavUser = {
@@ -30,7 +28,6 @@ export interface NavigationItemDefinition {
   href: string;
   authRequired?: boolean;
   internalOnly?: boolean;
-  external?: boolean;
   requiresPaidPromotionSales?: boolean;
   requiresPaidPromotionAccount?: boolean;
 }
@@ -55,7 +52,6 @@ export const companyNavItems: NavigationItemDefinition[] = [
   { key: 'about', label: 'About', icon: Info, href: '/about' },
   { key: 'team', label: 'Team', icon: Users, href: '/team' },
   { key: 'release-notes', label: 'Release Notes', icon: FileText, href: '/release-notes' },
-  { key: 'support-us', label: 'Support Us', icon: Heart, href: KOFI_SUPPORT_URL, external: true },
 ];
 
 export const appNavOrder = ['curator-studio', 'feed', 'memberships', 'explore', 'internal'] as const;

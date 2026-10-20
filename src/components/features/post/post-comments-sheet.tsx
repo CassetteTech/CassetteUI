@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { ProfileLink } from '@/components/features/profile/profile-link';
 import { ApiError, apiService } from '@/services/api';
 import { PostComment } from '@/types';
@@ -32,11 +34,20 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { z } from 'zod';
 import { appLogger } from '@/lib/observability/logger';
+import { ignoreFailure, tryStorage } from '@/lib/best-effort';
+import { browserHandoffPath } from '@/utils/profile-action-intent';
+import { isCurrentAccount } from '@/stores/auth-store';
 
 const COMMENT_MAX_LENGTH = 2000;
 const CHAR_WARNING_THRESHOLD = 200;
 const DEFAULT_VISIBLE_REPLIES = 2;
+/** The post page opens this sheet when it loads with this parameter, so sign-in can return here. */
+export const OPEN_COMMENTS_PARAMETER = 'comments';
+
+const commentDraftSchema = z.object({ userId: z.string(), content: z.string(), parentCommentId: z.string().nullable() });
+const draftKey = (postId: string) => `cassette_comment_draft:${postId}`;
 
 interface PostCommentsSheetProps {
   open: boolean;
@@ -59,6 +70,13 @@ export function PostCommentsSheet({
 }: PostCommentsSheetProps) {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const signInHref = browserHandoffPath(`${pathname}?${OPEN_COMMENTS_PARAMETER}=1`);
+  const signedIn = Boolean(currentUserId);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  // The failed comment or reply whose text is kept in storage, for its account, until it posts.
+  const [recovery, setRecovery] = useState<{ userId: string; parentCommentId: string | null } | null>(null);
 
   const [comments, setComments] = useState<PostComment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -352,12 +370,83 @@ export function PostCommentsSheet({
     }
   }, [hasLoaded, loadComments]);
 
+  // A comment written when the session ends waits here through sign-in.
+  const keepDraft = useCallback((userId: string | undefined, parentCommentId: string | null) => {
+    setSessionEnded(true);
+    setRecovery(userId ? { userId, parentCommentId } : null);
+  }, []);
+  const forgetDraft = useCallback(() => {
+    setSessionEnded(false);
+    setRecovery(null);
+    tryStorage(() => sessionStorage.removeItem(draftKey(postId)), undefined);
+  }, [postId]);
+
+  const draftChecked = useRef(false);
+  const previousAccount = useRef(currentUserId);
+  useEffect(() => {
+    if (previousAccount.current === currentUserId) return;
+    previousAccount.current = currentUserId;
+    draftChecked.current = false;
+    setSessionEnded(false);
+    setRecovery(null);
+    setComments((prev) => prev.filter((c) => !c.commentId.startsWith('temp-')));
+    setNewComment('');
+    setReplyingToCommentId(null);
+    setReplyContent('');
+    setEditingCommentId(null);
+    setEditingContent('');
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (draftChecked.current || !hasLoaded || !currentUserId) return;
+    draftChecked.current = true;
+    const raw = tryStorage(() => sessionStorage.getItem(draftKey(postId)), null);
+    if (!raw) return;
+    const parsed = commentDraftSchema.safeParse(ignoreFailure(() => JSON.parse(raw)));
+    if (!parsed.success || parsed.data.userId !== currentUserId) {
+      tryStorage(() => sessionStorage.removeItem(draftKey(postId)), undefined);
+      return;
+    }
+    const draft = parsed.data;
+    const target = comments.find((c) => c.commentId === draft.parentCommentId);
+    setRecovery({ userId: currentUserId, parentCommentId: target ? target.commentId : null });
+    if (!target) {
+      setNewComment(draft.content);
+      return;
+    }
+    setReplyingToCommentId(target.commentId);
+    setReplyContent(draft.content);
+    const expanded: Record<string, boolean> = {};
+    const counts: Record<string, number> = {};
+    for (let node = target; node.parentCommentId;) {
+      const parentId = node.parentCommentId;
+      const siblings = comments.filter((c) => c.parentCommentId === parentId);
+      expanded[parentId] = true;
+      counts[parentId] = Math.max(DEFAULT_VISIBLE_REPLIES, siblings.indexOf(node) + 1);
+      const parent = comments.find((c) => c.commentId === parentId);
+      if (!parent) break;
+      node = parent;
+    }
+    setExpandedThreads((prev) => ({ ...prev, ...expanded }));
+    setVisibleRepliesCount((prev) => ({ ...prev, ...counts }));
+  }, [comments, currentUserId, hasLoaded, postId]);
+
+  const recoveryContent = !recovery ? ''
+    : recovery.parentCommentId === null ? newComment
+      : recovery.parentCommentId === replyingToCommentId ? replyContent : '';
+  useEffect(() => {
+    if (!recovery || recovery.userId !== currentUserId || !recoveryContent.trim()) return;
+    const draft = { ...recovery, content: recoveryContent };
+    tryStorage(() => sessionStorage.setItem(draftKey(postId), JSON.stringify(draft)), undefined);
+  }, [currentUserId, postId, recovery, recoveryContent]);
+
   const handleCreate = useCallback(async () => {
     const content = newComment.trim();
     if (!commentsEnabled) { toast.error('Comments are turned off for this post.'); return; }
     if (!content) return;
     if (content.length > COMMENT_MAX_LENGTH) { toast.error(`Comments can be up to ${COMMENT_MAX_LENGTH} characters.`); return; }
 
+    const startedBy = currentUserId;
     const optimisticId = `temp-${Date.now()}`;
     const optimisticComment: PostComment = {
       commentId: optimisticId, postId, parentCommentId: null,
@@ -373,16 +462,22 @@ export function PostCommentsSheet({
     try {
       const created = await apiService.createPostComment(postId, content);
       setComments((prev) => prev.map((item) => (item.commentId === optimisticId ? created : item)));
+      if (!isCurrentAccount(startedBy)) return;
+      forgetDraft();
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } catch (error) {
       setComments((prev) => prev.filter((item) => item.commentId !== optimisticId));
+      if (!isCurrentAccount(startedBy)) return;
       if (error instanceof ApiError && error.status === 403) toast.error('Comments are turned off for this post.');
-      else if (error instanceof ApiError && error.status === 401) toast.error('Sign in again to comment.');
+      else if (error instanceof ApiError && error.status === 401) {
+        setNewComment((current) => current || content);
+        keepDraft(startedBy, null);
+      }
       else toast.error('Failed to add comment.');
     } finally {
       setIsCreating(false);
     }
-  }, [commentsEnabled, currentUserId, currentUsername, newComment, postId, queryClient]);
+  }, [commentsEnabled, currentUserId, currentUsername, forgetDraft, keepDraft, newComment, postId, queryClient]);
 
   const cancelReply = useCallback(() => { setReplyingToCommentId(null); setReplyContent(''); }, []);
 
@@ -392,6 +487,7 @@ export function PostCommentsSheet({
     if (!content) return;
     if (content.length > COMMENT_MAX_LENGTH) { toast.error(`Replies can be up to ${COMMENT_MAX_LENGTH} characters.`); return; }
 
+    const startedBy = currentUserId;
     const optimisticId = `temp-reply-${Date.now()}`;
     const optimisticReply: PostComment = {
       commentId: optimisticId, postId: parentComment.postId, parentCommentId: parentComment.commentId,
@@ -412,16 +508,23 @@ export function PostCommentsSheet({
     try {
       const created = await apiService.replyToPostComment(parentComment.commentId, content);
       setComments((prev) => prev.map((item) => (item.commentId === optimisticId ? created : item)));
+      if (!isCurrentAccount(startedBy)) return;
+      forgetDraft();
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } catch (error) {
       setComments((prev) => prev.filter((item) => item.commentId !== optimisticId));
+      if (!isCurrentAccount(startedBy)) return;
       if (error instanceof ApiError && error.status === 403) toast.error('Comments are turned off for this post.');
-      else if (error instanceof ApiError && error.status === 401) toast.error('Sign in again to reply.');
+      else if (error instanceof ApiError && error.status === 401) {
+        setReplyingToCommentId(parentComment.commentId);
+        setReplyContent(content);
+        keepDraft(startedBy, parentComment.commentId);
+      }
       else toast.error('Failed to add reply.');
     } finally {
       setIsReplying(false);
     }
-  }, [cancelReply, commentsEnabled, currentUserId, currentUsername, replyContent, queryClient]);
+  }, [cancelReply, commentsEnabled, currentUserId, currentUsername, forgetDraft, keepDraft, replyContent, queryClient]);
 
   const startEdit = useCallback((comment: PostComment) => { setEditingCommentId(comment.commentId); setEditingContent(comment.content); }, []);
   const cancelEdit = useCallback(() => { setEditingCommentId(null); setEditingContent(''); }, []);
@@ -443,7 +546,11 @@ export function PostCommentsSheet({
       setComments((prev) => prev.map((item) => (item.commentId === editingCommentId ? updated : item)));
     } catch (error) {
       setComments(previousComments);
-      if (error instanceof ApiError && error.status === 401) toast.error('Sign in again to edit comments.');
+      if (error instanceof ApiError && error.status === 401) {
+        setEditingCommentId(editingCommentId);
+        setEditingContent(content);
+        setSessionEnded(true);
+      }
       else toast.error('Failed to update comment.');
     }
   }, [cancelEdit, comments, editingCommentId, editingContent]);
@@ -457,7 +564,7 @@ export function PostCommentsSheet({
       await apiService.deletePostComment(commentId);
     } catch (error) {
       setComments(previousComments);
-      if (error instanceof ApiError && error.status === 401) toast.error('Sign in again to delete comments.');
+      if (error instanceof ApiError && error.status === 401) setSessionEnded(true);
       else toast.error('Failed to delete comment.');
     } finally {
       setPendingDeleteId((prev) => (prev === commentId ? null : prev));
@@ -465,6 +572,7 @@ export function PostCommentsSheet({
   }, [comments]);
 
   const handleToggleCommentLike = useCallback(async (comment: PostComment) => {
+    if (!signedIn) { router.push(signInHref); return; }
     const commentId = comment.commentId;
     if (pendingLikeIds[commentId]) return;
     const nextLiked = !comment.likedByCurrentUser;
@@ -490,12 +598,12 @@ export function PostCommentsSheet({
           ? { ...item, likedByCurrentUser: comment.likedByCurrentUser, likeCount: comment.likeCount }
           : item
       ));
-      if (error instanceof ApiError && error.status === 401) toast.error('Sign in again to like comments.');
+      if (error instanceof ApiError && error.status === 401) setSessionEnded(true);
       else toast.error('Failed to update comment like.');
     } finally {
       setPendingLikeIds((prev) => { const next = { ...prev }; delete next[commentId]; return next; });
     }
-  }, [pendingLikeIds]);
+  }, [pendingLikeIds, router, signInHref, signedIn]);
 
   const remainingCharacters = COMMENT_MAX_LENGTH - newComment.length;
   const replyRemainingCharacters = COMMENT_MAX_LENGTH - replyContent.length;
@@ -626,6 +734,7 @@ export function PostCommentsSheet({
                     type="button"
                     disabled={!commentsEnabled}
                     onClick={() => {
+                      if (!signedIn) { router.push(signInHref); return; }
                       if (isReplyingHere) { cancelReply(); return; }
                       setReplyingToCommentId(comment.commentId);
                       setReplyContent('');
@@ -795,8 +904,25 @@ export function PostCommentsSheet({
 
   const showComposerFooter = composerRemaining < CHAR_WARNING_THRESHOLD || !commentsEnabled;
 
-  const composer = (
+  const signInLink = (
+    <Button asChild size="sm" className="shrink-0">
+      <Link href={signInHref}>Sign in</Link>
+    </Button>
+  );
+
+  const composer = !signedIn && commentsEnabled ? (
+    <div className="flex items-center justify-between gap-3 py-1">
+      <p className="text-sm text-muted-foreground">Sign in to comment</p>
+      {signInLink}
+    </div>
+  ) : (
     <div className="flex flex-col gap-1">
+      {sessionEnded && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-md bg-muted/60 px-2 py-1.5">
+          <p className="text-xs text-muted-foreground">Your session ended. Sign in again to continue.</p>
+          {signInLink}
+        </div>
+      )}
       {mobileReplyParent && (
         <div
           key="reply-indicator"

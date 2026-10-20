@@ -317,6 +317,7 @@ test('keeps the membership setup on payout setup until Stripe verifies the accou
   await expect(page).toHaveURL(STUDIO_PAYOUTS_PATH);
   await expect(page.getByTestId('studio-billing-trigger')).toHaveAttribute('aria-current', 'page');
   const payoutCard = page.getByTestId('curator-payout-card');
+  await expect(payoutCard).toContainText('Payouts are for curators with a US bank account.');
   await expect(payoutCard.getByText('Setup started').locator('..')).toContainText('Done');
   await expect(payoutCard.getByText('Publish and receive payouts').locator('..')).toContainText('Needs your information');
 });

@@ -78,14 +78,6 @@ function SectionHeading({ children, hidden = false }: { children: React.ReactNod
   );
 }
 
-function ExternalMark() {
-  return (
-    <span aria-hidden="true" className="font-mono text-sm leading-none text-muted-foreground/60">
-      ↗
-    </span>
-  );
-}
-
 function NavigationSection({
   title,
   titleHidden = false,
@@ -106,22 +98,6 @@ function NavigationSection({
           const href = resolveNavHref(item, { username });
           const isActive = isNavItemActive(item, pathname, { username });
           const itemClassName = getItemClassName(variant, isActive);
-
-          if (item.external) {
-            return (
-              <a
-                key={item.key}
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                onClick={onLinkClick}
-                className={itemClassName}
-              >
-                <span>{item.label}</span>
-                <ExternalMark />
-              </a>
-            );
-          }
 
           return (
             <Link key={item.key} href={href} onClick={onLinkClick} className={itemClassName}>

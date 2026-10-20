@@ -28,6 +28,7 @@ test.describe('home page', () => {
     await expect(page.getByText('Your page', { exact: true })).toBeVisible();
     await expect(page.getByText(/Nadia/)).toHaveCount(0);
 
+    await expect(page.getByText('Cassette sends your earnings to your bank each month once you reach $25. Payouts are for curators with a US bank account.')).toBeVisible();
     await expect(page.getByText(/Curator Pro/)).toHaveText(['Coming later: Curator Pro, optional extra tools for curators.']);
   });
 
@@ -46,6 +47,8 @@ test.describe('home page', () => {
     const menu = page.locator('#mobile-menu-panel');
     await expect(menu.getByRole('link', { name: /Mia Groove/ })).toHaveAttribute('href', '/studio');
     await expect(menu.getByRole('button', { name: 'Sign Out' })).toBeVisible();
+    await expect(menu.getByRole('link', { name: 'Release Notes' })).toBeVisible();
+    await expect(menu.getByRole('link', { name: /Support Us/ })).toHaveCount(0);
     const kofi = await page.getByRole('button', { name: 'Support Cassette on Ko-fi' }).boundingBox();
     expect(kofi).not.toBeNull();
     expect(await page.evaluate(

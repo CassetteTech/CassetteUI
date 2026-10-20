@@ -22,7 +22,6 @@ test("opens the curator's own link in place of Cassette's copy", async ({ page }
 
   await expect(page.getByRole('link', { name: /Deezer.*Original playlist/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Spotify.*Added by @cratekeeper/ })).toHaveAttribute('href', ownSpotifyCopy);
-  await expect(page.getByTestId('cassette-spotify-copy')).toHaveCount(0);
   // Only a service with nothing to open is left to copy.
   const copies = page.getByRole('region', { name: 'Not on your service?' });
   await expect(copies.getByRole('button')).toHaveCount(1);

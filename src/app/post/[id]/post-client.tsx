@@ -7,6 +7,7 @@ import { EntitySkeleton, printedBand } from '@/components/features/entity/entity
 import { StreamingLinks } from '@/components/features/entity/streaming-links';
 import { PlaylistCopyActions } from '@/components/features/entity/playlist-copy-actions';
 import {
+  CASSETTE_SPOTIFY_COPY_CAPTION,
   curatorLinkCaption,
   curatorListenRows,
   playlistCopyTargets,
@@ -14,7 +15,6 @@ import {
 } from '@/lib/playlist-copy-placement';
 import type { LinkOriginDimension } from '@/lib/analytics/events';
 import { ACTIVE_PLATFORM_UI_KEYS } from '@/lib/platforms';
-import { CassetteSpotifyCopyLink, CASSETTE_SPOTIFY_COPY_CAPTION } from '@/components/features/entity/cassette-spotify-copy-link';
 import { PlayPreview } from '@/components/features/entity/play-preview';
 import { TrackList, EXPANDABLE_MIN_TRACKS, formatTrackListDuration, formatTrackListStats } from '@/components/features/entity/track-list';
 import { PostAuthorHeader } from '@/components/features/post/post-author-header';
@@ -1016,9 +1016,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     : (palette ?? (metadata.artwork ? ColorExtractor.cachedPalette(metadata.artwork) : undefined))?.vibrant;
 
   // What each listen row opens. A playlist opens its original on the service it came from, the
-  // owner's own link where they set one, and Cassette's shared Spotify copy while Spotify copies go to
-  // Cassette's account; every other service gets a button in the copy block instead, so a row never
-  // builds a copy in a fan's account.
+  // owner's own link where they set one, and Cassette's shared Spotify copy once Cassette has made it;
+  // every other service gets a button in the copy block instead, so a row never builds a copy.
   const curatorLinks = isPlaylist ? postData?.curatorLinks ?? {} : {};
   const sharedSpotifyCopy =
     isPlaylist && sharesCassetteSpotifyCopy(sourcePlatformKey) && !convertedUrls.spotify && !curatorLinks.spotify;
@@ -1044,7 +1043,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     listenCaptions[platform] = curatorLinkCaption(postData?.username);
     linkOrigins[platform] = 'curator';
   }
-  const copyTargets = isPlaylist ? playlistCopyTargets(sourcePlatformKey, listenLinks) : [];
+  const copyTargets = isPlaylist ? playlistCopyTargets(listenLinks) : [];
   const listenSection = (
     <div>
       <h3 className="sr-only">Listen on</h3>
@@ -1061,18 +1060,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         isMemberView={postData?.isMemberView}
         className="!p-0 !bg-transparent !border-0 !shadow-none !backdrop-blur-none"
       />
-      {sharedSpotifyCopy && !cassetteSpotifyCopyUrl && (
-        <CassetteSpotifyCopyLink
-          className="mt-2.5"
-          playlistId={postData?.musicElementId || ''}
-          postId={postData?.postId || postId}
-          sourcePlatform={analyticsSourcePlatform}
-          isAuthenticated={isAuthenticated}
-          paidPromotionCampaignId={postData?.paidPromotionCampaignId}
-          curatorId={postData?.curatorId}
-          isMemberView={postData?.isMemberView}
-        />
-      )}
       {isPlaylist && (
         <PlaylistCopyActions
           targets={copyTargets}
@@ -1082,6 +1069,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           sourceUrl={resolvedSourceUrl}
           sourcePlatform={sourcePlatformKey}
           paidPromotionCampaignId={postData?.paidPromotionCampaignId}
+          curatorId={postData?.curatorId}
+          isMemberView={postData?.isMemberView}
         />
       )}
     </div>

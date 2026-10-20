@@ -13,7 +13,7 @@ import { platformConnectService } from '@/services/platform-connect';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
 import { ConversionBeam } from '@/components/features/conversion/conversion-beam';
 import { openInAppOrBrowser, isAppleMusicLibraryUrl } from '@/utils/deep-link';
-import { clientConfig } from '@/lib/config-client';
+import { sharesCassetteSpotifyCopy } from '@/lib/playlist-copy-placement';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { normalizePlatform, sanitizeDomain } from '@/lib/analytics/sanitize';
 import { buildPostPlatformConversionClickedProps } from '@/lib/analytics/post-platform-conversion';
@@ -36,6 +36,8 @@ interface PlaylistCopyActionsProps {
   sourceUrl?: string | null;
   sourcePlatform?: PlatformKey | null;
   paidPromotionCampaignId?: string | null;
+  curatorId?: string | null;
+  isMemberView?: boolean;
 }
 
 interface CreationStatus {
@@ -64,6 +66,8 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
   sourceUrl: resolvedSourceUrl = null,
   sourcePlatform: sourcePlatformKey = null,
   paidPromotionCampaignId,
+  curatorId,
+  isMemberView,
 }) => {
   const { isAuthenticated } = useAuthState();
   const { openReportModal } = useReportIssue();
@@ -191,13 +195,15 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
     pendingActionService.clear();
     setCreationStatus({ platform, loading: false, result });
 
+    // Bridge sends the success event for Cassette's shared Spotify copy.
+    if (platform === 'spotify' && sharesCassetteSpotifyCopy(sourcePlatformKey)) return;
     void captureClientEvent('playlist_created_on_platform', {
       ...buildPlaylistAnalyticsProps(platform),
       tracks_added: result.tracks_added,
       tracks_failed: result.tracks_failed,
       total_tracks: result.total_tracks,
     });
-  }, [buildPlaylistAnalyticsProps, playlistId, postId]);
+  }, [buildPlaylistAnalyticsProps, playlistId, postId, sourcePlatformKey]);
 
   const connectAppleMusicAndCreatePlaylist = React.useCallback(async (actionLabel = 'Reconnect Apple Music') => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -283,9 +289,12 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       target_platform: normalizedOpenedTargetPlatform,
       source_domain: sanitizeDomain(playlistUrl),
       is_authenticated: isAuthenticated,
+      paid_promotion_campaign_id: paidPromotionCampaignId ?? undefined,
+      curator_id: curatorId ?? undefined,
+      is_member_view: isMemberView === true,
     });
     openInAppOrBrowser(playlistUrl);
-  }, [isAuthenticated, paidPromotionCampaignId, playlistId, postId, sourcePlatformKey]);
+  }, [curatorId, isAuthenticated, isMemberView, paidPromotionCampaignId, playlistId, postId, sourcePlatformKey]);
 
   const handleCreatePlaylist = React.useCallback(async (platform: PlatformKey) => {
     const normalizedTarget = getPlatformDefinition(platform)?.analyticsKey ?? platform;
@@ -314,7 +323,10 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
       success: false,
     });
 
-    if (!isAuthenticated) {
+    // Cassette's shared Spotify copy is made on Cassette's account, so it needs no sign-in and no connection.
+    const sharedSpotifyCopy = platform === 'spotify' && sharesCassetteSpotifyCopy(sourcePlatformKey);
+
+    if (!isAuthenticated && !sharedSpotifyCopy) {
       void captureClientEvent('playlist_creation_blocked', {
         ...analyticsProps,
         reason_code: 'auth_required',
@@ -333,10 +345,8 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
     setShowFailedTracks(false);
 
     try {
-      const skipConnectionCheck = platform === 'spotify' && clientConfig.features.useCassetteSpotifyAccount;
-
-      let hasConnection = skipConnectionCheck;
-      if (!skipConnectionCheck) {
+      let hasConnection = sharedSpotifyCopy;
+      if (!sharedSpotifyCopy) {
         const connections = await apiService.getMusicConnections();
         const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '');
         hasConnection = connections.services?.some(
@@ -463,7 +473,7 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
 
     if (creationStatus.error) {
       return (
-        <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+        <div role="alert" className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
           <div className="flex items-center gap-2 text-destructive">
             <AlertCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{creationStatus.error}</span>
@@ -506,7 +516,7 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
 
       if (!success) {
         return (
-          <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+          <div role="alert" className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="w-4 h-4" />
               <span className="text-sm font-medium">
@@ -591,7 +601,10 @@ export const PlaylistCopyActions: React.FC<PlaylistCopyActionsProps> = ({
         Not on your service?
       </h4>
       <p className="mt-0.5 font-roboto-flex text-xs text-muted-foreground">
-        Cassette builds a copy in your account.
+        {/* Cassette's shared Spotify copy is not in the fan's account. */}
+        {targets.includes('spotify') && sharesCassetteSpotifyCopy(sourcePlatformKey)
+          ? 'Cassette builds a copy on the service you pick.'
+          : 'Cassette builds a copy in your account.'}
         {conversionLimitExceeded &&
           ` A copy holds the first ${PLAYLIST_CONVERSION_LIMIT} of its ${playlistTrackCount} tracks.`}
       </p>

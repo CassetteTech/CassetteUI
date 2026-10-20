@@ -511,6 +511,33 @@ test('refuses to publish a draft with no features and says features freeze at pu
   expect(state.curatorPlanPublishRequests).toEqual([draftPlan.id]);
 });
 
+test('refuses to publish a draft whose only feature left the catalog', async ({ page }) => {
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.member,
+    curatorProfile,
+    curatorPlans: [draftPlan],
+    curatorPayoutAccount: payoutAccount({
+      onboardingStatus: 'active',
+      transfersCapabilityStatus: 'active',
+      capabilityCheckedAtUtc: '2026-08-16T12:00:00Z',
+    }),
+  });
+  state.curatorFeatures = state.curatorFeatures.filter((feature) => feature.featureKey !== 'member_posts');
+
+  await page.goto(STUDIO_PATH);
+  await openStudioStep(page, 'studio-plan');
+  const refusal = page.waitForResponse('**/api/v1/curators/plans/*/publish');
+  await page.getByTestId('curator-plan-card').getByTestId('curator-plan-publish').click();
+
+  const response = await refusal;
+  expect(response.status()).toBe(409);
+  expect(await response.json()).toEqual({
+    errorCode: 'curator_profile_state_invalid',
+    message: 'Publishing requires at least one membership feature; edit the draft to add one.',
+  });
+  expect(state.curatorPlans[0].status).toBe('draft');
+});
+
 test('a publish that answers after the person moved to Music does not pull them back', async ({ page }) => {
   const { state } = await mockCassetteApp(page, {
     currentUser: fixtureUsers.member,

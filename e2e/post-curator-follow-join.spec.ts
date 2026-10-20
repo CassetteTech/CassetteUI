@@ -175,6 +175,29 @@ test('Follow from the post follows once and hands focus to the Following label',
   expect(followReads(state)).toEqual([]);
 });
 
+test('a Follow from the post survives the switch between the desktop and phone layouts', async ({ page }) => {
+  // The post page swaps its author card at 900 px, which mounts the Follow control again.
+  const desktopCard = page.locator('[class*="grid-cols-[minmax(16rem,22rem)"]');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { state } = await mockCassetteApp(page, {
+    currentUser: fixtureUsers.viewer,
+    posts: [postBy(curator)],
+    membershipStatus: fixtureNoMembershipStatus,
+  });
+  await page.goto(POST_PATH);
+  await followButton(page).click();
+  await expect(following(page)).toBeVisible();
+
+  for (const [width, height, cards] of [[390, 844, 0], [1280, 900, 1]] as const) {
+    await page.setViewportSize({ width, height });
+    await expect(desktopCard).toHaveCount(cards);
+    await expect(following(page)).toBeVisible();
+    await expect(followButton(page)).toHaveCount(0);
+  }
+  expect(writes(state)).toEqual(['PUT']);
+  expect(followReads(state)).toEqual([]);
+});
+
 for (const cachedFollowing of [true, false]) {
   test(`a fresh post summary replaces a cached follow state that says ${cachedFollowing ? 'following' : 'not following'}`, async ({ page }) => {
     const { state } = await mockCassetteApp(page, {

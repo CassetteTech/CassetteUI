@@ -15,6 +15,10 @@ import { tryStorage } from '@/lib/best-effort';
 const followIntentPrefix = 'cassette:follow-intent:';
 const followIntentLifetimeMs = 10 * 60 * 1_000;
 
+// Reports already written to the cache. Each post read parses a new report object, so a remount of the
+// control (the post page swaps layouts at 900 px) does not write an older report over a later Follow.
+const appliedReports = new WeakSet<CuratorFollowState>();
+
 const curatorFollowQueryKey = (curatorProfileId: string, viewerId: string | null) =>
   ['curator-follow', curatorProfileId, viewerId] as const;
 
@@ -81,12 +85,11 @@ export function useCuratorFollow(
   });
   // Each new report replaces the cached relationship once, so it wins over an older cached read
   // (from another page, before a change in another tab), and a later Follow or Unfollow wins over it.
-  const [appliedReport, setAppliedReport] = useState<CuratorFollowState | null>(null);
-  const unappliedReport = reportedRelationship && reportedRelationship !== appliedReport ? reportedRelationship : null;
+  const unappliedReport = reportedRelationship && !appliedReports.has(reportedRelationship) ? reportedRelationship : null;
   useLayoutEffect(() => {
     if (!unappliedReport || viewerId === null) return;
+    appliedReports.add(unappliedReport);
     queryClient.setQueryData(curatorFollowQueryKey(curatorId, viewerId), unappliedReport);
-    setAppliedReport(unappliedReport);
   }, [curatorId, queryClient, unappliedReport, viewerId]);
   const write = useMutation({
     mutationFn: ({ following }: { following: boolean; viewerId: string }) => setCuratorFollow(curatorId, following),

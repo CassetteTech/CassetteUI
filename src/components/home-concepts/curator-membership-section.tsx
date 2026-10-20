@@ -5,7 +5,7 @@ import { StartPageLink } from './home-brand';
 const points = [
   { title: 'Set your price', body: 'Choose what fans pay each month, and add a yearly price if you like. Cassette handles the billing.' },
   { title: 'Keep some for members', body: 'Mark any post Members only. Everything else stays public, so new fans can find you.' },
-  { title: 'Get paid monthly', body: 'Cassette sends your earnings to your bank every month.' },
+  { title: 'Get paid monthly', body: 'Cassette sends your earnings to your bank each month once you reach $25.' },
 ];
 
 export function CuratorMembershipSection({ isAuthenticated, className }: { isAuthenticated: boolean; className?: string }) {

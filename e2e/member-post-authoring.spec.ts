@@ -51,9 +51,18 @@ test('keeps members-only posts closed when Bridge refuses member-post authoring'
   const studio = page.getByTestId('post-studio-panel');
   const members = studio.getByRole('radio', { name: 'Members' });
   const prompt = studio.getByText('To lock posts, publish a membership plan with member posts.');
+  // The column grows when the authoring read places the unseen prompt and the insights
+  // check ends, then glides to re-center on the post card. Measure where it comes to rest.
+  await expect(prompt).toBeAttached();
   await expect(prompt).toBeHidden();
   const insights = studio.getByRole('heading', { name: 'Insights' });
-  const placed = { studio: await studio.boundingBox(), insights: await insights.boundingBox() };
+  const boxes = async () => ({ studio: await studio.boundingBox(), insights: await insights.boundingBox() });
+  let placed: Awaited<ReturnType<typeof boxes>> | null = null;
+  await expect.poll(async () => {
+    const previous = JSON.stringify(placed);
+    placed = await boxes();
+    return JSON.stringify(placed) === previous;
+  }).toBe(true);
   await members.click();
   await expect(prompt).toBeVisible();
   await expect(studio.getByRole('link', { name: 'Set up memberships' })).toHaveAttribute('href', '/studio/membership');

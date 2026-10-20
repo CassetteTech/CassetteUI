@@ -26,7 +26,7 @@ import { ArtworkImage } from '@/components/ui/artwork-image';
 import { BackButton } from '@/components/ui/back-button';
 import { captureClientEvent } from '@/lib/analytics/client';
 import { apiService } from '@/services/api';
-import { savePrefetchedPost } from '@/lib/post-prefetch';
+import { startPrefetchRead } from '@/lib/post-prefetch';
 import { HANDOFF_BEAT_MS, handOffConversion } from '@/lib/conversion-handoff';
 import { clearReturnedAddMusicDraft, holdAddMusicDraft, readReturnedAddMusicDraft } from '@/lib/add-music-draft';
 import { playErrorTone, playLinkRecognized } from '@/lib/sounds';
@@ -490,6 +490,13 @@ export default function AddMusicPage() {
     platformLinks: ByService<string> | null;
   } | null>(null);
   const handedOffRef = useRef(false);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const debouncedSearchTerm = useDebounce(musicUrl);
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuthState();
@@ -921,9 +928,10 @@ export default function AddMusicPage() {
 
       router.prefetch(`/post/${result.postId}`);
       if (result.postId) {
+        const savePrefetched = startPrefetchRead(() => mountedRef.current && !handedOffRef.current);
         const post = await ignoreFailure(apiService.fetchPostById(result.postId));
         if (post?.success) {
-          savePrefetchedPost(result.postId, post);
+          savePrefetched(result.postId, post);
         }
       }
 

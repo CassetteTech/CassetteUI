@@ -13,6 +13,7 @@ import { InAppBrowserSignIn } from '@/components/features/auth/in-app-browser-si
 import { useInAppBrowser } from '@/hooks/use-in-app-browser';
 import { Button } from '@/components/ui/button';
 import { Music2 } from 'lucide-react';
+import { buildAuthPath } from '@/utils/auth-redirect';
 
 interface AuthPromptModalProps {
   open: boolean;
@@ -21,6 +22,8 @@ interface AuthPromptModalProps {
   title?: string;
   description?: string;
   onBeforeNavigate?: () => void;
+  /** The local page that sign-in or sign-up returns to. */
+  returnPath?: string;
 }
 
 export function AuthPromptModal({
@@ -30,6 +33,7 @@ export function AuthPromptModal({
   title,
   description,
   onBeforeNavigate,
+  returnPath,
 }: AuthPromptModalProps) {
   const router = useRouter();
   const inAppBrowser = useInAppBrowser();
@@ -37,13 +41,13 @@ export function AuthPromptModal({
   const handleSignUp = () => {
     onBeforeNavigate?.();
     onOpenChange(false);
-    router.push('/auth/signup');
+    router.push(buildAuthPath('/auth/signup', returnPath));
   };
 
   const handleSignIn = () => {
     onBeforeNavigate?.();
     onOpenChange(false);
-    router.push('/auth/signin');
+    router.push(buildAuthPath('/auth/signin', returnPath));
   };
 
   const platformName = platform

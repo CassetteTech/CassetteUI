@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   authRedirectService,
+  buildAuthPath,
   isPromoteIntentRedirect,
   normalizeAuthRedirect,
   parseMembershipIntentRedirect,
@@ -29,6 +30,21 @@ test('rejects external and encoded protocol-relative auth redirects', () => {
   assert.equal(normalizeAuthRedirect('/%0A/evil.example'), null);
   assert.equal(normalizeAuthRedirect('/%0D/evil.example'), null);
   assert.equal(normalizeAuthRedirect('/bad%escape'), null);
+});
+
+void test('builds auth paths that return only to safe local destinations', () => {
+  assert.equal(buildAuthPath('/auth/signin', '/post/post-1'), '/auth/signin?redirect=%2Fpost%2Fpost-1');
+  assert.equal(
+    buildAuthPath('/auth/signup', '/studio/curator?step=plan'),
+    '/auth/signup?redirect=%2Fstudio%2Fcurator%3Fstep%3Dplan',
+  );
+  for (const unsafe of ['https://evil.example', '//evil.example', '/%2F%2Fevil.example', '/\\evil.example']) {
+    assert.equal(buildAuthPath('/auth/signin', unsafe), '/auth/signin');
+  }
+  for (const noReturn of [null, undefined, '', '/', '/auth/signin', '/auth/signup?redirect=%2Fx', '/onboarding']) {
+    assert.equal(buildAuthPath('/auth/signin', noReturn), '/auth/signin');
+  }
+  assert.equal(buildAuthPath('/auth/signin', '/authors'), '/auth/signin?redirect=%2Fauthors');
 });
 
 test('detects promote-intent redirects without over-matching', () => {

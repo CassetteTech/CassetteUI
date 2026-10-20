@@ -8,7 +8,7 @@ import { useConversionStage } from '@/hooks/use-conversion-stage';
 import { clearConversionHandoff, growthBox, readConversionHandoff } from '@/lib/conversion-handoff';
 import { returnAddMusicDraft } from '@/lib/add-music-draft';
 import { playErrorTone } from '@/lib/sounds';
-import { savePrefetchedPost } from '@/lib/post-prefetch';
+import { startPrefetchRead } from '@/lib/post-prefetch';
 import { parsePostResponse, type PostPageData } from '@/services/post-response';
 import { getPlatformDefinition } from '@/lib/platforms';
 import { detectContentType, getPlatformDisplayName } from '@/utils/content-type-detection';
@@ -140,9 +140,10 @@ function PostPageContent() {
     for (let i = 0; i < backoffMs.length; i += 1) {
       if (!isMountedRef.current) return false;
       try {
+        const savePrefetched = startPrefetchRead(() => isMountedRef.current);
         const response = await apiService.fetchPostById(postId);
         if (response?.success) {
-          savePrefetchedPost(postId, response);
+          savePrefetched(postId, response);
           if (isMountedRef.current) setReadPost(parsePostResponse(response, postId));
           return true;
         }

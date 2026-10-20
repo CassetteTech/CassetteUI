@@ -10,6 +10,7 @@ import { UserBio } from '@/types';
 import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { appLogger } from '@/lib/observability/logger';
+import { buildAuthPath, currentLocalPath } from '@/utils/auth-redirect';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 
@@ -27,7 +28,7 @@ export default function EditProfilePage() {
   useEffect(() => {
     const loadUserData = async () => {
       if (!user) {
-        router.push('/auth/signin');
+        router.push(buildAuthPath('/auth/signin', currentLocalPath()));
         return;
       }
 

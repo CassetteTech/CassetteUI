@@ -128,7 +128,7 @@ test('redirects anonymous visitors away from the curator studio', async ({ page 
 
   await page.goto(STUDIO_PATH);
 
-  await expect(page).toHaveURL('/auth/signin');
+  await expect(page).toHaveURL(`/auth/signin?redirect=${encodeURIComponent('/studio/music')}`);
   await expect(page.getByRole('link', { name: 'Curator Studio' })).toHaveCount(0);
 });
 

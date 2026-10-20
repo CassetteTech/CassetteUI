@@ -24,6 +24,7 @@ import { PostStudioColumn, PostStudioSheet } from '@/components/features/post/po
 import { EditPostModal, type PostChanges } from '@/components/features/post/edit-post-modal';
 import { DeletePostModal } from '@/components/features/post/delete-post-modal';
 import { AuthPromptModal } from '@/components/features/auth-prompt-modal';
+import { MembersOnlyPost, type LockedCuratorPost } from '@/components/features/post/members-only-post';
 import { PostShareMenu } from '@/components/features/post/post-share-menu';
 import { PostContextMenu } from '@/components/features/post/post-context-menu';
 import { useReportIssue } from '@/providers/report-issue-provider';
@@ -44,6 +45,9 @@ import { HeadlineText, BodyText } from '@/components/ui/typography';
 import { ArtworkImage, preloadArtwork } from '@/components/ui/artwork-image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, apiService } from '@/services/api';
+import { refusedMembersOnlyPostSchema } from '@/services/profile';
+import { authRedirectService, buildAuthPath } from '@/utils/auth-redirect';
+import { pendingActionService } from '@/utils/pending-action';
 import { useAddMusicToProfile } from '@/hooks/use-music';
 import { useAuthState } from '@/hooks/use-auth';
 import { AlertCircle, MoreVertical, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react';
@@ -126,9 +130,9 @@ const POST_VISUALS_WAIT_MS = 400;
 /** How long after the owner column mounts it re-centers without a glide (see centerOnPostCard). */
 const COLUMN_SETTLE_MS = 800;
 
-type PostLoadError = {
-  kind: 'unavailable' | 'session' | 'error';
-};
+type PostLoadError =
+  | { kind: 'unavailable' | 'session' | 'error' }
+  | { kind: 'members-only'; post: LockedCuratorPost };
 
 type PostLikeResponse = {
   success: boolean;
@@ -191,6 +195,8 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   const [arrivedFromConversionHandoff, setArrivedFromConversionHandoff] = useState(false);
   const [error, setError] = useState<PostLoadError | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  // The route and viewer the shown post was loaded for.
+  const postLoadedForRef = useRef<{ postId: string; viewerId: string | null } | null>(null);
 
   const [palette, setPalette] = useState<ColorPalette | null>(null);
   const preparedVisuals = useRef(new Map<string, Promise<ColorPalette>>());
@@ -212,7 +218,6 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
   useEffect(() => {
     if (initialArtwork) void prepareVisuals(initialArtwork);
   }, [initialArtwork, prepareVisuals]);
-  const handleSignupClick = () => router.push('/auth/signup');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [imageError, setImageError] = useState(false);
 
@@ -492,6 +497,34 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       ? normalizedPrivacy
       : 'public';
   const canRepost = Boolean(isAuthenticated && hasOwner && !isOwnPost && (isPublicPost || hasReposted));
+  const returnPath = `/post/${encodeURIComponent(postData?.postId || postId)}`;
+
+  // Sign-up from any entry point returns to this post. A loaded post with no owner,
+  // such as a signed-out conversion, is also saved to the account the visitor signs in with.
+  const ownerlessPostId = postData && !hasOwner ? postData.postId || postId : null;
+  useEffect(() => {
+    pendingActionService.setOwnerlessPostOnScreen(ownerlessPostId);
+    return () => pendingActionService.setOwnerlessPostOnScreen(null);
+  }, [ownerlessPostId]);
+  const handleSignupClick = () => {
+    pendingActionService.saveOwnerlessPostForSignup();
+    router.push(buildAuthPath('/auth/signup', returnPath));
+  };
+
+  // After sign-up, the save selected while signed out runs once, for this post
+  // only. It is consumed before it runs, so a reload or a later account in this
+  // tab cannot repeat it; the existing pending action expires after 10 minutes.
+  const saveResumeAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (saveResumeAttemptedRef.current || !postData?.postId || !user?.isOnboarded) return;
+    const pendingAction = pendingActionService.get();
+    if (pendingAction?.type !== 'add_to_profile' || pendingAction.postId !== postData.postId) return;
+
+    saveResumeAttemptedRef.current = true;
+    pendingActionService.clear();
+    if (authRedirectService.get() === pendingAction.returnUrl) authRedirectService.clear();
+    if (showAddToProfile) handleAddToProfile();
+  }, [handleAddToProfile, postData?.postId, showAddToProfile, user?.isOnboarded]);
 
   const handleToggleLike = useCallback(async () => {
     const currentPostId = postData?.postId || postId;
@@ -592,19 +625,32 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
       return false;
     };
 
+    const viewerId = user?.id ?? null;
+    const dropPostData = () => {
+      postLoadedForRef.current = null;
+      setPostData(null);
+    };
+
     const fetchPost = async () => {
       try {
         setError(null);
+        // A post stays on screen only for the route and the account that
+        // loaded it. A load without a known account sends no session cookie,
+        // so its post is public and can stay while the account resolves.
+        const loadedFor = postLoadedForRef.current;
+        if (loadedFor && (loadedFor.postId !== postId || (loadedFor.viewerId !== null && loadedFor.viewerId !== viewerId))) {
+          dropPostData();
+        }
 
         const startedAt = Date.now();
         let response: Awaited<ReturnType<typeof apiService.fetchPostById>> | null =
-          takePrefetchedPost(postId);
+          takePrefetchedPost(postId, viewerId);
         if (response) setArrivedFromConversionHandoff(true);
 
         while (!response && Date.now() - startedAt < maxWaitMs) {
           if (isCancelled) return;
           try {
-            response = await apiService.fetchPostById(postId);
+            response = await apiService.fetchPostById(postId, { anonymous: viewerId === null });
           } catch (fetchError) {
             if (!shouldRetryFetchPost(fetchError)) {
               throw fetchError;
@@ -632,6 +678,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
           setError(null);
           sourceUrlRef.current = data.originalUrl || sourceUrlRef.current;
           sourcePlatformRef.current = data.sourcePlatform || sourcePlatformRef.current;
+          postLoadedForRef.current = { postId, viewerId };
           setPostData(data);
           const repostedByApi = Boolean(data.repostedByCurrentUser);
           const repostedFromLocal = Boolean(readRepostedPosts(user?.id)[payload.postId || postId]);
@@ -652,10 +699,23 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
 
       } catch (e) {
         if (isCancelled) return;
+        // A members-only post refused to this viewer is an answer, not a failure.
+        if (e instanceof ApiError && e.status === 403 && e.errorCode === 'POST_MEMBERS_ONLY') {
+          const refused = refusedMembersOnlyPostSchema.safeParse(e.body);
+          if (refused.success) {
+            dropPostData();
+            setError({ kind: 'members-only', post: refused.data.post });
+            return;
+          }
+        }
         captureUiException(e, { route: '/post/[id]', operation: 'post_load' });
+        // A refusal removes the post. A failed reload keeps a post that this
+        // route and viewer already loaded.
         if (e instanceof ApiError && (e.status === 403 || e.status === 404)) {
+          dropPostData();
           setError({ kind: 'unavailable' });
         } else if (e instanceof ApiError && e.status === 401) {
+          dropPostData();
           setError({ kind: 'session' });
         } else {
           setError({ kind: 'error' });
@@ -837,7 +897,9 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
     };
   }, []);
 
-  if (!postData && !error) {
+  // While the account resolves, a members-only refusal of the anonymous read waits
+  // for the read made with the session, so a member never sees the locked view.
+  if (!postData && (!error || (error.kind === 'members-only' && isLoading))) {
     return (
       <>
         {initialMetadata && (
@@ -847,10 +909,14 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         )}
         <EntitySkeleton
           contentType={initialMetadata?.elementType?.toLowerCase()}
-          sourceLabel={initialMetadata?.elementType}
+          sourceLabel={initialMetadata?.elementType ?? undefined}
         />
       </>
     );
+  }
+
+  if (error?.kind === 'members-only') {
+    return <MembersOnlyPost item={error.post} />;
   }
 
   if (error && !postData) {
@@ -1513,6 +1579,7 @@ export default function PostClientPage({ postId, initialMetadata }: PostClientPa
         onOpenChange={setLikeAuthPromptOpen}
         title="Sign in to like posts"
         description="Create an account or sign in to like posts and keep track of your favorites."
+        returnPath={returnPath}
       />
 
       {postData?.username && hasPostOwner && (

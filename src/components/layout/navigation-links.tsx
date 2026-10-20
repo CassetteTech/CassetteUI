@@ -10,6 +10,8 @@ import { usePathname } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { AuthLink } from '@/components/auth/auth-link';
+import { pendingActionService } from '@/utils/pending-action';
 import {
   addMusicHrefForPage,
   appNavOrder,
@@ -167,20 +169,23 @@ export function NavigationLinks({ onLinkClick }: NavigationLinksProps) {
         >
           <SectionHeading>Account</SectionHeading>
           <div className="divide-y divide-border/40">
-            <Link
-              href="/auth/signin"
+            <AuthLink
+              authPath="/auth/signin"
               onClick={onLinkClick}
               className={getItemClassName('account', false)}
             >
               <span>Sign In</span>
-            </Link>
-            <Link
-              href="/auth/signup"
-              onClick={onLinkClick}
+            </AuthLink>
+            <AuthLink
+              authPath="/auth/signup"
+              onClick={() => {
+                pendingActionService.saveOwnerlessPostForSignup();
+                onLinkClick?.();
+              }}
               className={getItemClassName('account', false)}
             >
               <span>Sign Up</span>
-            </Link>
+            </AuthLink>
           </div>
         </section>
       )}

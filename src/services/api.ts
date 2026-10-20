@@ -115,13 +115,23 @@ export class ApiError extends Error {
   correlationId?: string;
   /** The platform a refused owner link was set for. */
   platform?: string;
+  /** The parsed error body, untrusted until a caller's schema accepts it. */
+  body?: unknown;
 
   constructor(
     message: string,
     requiresReauth = false,
     errorCode?: string,
     status?: number,
-    details?: { retryAfterMs?: number; jobId?: string; postId?: string; apiStatus?: string; correlationId?: string; platform?: string }
+    details?: {
+      retryAfterMs?: number;
+      jobId?: string;
+      postId?: string;
+      apiStatus?: string;
+      correlationId?: string;
+      platform?: string;
+      body?: unknown;
+    }
   ) {
     super(message);
     this.name = 'ApiError';
@@ -134,6 +144,7 @@ export class ApiError extends Error {
     this.apiStatus = details?.apiStatus;
     this.correlationId = details?.correlationId;
     this.platform = details?.platform;
+    this.body = details?.body;
   }
 }
 
@@ -247,6 +258,7 @@ class ApiService {
             apiStatus,
             correlationId: bodyCorrelationId ?? responseCorrelationId,
             platform,
+            body: error,
           }
         );
       }
@@ -1411,9 +1423,10 @@ class ApiService {
     });
   }
 
-  async fetchPostById(postId: string, options?: { signal?: AbortSignal }): Promise<PostByIdResponse> {
+  async fetchPostById(postId: string, options?: { signal?: AbortSignal; anonymous?: boolean }): Promise<PostByIdResponse> {
     return this.request<PostByIdResponse>(`/api/v1/social/posts/${postId}`, {
       signal: options?.signal,
+      skipAuth: options?.anonymous,
     });
   }
 

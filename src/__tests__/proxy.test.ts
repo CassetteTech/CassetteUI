@@ -1,12 +1,18 @@
 import '../services/__tests__/browser-service-environment';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server';
 import { NextRequest } from 'next/server';
-import { proxy } from '../proxy';
+import { config, proxy } from '../proxy';
 
 process.env.NEXT_PUBLIC_APP_DOMAIN = 'https://www.cassette.tech';
 
 const associationPath = '/.well-known/apple-app-site-association';
+
+void test('the proxy runs on the app site association, so its apex redirect applies', () => {
+  assert.equal(unstable_doesMiddlewareMatch({ config, url: associationPath }), true);
+  assert.equal(unstable_doesMiddlewareMatch({ config, url: '/api/v1/curators/golden-curator/page' }), false);
+});
 
 void test('the apex host redirects to www, the app site association included', () => {
   for (const path of [associationPath, '/explore']) {

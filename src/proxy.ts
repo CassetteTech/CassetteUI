@@ -56,6 +56,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(canonicalUrl, 308);
   }
 
+  // Machines read files such as the app site association; they carry no visit to attribute.
+  if (request.nextUrl.pathname.startsWith('/.well-known/')) {
+    return NextResponse.next();
+  }
+
   const existingAttribution = parseSignupAttributionCookie(
     request.cookies.get(SIGNUP_ATTRIBUTION_COOKIE_NAME)?.value,
   );
@@ -84,5 +89,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|\\.well-known/).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)'],
 };

@@ -1,5 +1,5 @@
 // iOS opens these paths in the Cassette app when it is installed; every other path stays on the web.
-// The profile editor is a web page under the profile path, so it is excluded first.
+// The first matching component wins, so the web-only profile editor is excluded before the profiles.
 const appleAppSiteAssociation = {
   applinks: {
     details: [
@@ -7,8 +7,9 @@ const appleAppSiteAssociation = {
         appIDs: ['9LYHZBVHB7.com.matttoppi.CassetteApp'],
         components: [
           { '/': '/profile/edit', exclude: true },
-          { '/': '/profile/*' },
-          { '/': '/post/*' },
+          { '/': '/profile/edit/*', exclude: true },
+          { '/': '/profile/?*' },
+          { '/': '/post/?*' },
           { '/': '/memberships' },
           { '/': '/feed' },
         ],
@@ -16,6 +17,8 @@ const appleAppSiteAssociation = {
     ],
   },
 };
+
+export const dynamic = 'force-static';
 
 export function GET() {
   return Response.json(appleAppSiteAssociation);
